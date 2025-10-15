@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Users, Package, Calculator, Settings } from 'lucide-react';
+import { Users, Package, Calculator, Settings } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   return (
@@ -13,7 +13,7 @@ const Dashboard: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Link
-              to="/cotizaciones"
+              to="/seleccionar-cotizacion"
               className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow"
             >
               <div className="p-5">
@@ -24,10 +24,10 @@ const Dashboard: React.FC = () => {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">
-                        Cotizaciones
+                        Generar Cotización
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        Gestionar cotizaciones
+                        Crear nueva cotización
                       </dd>
                     </dl>
                   </div>

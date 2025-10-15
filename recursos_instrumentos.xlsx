@@ -1,0 +1,21 @@
+descripcion,tipo,unidad,costo,marca,modelo,rango,precision,señal,protocolo
+Transmisor Presión 0-10 bar,INSTRUMENTOS,un,450.50,Rosemount,3051S,0-10 bar,0.1%,4-20mA,HART
+Transmisor Presión 0-25 bar,INSTRUMENTOS,un,520.75,Rosemount,3051S,0-25 bar,0.1%,4-20mA,HART
+Transmisor Presión 0-100 bar,INSTRUMENTOS,un,680.00,Rosemount,3051S,0-100 bar,0.1%,4-20mA,HART
+Transmisor Temperatura RTD,INSTRUMENTOS,un,320.25,Rosemount,3144P,-200°C a 850°C,0.1°C,4-20mA,HART
+Transmisor Temperatura TC,INSTRUMENTOS,un,285.60,Rosemount,3144P,-200°C a 1200°C,0.1°C,4-20mA,HART
+Transmisor Flujo Electromagnético 2",INSTRUMENTOS,un,1250.80,Endress+Hauser,Promag 50,0-10 m/s,0.2%,4-20mA,Profibus
+Transmisor Flujo Electromagnético 3",INSTRUMENTOS,un,1580.40,Endress+Hauser,Promag 50,0-10 m/s,0.2%,4-20mA,Profibus
+Transmisor Flujo Electromagnético 4",INSTRUMENTOS,un,1950.60,Endress+Hauser,Promag 50,0-10 m/s,0.2%,4-20mA,Profibus
+Transmisor Nivel Radar,INSTRUMENTOS,un,850.30,Endress+Hauser,FMR240,0-20 m,±3mm,4-20mA,Profibus
+Transmisor Nivel Ultrasonido,INSTRUMENTOS,un,420.75,Endress+Hauser,Prosonic S,0-15 m,±5mm,4-20mA,Profibus
+Transmisor Nivel Capacitivo,INSTRUMENTOS,un,380.50,Endress+Hauser,Capacitrol,0-10 m,±2mm,4-20mA,Profibus
+Analizador pH,INSTRUMENTOS,un,1250.00,Endress+Hauser,Liquisys M,0-14 pH,±0.1 pH,4-20mA,Profibus
+Analizador Conductividad,INSTRUMENTOS,un,980.40,Endress+Hauser,Liquisys M,0-2000 μS/cm,±1%,4-20mA,Profibus
+Analizador Oxígeno Disuelto,INSTRUMENTOS,un,1450.80,Endress+Hauser,Liquisys M,0-20 mg/L,±2%,4-20mA,Profibus
+Analizador Turbidez,INSTRUMENTOS,un,1850.60,Endress+Hauser,Liquisys M,0-4000 NTU,±2%,4-20mA,Profibus
+Switch Presión Alta,INSTRUMENTOS,un,85.30,Rosemount,2051,0-100 bar,±1%,SPDT,Contacto
+Switch Presión Baja,INSTRUMENTOS,un,75.60,Rosemount,2051,0-100 bar,±1%,SPDT,Contacto
+Switch Nivel Alto,INSTRUMENTOS,un,95.40,Endress+Hauser,Levelflex,0-20 m,±5mm,SPDT,Contacto
+Switch Nivel Bajo,INSTRUMENTOS,un,88.20,Endress+Hauser,Levelflex,0-20 m,±5mm,SPDT,Contacto
+Switch Temperatura Alta,INSTRUMENTOS,un,125.80,Rosemount,3144P,-50°C a 400°C,±2°C,SPDT,Contacto

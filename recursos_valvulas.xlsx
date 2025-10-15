@@ -1,0 +1,21 @@
+descripcion,tipo,unidad,costo,marca,modelo,diametro,presion,serie,material
+Válvula Esférica 2",VALVULAS,un,150.50,Spirax Sarco,VG-2,2",150 PSI,300,SS316
+Válvula Esférica 3",VALVULAS,un,220.75,Spirax Sarco,VG-3,3",150 PSI,300,SS316
+Válvula Esférica 4",VALVULAS,un,350.00,Spirax Sarco,VG-4,4",150 PSI,300,SS316
+Válvula Mariposa 6",VALVULAS,un,450.25,Keystone,BF-6,6",150 PSI,150,CS
+Válvula Mariposa 8",VALVULAS,un,680.50,Keystone,BF-8,8",150 PSI,150,CS
+Válvula Check 2",VALVULAS,un,95.30,Apollo,CV-2,2",150 PSI,125,SS304
+Válvula Check 3",VALVULAS,un,145.80,Apollo,CV-3,3",150 PSI,125,SS304
+Válvula Check 4",VALVULAS,un,220.40,Apollo,CV-4,4",150 PSI,125,SS304
+Válvula Globo 1/2",VALVULAS,un,85.60,Swagelok,GV-05,1/2",300 PSI,600,SS316
+Válvula Globo 3/4",VALVULAS,un,125.90,Swagelok,GV-075,3/4",300 PSI,600,SS316
+Válvula Globo 1",VALVULAS,un,185.40,Swagelok,GV-1,1",300 PSI,600,SS316
+Válvula Compuerta 2",VALVULAS,un,320.75,Flowserve,GV-2,2",150 PSI,150,CS
+Válvula Compuerta 3",VALVULAS,un,485.20,Flowserve,GV-3,3",150 PSI,150,CS
+Válvula Compuerta 4",VALVULAS,un,720.80,Flowserve,GV-4,4",150 PSI,150,CS
+Válvula Reguladora 2",VALVULAS,un,450.00,Fisher,PRV-2,2",300 PSI,600,SS316
+Válvula Reguladora 3",VALVULAS,un,680.50,Fisher,PRV-3,3",300 PSI,600,SS316
+Válvula Seguridad 1",VALVULAS,un,280.30,Leser,SV-1,1",300 PSI,600,SS316
+Válvula Seguridad 2",VALVULAS,un,420.60,Leser,SV-2,2",300 PSI,600,SS316
+Válvula Solenoide 1/2",VALVULAS,un,185.40,ASCO,EV-05,1/2",150 PSI,150,SS316
+Válvula Solenoide 3/4",VALVULAS,un,250.80,ASCO,EV-075,3/4",150 PSI,150,SS316

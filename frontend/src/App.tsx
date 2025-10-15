@@ -1,14 +1,16 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { authService } from './services/auth';
-import Layout from './components/Layout';
+import MainLayout from './layouts/MainLayout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import QuoteSelection from './pages/QuoteSelection';
+import QuoteWizard from './pages/wizard/QuoteWizard';
 
 // Componente para rutas protegidas
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return authService.isAuthenticated() ? (
-    <Layout>{children}</Layout>
+    <>{children}</>
   ) : (
     <Navigate to="/login" replace />
   );
@@ -30,18 +32,36 @@ function App() {
           path="/dashboard" 
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <MainLayout>
+                <Dashboard />
+              </MainLayout>
             </ProtectedRoute>
           } 
         />
+        <Route
+          path="/seleccionar-cotizacion"
+          element={
+            <ProtectedRoute>
+              <QuoteSelection />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/wizard"
+          element={
+            <ProtectedRoute>
+              <QuoteWizard />
+            </ProtectedRoute>
+          }
+        />
         <Route 
           path="/" 
-          element={<Navigate to="/dashboard" replace />} 
+          element={<Navigate to="/seleccionar-cotizacion" replace />} 
         />
         {/* Rutas adicionales se agregarán aquí */}
         <Route 
           path="*" 
-          element={<Navigate to="/dashboard" replace />} 
+          element={<Navigate to="/seleccionar-cotizacion" replace />} 
         />
       </Routes>
     </Router>

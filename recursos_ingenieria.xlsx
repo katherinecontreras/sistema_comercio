@@ -1,0 +1,21 @@
+descripcion,tipo,unidad,costo,disciplina,complejidad,horas_estimadas,software,version,estandar
+Diseño P&ID,INGENIERIA,planos,2500.00,Piping,Alta,40,AutoCAD,2024,ASME B31.3
+Diseño Isométricos,INGENIERIA,planos,1800.50,Piping,Media,25,AutoCAD,2024,ASME B31.3
+Diseño Layout Planta,INGENIERIA,planos,3200.75,Piping,Alta,50,AutoCAD,2024,API 650
+Cálculo Estructural,INGENIERIA,calculo,1500.00,Estructural,Alta,30,STAAD Pro,2024,AISC 360
+Diseño Cimentaciones,INGENIERIA,planos,2200.40,Estructural,Media,35,STAAD Pro,2024,ACI 318
+Análisis de Esfuerzos,INGENIERIA,analisis,2800.60,Mecánica,Alta,45,ANSYS,2024,ASME VIII
+Diseño Eléctrico,INGENIERIA,planos,1950.30,Eléctrica,Media,30,ETAP,2024,NEC 2023
+Cálculo de Cables,INGENIERIA,calculo,850.75,Eléctrica,Baja,15,ETAP,2024,NEC 2023
+Diseño Instrumentación,INGENIERIA,planos,1650.40,Instrumentación,Media,25,INtools,2024,ISA 5.1
+Especificaciones Técnicas,INGENIERIA,doc,1200.00,General,Media,20,Word,2024,ISO 9001
+Procedimientos de Construcción,INGENIERIA,doc,950.50,General,Baja,15,Word,2024,ISO 9001
+Manual de Operación,INGENIERIA,doc,1800.25,General,Media,30,Word,2024,ISO 9001
+Manual de Mantenimiento,INGENIERIA,doc,1450.80,General,Media,25,Word,2024,ISO 9001
+Estudio de Factibilidad,INGENIERIA,estudio,3500.00,General,Alta,60,Excel,2024,ISO 9001
+Análisis de Riesgos,INGENIERIA,analisis,2200.40,Seguridad,Alta,35,Hazop,2024,ISO 31000
+Diseño HVAC,INGENIERIA,planos,1850.60,Clima,Media,25,Carrier HAP,2024,ASHRAE 90.1
+Cálculo de Cargas Térmicas,INGENIERIA,calculo,1200.30,Clima,Baja,20,Carrier HAP,2024,ASHRAE 90.1
+Diseño de Drenajes,INGENIERIA,planos,1650.75,Civil,Media,30,AutoCAD,2024,ASCE 7
+Estudio de Suelos,INGENIERIA,estudio,2800.50,Geotecnia,Alta,40,Plaxis,2024,ASCE 7
+Inspección de Calidad,INGENIERIA,inspeccion,850.25,Calidad,Media,15,Checklist,2024,ISO 9001

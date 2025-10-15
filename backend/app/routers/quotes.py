@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from datetime import datetime
 
 from app.core.deps import role_required
 from app.db.session import get_db
@@ -29,7 +30,14 @@ router = APIRouter(prefix="/cotizaciones", tags=["cotizaciones"])
 
 @router.post("", response_model=CotizacionRead, status_code=status.HTTP_201_CREATED)
 def crear_cotizacion(payload: CotizacionCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
-    c = Cotizacion(**payload.model_dump())
+    # Convertir string a date
+    fecha_creacion = datetime.strptime(payload.fecha_creacion, "%Y-%m-%d").date()
+    
+    c = Cotizacion(
+        id_cliente=payload.id_cliente,
+        nombre_proyecto=payload.nombre_proyecto,
+        fecha_creacion=fecha_creacion
+    )
     db.add(c)
     db.commit()
     db.refresh(c)

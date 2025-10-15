@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
+import { useAppStore } from '@/store/app';
 
 // Importamos los componentes de shadcn/ui y los iconos
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { setToken, setDni: setStoreDni } = useAppStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +30,9 @@ const Login: React.FC = () => {
 
     try {
       const response = await authService.login({ dni, password });
-      localStorage.setItem('access_token', response.access_token);
-      navigate('/dashboard');
+      setToken(response.access_token);
+      setStoreDni(dni);
+      navigate('/seleccionar-cotizacion');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al iniciar sesión');
     } finally {

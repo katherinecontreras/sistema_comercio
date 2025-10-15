@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Integer, String, Text, ForeignKey, Numeric, Date
+from datetime import date
 
 from app.db.models import Base
 
@@ -10,7 +11,7 @@ class Cotizacion(Base):
     id_cotizacion: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id_cliente: Mapped[int] = mapped_column(Integer, ForeignKey("clientes.id_cliente"))
     nombre_proyecto: Mapped[str] = mapped_column(String(250))
-    fecha_creacion: Mapped[str] = mapped_column(Date)
+    fecha_creacion: Mapped[date] = mapped_column(Date)
     estado: Mapped[str] = mapped_column(String(50), default="Borrador")
 
     obras = relationship("Obra", back_populates="cotizacion", cascade="all, delete-orphan")

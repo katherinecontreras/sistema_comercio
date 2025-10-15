@@ -30,7 +30,7 @@ def list_clientes(db: Session = Depends(get_db), _: None = Depends(role_required
 
 @router.post("/clientes", response_model=ClienteRead, status_code=status.HTTP_201_CREATED)
 def create_cliente(payload: ClienteCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador"]))):
-    c = Cliente(**payload.model_fields_set, **payload.model_dump())
+    c = Cliente(**payload.model_dump())
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -98,17 +98,24 @@ def update_recurso(id_recurso: int, payload: RecursoUpdate, db: Session = Depend
     return r
 
 
-# Carga masiva desde Excel (hoja activa con columnas: descripcion, tipo, unidad, costo)
+# Carga masiva desde Excel (hoja activa con columnas: descripcion, tipo, unidad, costo + columnas adicionales)
 @router.post("/recursos/carga_masiva")
 def carga_masiva(file: UploadFile = File(...), db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador"]))):
     if not file.filename.lower().endswith((".xlsx", ".xlsm")):
         raise HTTPException(status_code=400, detail="Archivo Excel inválido")
     wb = load_workbook(file.file, read_only=True, data_only=True)
     ws = wb.active
-    headers = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows(min_row=1, max_row=1))[0:4]]
-    expected = ["descripcion", "tipo", "unidad", "costo"]
-    if headers[:4] != expected:
-        raise HTTPException(status_code=400, detail=f"Encabezados esperados: {expected}")
+    
+    # Obtener todos los headers de la primera fila
+    headers = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
+    expected_basic = ["descripcion", "tipo", "unidad", "costo"]
+    
+    # Verificar que las primeras 4 columnas sean las esperadas
+    if headers[:4] != expected_basic:
+        raise HTTPException(status_code=400, detail=f"Las primeras 4 columnas deben ser: {expected_basic}")
+    
+    # Obtener columnas adicionales (después de las 4 básicas)
+    additional_columns = headers[4:] if len(headers) > 4 else []
 
     tipos_cache: dict[str, int] = {}
     count_inserted = 0
@@ -117,8 +124,19 @@ def carga_masiva(file: UploadFile = File(...), db: Session = Depends(get_db), _:
         tipo = (row[1].value or "").strip()
         unidad = (row[2].value or "").strip()
         costo = float(row[3].value or 0)
+        
         if not descripcion or not tipo or not unidad:
             continue
+            
+        # Crear diccionario de atributos adicionales
+        atributos = {}
+        for i, col_name in enumerate(additional_columns):
+            if col_name and i + 4 < len(row):
+                cell_value = row[i + 4].value
+                if cell_value is not None:
+                    # Convertir a string y limpiar
+                    atributos[col_name] = str(cell_value).strip()
+        
         if tipo not in tipos_cache:
             existing = db.scalar(select(TipoRecurso).where(TipoRecurso.nombre == tipo))
             if not existing:
@@ -127,11 +145,13 @@ def carga_masiva(file: UploadFile = File(...), db: Session = Depends(get_db), _:
                 db.commit()
                 db.refresh(existing)
             tipos_cache[tipo] = existing.id_tipo_recurso
+            
         recurso = Recurso(
             id_tipo_recurso=tipos_cache[tipo],
             descripcion=descripcion,
             unidad=unidad,
             costo_unitario_predeterminado=costo,
+            atributos=atributos if atributos else None
         )
         db.add(recurso)
         count_inserted += 1
