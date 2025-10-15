@@ -1,6 +1,6 @@
 = 🏗️ Sistema de Comercio - Cotizaciones
 :toc: macro
-:toc-title: Índice
+:toc-title: 📑 Índice
 :sectnums:
 
 Aplicación para generar cotizaciones complejas por obras e ítems, con gestión de catálogos, usuarios, configuración global y exportación a PDF.  
@@ -12,9 +12,7 @@ toc::[]
 
 Sistema pensado para empresas constructoras o de servicios que requieren realizar presupuestos y cotizaciones con múltiples ítems, categorías, incrementos automáticos y exportación profesional a PDF.
 
-Incluye backend robusto en *FastAPI* con autenticación JWT, base de datos en *PostgreSQL* y un *frontend Tauri + React* de escritorio, con diseño moderno y responsivo.
-
----
+Incluye backend robusto en *FastAPI* con autenticación JWT, base de datos en *PostgreSQL* y un frontend *Tauri + React* de escritorio, con diseño moderno y responsivo.
 
 == ⚙️ Requisitos previos
 
@@ -27,8 +25,6 @@ Incluye backend robusto en *FastAPI* con autenticación JWT, base de datos en *P
 | Docker + Docker Compose | — | Orquestación de servicios (PostgreSQL, etc.)
 |===
 
----
-
 == 🚀 Instalación y ejecución rápida
 
 === 1️⃣ Clonar el repositorio
@@ -39,11 +35,9 @@ git clone https://github.com/katherinecontreras/sistema_comercio.git
 cd sistemaComercio
 ----
 
----
-
 === 2️⃣ Backend y Base de Datos
 
-1. Copiar el archivo de entorno:
+Copiar el archivo de entorno:
 
 [source,bash]
 ----
@@ -52,14 +46,14 @@ cp .env.example .env
 
 Luego editar las variables necesarias (por ejemplo conexión a PostgreSQL, usuario y contraseña).
 
-2. Levantar la base de datos con Docker:
+Levantar la base de datos con Docker:
 
 [source,bash]
 ----
 docker compose up -d --build
 ----
 
-3. (Opcional) Crear entorno virtual e instalar dependencias de Python:
+(Opcional) Crear entorno virtual e instalar dependencias de Python:
 
 [source,bash]
 ----
@@ -68,7 +62,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ----
 
-4. Ejecutar el backend:
+Ejecutar el backend:
 
 [source,bash]
 ----
@@ -76,35 +70,32 @@ python -m uvicorn app.main:app --reload
 ----
 
 El backend estará disponible en:
-- 🌐 `http://localhost:8000`
-- 📄 Documentación interactiva: `http://localhost:8000/docs`
 
----
+* 🌐 http://localhost:8000
+* 📄 Documentación interactiva: http://localhost:8000/docs
 
 === 3️⃣ Frontend (Tauri + React)
 
-1. Ingresar al directorio del frontend:
+Ingresar al directorio del frontend:
 
 [source,bash]
 ----
 cd frontend
 ----
 
-2. Instalar dependencias:
+Instalar dependencias:
 
 [source,bash]
 ----
 npm install
 ----
 
-3. Ejecutar en modo desarrollo (aplicación de escritorio):
+Ejecutar en modo desarrollo (aplicación de escritorio):
 
 [source,bash]
 ----
 npm run tauri:dev
 ----
-
----
 
 === 4️⃣ Credenciales por defecto
 
@@ -113,8 +104,6 @@ npm run tauri:dev
 | Usuario | Contraseña
 | DNI: `00000000` | `admin123`
 |===
-
----
 
 == 📁 Estructura del proyecto
 
@@ -136,8 +125,6 @@ sistemaComercio/
 └── README.adoc            # Este archivo
 ----
 
----
-
 == ✨ Funcionalidades implementadas
 
 * ✅ Autenticación JWT (DNI / Contraseña)
@@ -150,8 +137,6 @@ sistemaComercio/
 * ✅ Exportación de cotizaciones a PDF
 * ✅ Configuración global del sistema
 * ✅ Frontend con navegación y login seguro
-
----
 
 == 🐳 Uso con Docker (opcional todo en contenedor)
 
@@ -171,23 +156,20 @@ cd frontend
 npm run tauri:dev
 ----
 
----
-
 == 🧹 Notas de mantenimiento
 
 * Los binarios y builds de Tauri (carpeta `target/`) están excluidos del repositorio mediante `.gitignore`.
 * Se utilizó `git filter-repo` para limpiar archivos grandes de Rust y mantener el historial limpio.
 * Evitar subir archivos generados automáticamente (`node_modules/`, `__pycache__/`, etc.).
 * Ante cambios grandes en dependencias, limpiar con:
-  [source,bash]
-  ----
-  npm ci
-  docker compose build --no-cache
-  ----
 
----
+[source,bash]
+----
+npm ci
+docker compose build --no-cache
+----
 
 == 🔒 Licencia
 
-**Privado – Uso interno.**  
+*Privado – Uso interno.*  
 No se permite la redistribución sin autorización expresa.
