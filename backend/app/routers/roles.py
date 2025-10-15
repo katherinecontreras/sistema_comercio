@@ -28,3 +28,4 @@ def create_role(payload: RolCreate, db: Session = Depends(get_db), _: None = Dep
     return role
 
 
+

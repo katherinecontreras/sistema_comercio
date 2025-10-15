@@ -25,3 +25,5 @@ def guardar_config(pares: list[dict], db: Session = Depends(get_db), _: None = D
     return {"actualizado": True}
 
 
+
+

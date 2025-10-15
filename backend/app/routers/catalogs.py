@@ -142,3 +142,5 @@ def carga_masiva(file: UploadFile = File(...), db: Session = Depends(get_db), _:
     return {"insertados": count_inserted}
 
 
+
+

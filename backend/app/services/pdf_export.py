@@ -56,3 +56,5 @@ def generar_pdf_planilla(datos: dict) -> bytes:
     return pdf
 
 
+
+

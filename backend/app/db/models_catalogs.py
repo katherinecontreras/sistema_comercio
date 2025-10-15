@@ -41,3 +41,5 @@ class Recurso(Base):
     # atributos JSONB omitido en ORM por simplicidad en esta versión inicial
 
 
+
+

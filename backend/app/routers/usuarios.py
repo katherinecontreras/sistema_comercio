@@ -52,4 +52,3 @@ def update_user(id_usuario: int, payload: UsuarioUpdate, db: Session = Depends(g
     db.refresh(user)
     return user
 
-

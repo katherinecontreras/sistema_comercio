@@ -108,3 +108,5 @@ class TotalesCotizacion(BaseModel):
     items: List[TotalesItem]
 
 
+
+

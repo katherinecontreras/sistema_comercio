@@ -46,3 +46,4 @@ class UsuarioRead(BaseModel):
         from_attributes = True
 
 
+

@@ -30,3 +30,5 @@ def calcular_totales_cotizacion(db: Session, id_cotizacion: int) -> tuple[Decima
     return subtotal_general, subtotal_general, resultados
 
 
+
+

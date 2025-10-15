@@ -1,6 +1,18 @@
+// src/components/Login.tsx
 import React, { useState } from 'react';
 import { authService } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
+
+// Importamos los componentes de shadcn/ui y los iconos
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Camera, User, Lock } from 'lucide-react';
+
+
+// Importamos nuestro componente de animación
+import MotionWrap from './animations/motion-wrap';
 
 const Login: React.FC = () => {
   const [dni, setDni] = useState('');
@@ -26,65 +38,72 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sistema de Comercio
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Iniciar sesión
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="dni" className="sr-only">
-                DNI
-              </label>
-              <input
+    // 1. Contenedor principal: añadimos la clase "dark"
+    <div className="dark min-h-screen flex items-center justify-center p-4 bg-gradient-radial from-gray-900 via-sky-900 to-gray-900 text-white">
+      
+      <MotionWrap className="w-full max-w-sm">
+        <div className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-glow p-8 space-y-8">
+          
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-full bg-sky-500/20 flex items-center justify-center border border-sky-400/30">
+              <Camera className="w-10 h-10 text-sky-300" />
+            </div>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
                 id="dni"
-                name="dni"
                 type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="DNI"
+                placeholder="Username"
                 value={dni}
                 onChange={(e) => setDni(e.target.value)}
+                required
+                // Clases actualizadas para mejor consistencia con el tema oscuro
+                className="pl-11 h-12 bg-white/5 border-white/20 focus:border-sky-400 focus-visible:ring-sky-400"
               />
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Contraseña
-              </label>
-              <input
+
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
                 id="password"
-                name="password"
                 type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Contraseña"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+                className="pl-11 h-12 bg-white/5 border-white/20 focus:border-sky-400 focus-visible:ring-sky-400"
               />
             </div>
-          </div>
+            
+            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
 
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center space-x-2">
+                <Checkbox id="remember-me" className="border-gray-400" />
+                <Label htmlFor="remember-me" className="text-gray-300 font-light cursor-pointer">
+                  Remember me
+                </Label>
+              </div>
+              <a href="#" className="font-medium text-sky-400 hover:text-sky-300">
+                Forgot Password?
+              </a>
+            </div>
 
-          <div>
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="w-full h-12 bg-sky-600 hover:bg-sky-500 text-base font-bold text-white"
             >
-              {loading ? 'Iniciando sesión...' : 'Ingresar'}
-            </button>
-          </div>
-        </form>
-      </div>
+              {loading ? 'Logging in...' : 'LOGIN'}
+            </Button>
+            
+          </form>
+        </div>
+      </MotionWrap>
     </div>
   );
 };

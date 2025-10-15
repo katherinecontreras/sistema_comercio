@@ -39,3 +39,4 @@ frontend/src-tauri/*.exe
 # --- Sistema operativo ---
 .DS_Store
 Thumbs.db
+

@@ -40,3 +40,4 @@ def role_required(roles: Iterable[str]) -> Callable[[Usuario], Usuario]:
     return dependency
 
 
+

@@ -1,21 +1,25 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// https://vitejs.dev/config/
-export default defineConfig(async () => ({
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
   plugins: [react()],
-
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1420,
-    strictPort: true,
-    watch: {
-      // 3. tell vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+  // 🦀 Opciones específicas para desarrollo con Tauri
+  clearScreen: false, // evita ocultar errores de Rust
+  server: {
+    port: 1420,        // puerto fijo que Tauri espera
+    strictPort: true,  // falla si el puerto está ocupado
+    watch: {
+      ignored: ["**/src-tauri/**"], // evita recargar al cambiar código Rust
+    },
+  },
+});
+
