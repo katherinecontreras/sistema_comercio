@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,12 +14,15 @@ import {
   DollarSign,
   Package,
   AlertTriangle,
-  Edit
+  Edit,
+  Download,
+  Upload
 } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 import { generateTempId } from '@/utils/idGenerator';
 import api from '@/services/api';
 import AddRecursosManually from './AddRecursosManually';
+import ExcelAttributeModal from '@/components/modals/ExcelAttributeModal';
 import {
   Dialog,
   DialogContent,
@@ -96,11 +99,15 @@ const CostosStep: React.FC = () => {
   // Estados para modal de nueva planilla
   const [showAddPlanillaModal, setShowAddPlanillaModal] = useState(false);
   const [newPlanilla, setNewPlanilla] = useState({ nombre: '', icono: 'FileSpreadsheet' });
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   const [showValidationAlert, setShowValidationAlert] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  
+  // Estados para Excel
+  const [showExcelAttributeModal, setShowExcelAttributeModal] = useState(false);
+  const [planillaForExcel, setPlanillaForExcel] = useState<{ id: number; nombre: string } | null>(null);
+  const [lastDownloadedAttributes, setLastDownloadedAttributes] = useState<any[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Agrupar items por obra
   const obrasWithItems: ObraWithItems[] = wizard.obras.map(obra => {
@@ -269,8 +276,9 @@ const CostosStep: React.FC = () => {
         setTiposRecurso([...tiposRecurso, { ...response.data, icono: newPlanilla.icono }]);
         setNewPlanilla({ nombre: '', icono: 'FileSpreadsheet' });
         setShowAddPlanillaModal(false);
-        setSuccessMessage(`Planilla "${response.data.nombre}" creada exitosamente`);
-        setShowSuccessAlert(true);
+        setToastMessage(`Planilla "${response.data.nombre}" creada exitosamente`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
       console.error('Error creando planilla:', error);
@@ -341,15 +349,36 @@ const CostosStep: React.FC = () => {
           continue;
         }
 
-        // Verificar si ya existe un recurso con la misma descripción
-        const recursoExistente = todosRecursos.find((r: any) => r.descripcion === recurso.descripcion);
-
         // Preparar atributos personalizados
         const atributosPersonalizados: any = {};
         Object.keys(recurso).forEach(key => {
           if (!['descripcion', 'unidad', 'cantidad', 'costo_unitario', 'costo_total'].includes(key)) {
             atributosPersonalizados[key] = recurso[key];
           }
+        });
+
+        // Verificar si ya existe un recurso con la misma descripción Y los mismos atributos
+        const recursoExistente = todosRecursos.find((r: any) => {
+          // Primero verificar descripción
+          if (r.descripcion !== recurso.descripcion) return false;
+          
+          // Luego comparar atributos personalizados
+          const atributosExistentes = r.atributos || {};
+          
+          // Comparar si tienen las mismas claves
+          const clavesExistentes = Object.keys(atributosExistentes).sort();
+          const clavesNuevas = Object.keys(atributosPersonalizados).sort();
+          
+          if (clavesExistentes.length !== clavesNuevas.length) return false;
+          if (JSON.stringify(clavesExistentes) !== JSON.stringify(clavesNuevas)) return false;
+          
+          // Comparar valores de cada clave
+          for (const key of clavesExistentes) {
+            if (atributosExistentes[key] !== atributosPersonalizados[key]) return false;
+          }
+          
+          // Si llegamos aquí, son exactamente iguales
+          return true;
         });
 
         if (recursoExistente) {
@@ -431,6 +460,212 @@ const CostosStep: React.FC = () => {
     } catch (error) {
       console.error('Error guardando recursos:', error);
       alert('Error al guardar los recursos en la base de datos');
+    }
+  };
+
+  // Funciones para manejar Excel
+  const handleDescargarExcel = (planillaId: number, planillaNombre: string) => {
+    setPlanillaForExcel({ id: planillaId, nombre: planillaNombre });
+    setShowExcelAttributeModal(true);
+  };
+
+  const handleConfirmExcelAttributes = async (atributos: any[]) => {
+    if (!planillaForExcel) return;
+
+    try {
+      const atributosParaEnviar = atributos.map(a => ({ nombre: a.nombre, tipo: a.tipo }));
+      
+      const response = await api.post(
+        '/catalogos/recursos/generar-plantilla-excel',
+        {
+          atributos: atributosParaEnviar,
+          nombre_planilla: planillaForExcel.nombre
+        },
+        { responseType: 'blob' }
+      );
+
+      // Verificar que sea un archivo válido
+      if (response.data.size === 0) {
+        throw new Error('El archivo descargado está vacío');
+      }
+
+      // Guardar los atributos en localStorage con clave única por planilla
+      const storageKey = `excel_atributos_planilla_${planillaForExcel.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(atributosParaEnviar));
+      
+      // También guardar en estado local para uso inmediato
+      setLastDownloadedAttributes(atributosParaEnviar);
+
+      // Descargar archivo
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Plantilla_${planillaForExcel.nombre.replace(/\s+/g, '_')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      setToastMessage(`Plantilla de ${planillaForExcel.nombre} descargada exitosamente`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error: any) {
+      console.error('Error generando plantilla:', error);
+      alert(`Error al generar la plantilla de Excel: ${error.message || error}`);
+    } finally {
+      setShowExcelAttributeModal(false);
+      setPlanillaForExcel(null);
+    }
+  };
+
+  const handleCargarExcel = (planillaId: number, planillaNombre: string) => {
+    setPlanillaForExcel({ id: planillaId, nombre: planillaNombre });
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !planillaForExcel) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('id_tipo_recurso', planillaForExcel.id.toString());
+      
+      // Intentar recuperar los atributos guardados de la última descarga
+      const storageKey = `excel_atributos_planilla_${planillaForExcel.id}`;
+      let atributosAEnviar = null;
+      
+      // Primero intentar desde el estado local (descarga reciente)
+      if (lastDownloadedAttributes) {
+        atributosAEnviar = lastDownloadedAttributes;
+      } 
+      // Luego intentar desde localStorage
+      else {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          try {
+            atributosAEnviar = JSON.parse(stored);
+          } catch (e) {
+            console.error('Error parseando atributos guardados:', e);
+          }
+        }
+      }
+      
+      // Si no hay atributos guardados, usar los base por defecto
+      if (!atributosAEnviar) {
+        atributosAEnviar = [
+          { nombre: 'descripcion', tipo: 'texto' },
+          { nombre: 'unidad', tipo: 'texto' },
+          { nombre: 'cantidad', tipo: 'entero' },
+          { nombre: 'costo_unitario', tipo: 'numerico' },
+          { nombre: 'costo_total', tipo: 'numerico' }
+        ];
+      }
+      
+      formData.append('atributos', JSON.stringify(atributosAEnviar));
+
+      const response = await api.post('/catalogos/recursos/cargar-desde-excel', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data.success) {
+        // SIEMPRE recargar todos los recursos de esta planilla (incluso si no está seleccionada)
+        const recursosResponse = await api.get('/catalogos/recursos');
+        const recursosActualizados = recursosResponse.data.filter(
+          (r: Recurso) => r.id_tipo_recurso === planillaForExcel.id
+        );
+        
+        // Actualizar la lista si es la planilla actualmente seleccionada
+        if (planillaForExcel.id === selectedPlanilla) {
+          setRecursos(recursosActualizados);
+        }
+
+        // Si hay un item seleccionado, asignar los recursos cargados automáticamente
+        if (selectedItem && response.data.ids_recursos_procesados && response.data.ids_recursos_procesados.length > 0) {
+          const nuevosCostos: ItemCosto[] = [];
+          const idsRecursosProcesados = response.data.ids_recursos_procesados;
+          
+          // Filtrar solo los recursos que fueron procesados
+          const recursosAProcesar = recursosActualizados.filter(r => 
+            idsRecursosProcesados.includes(r.id_recurso)
+          );
+          
+          for (const recurso of recursosAProcesar) {
+            // Verificar si ya está asignado
+            const yaExiste = itemCostos.some(
+              c => c.id_item_obra === selectedItem && c.id_recurso === recurso.id_recurso
+            );
+            
+            if (!yaExiste) {
+              const costoTotal = (recurso.cantidad || 1) * recurso.costo_unitario_predeterminado;
+              
+              nuevosCostos.push({
+                id: generateTempId(),
+                id_item_obra: selectedItem,
+                id_recurso: recurso.id_recurso,
+                cantidad: recurso.cantidad || 1,
+                precio_unitario_aplicado: recurso.costo_unitario_predeterminado,
+                total_linea: costoTotal,
+                recurso: {
+                  id_recurso: recurso.id_recurso,
+                  descripcion: recurso.descripcion,
+                  unidad: recurso.unidad,
+                  costo_unitario_predeterminado: recurso.costo_unitario_predeterminado
+                }
+              });
+            }
+          }
+          
+          if (nuevosCostos.length > 0) {
+            const updatedCostos = [...itemCostos, ...nuevosCostos];
+            setItemCostos(updatedCostos);
+            setCostos(updatedCostos);
+          }
+          
+          setToastMessage(
+            `${response.data.recursos_guardados} recursos creados, ${response.data.recursos_actualizados} actualizados. ${nuevosCostos.length} asignados al item.`
+          );
+        } else {
+          setToastMessage(
+            `${response.data.recursos_guardados} recursos creados, ${response.data.recursos_actualizados} actualizados`
+          );
+        }
+        
+        // Si hay errores, mostrarlos aunque se hayan guardado algunos
+        if (response.data.errores && response.data.errores.length > 0) {
+          alert(`⚠️ Carga parcial:\n\n✅ ${response.data.total_procesados} recursos guardados\n❌ ${response.data.errores.length} errores:\n\n${response.data.errores.slice(0, 10).join('\n')}${response.data.errores.length > 10 ? '\n\n... y ' + (response.data.errores.length - 10) + ' errores más' : ''}`);
+        }
+        
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        alert(`❌ No se pudo cargar el Excel:\n\n${response.data.errores.join('\n')}`);
+      }
+    } catch (error: any) {
+      console.error('Error cargando Excel:', error);
+      
+      // Mostrar error más detallado
+      let errorMessage = 'Error al cargar el archivo Excel';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setPlanillaForExcel(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -703,6 +938,28 @@ const CostosStep: React.FC = () => {
                   Agregar Manualmente
                 </Button>
                 <Button 
+                  variant="outline"
+                  onClick={() => handleDescargarExcel(
+                    selectedPlanilla,
+                    tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre || ''
+                  )}
+                  className="bg-purple-600 hover:bg-purple-700 border-purple-500 text-white"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar Excel
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => handleCargarExcel(
+                    selectedPlanilla,
+                    tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre || ''
+                  )}
+                  className="bg-green-600 hover:bg-green-700 border-green-500 text-white"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Cargar Excel
+                </Button>
+                <Button 
                   variant="outline" 
                   onClick={() => {
                     setSelectedPlanilla(null);
@@ -950,6 +1207,25 @@ const CostosStep: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Input oculto para cargar archivos Excel */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      {/* Modal para seleccionar atributos del Excel */}
+      <ExcelAttributeModal
+        open={showExcelAttributeModal}
+        onClose={() => {
+          setShowExcelAttributeModal(false);
+          setPlanillaForExcel(null);
+        }}
+        onConfirm={handleConfirmExcelAttributes}
+      />
     </div>
   );
 };

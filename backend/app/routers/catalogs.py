@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Form
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Form, Body
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from openpyxl import load_workbook
+from typing import List, Dict
 
 from app.core.deps import role_required
 from app.db.session import get_db
@@ -21,6 +23,7 @@ from app.schemas.catalogs import (
     UnidadCreate,
     UnidadRead,
 )
+from app.services.excel_recursos import generar_plantilla_excel, procesar_excel_recursos
 
 
 router = APIRouter(prefix="/catalogos", tags=["catalogos"]) 
@@ -268,5 +271,170 @@ def crear_unidad(
     db.commit()
     db.refresh(unidad)
     return unidad
+
+
+# Excel - Generar plantilla para carga de recursos
+@router.post("/recursos/generar-plantilla-excel")
+def generar_plantilla(
+    atributos: List[Dict[str, str]] = Body(...),
+    nombre_planilla: str = Body(...),
+):
+    """
+    Genera un archivo Excel con una tabla formateada para carga de recursos.
+    
+    Body esperado:
+    {
+        "atributos": [
+            {"nombre": "Descripción", "tipo": "texto"},
+            {"nombre": "Unidad", "tipo": "texto"},
+            {"nombre": "Cantidad", "tipo": "entero"},
+            {"nombre": "Costo Unitario", "tipo": "numerico"}
+        ],
+        "nombre_planilla": "Personal"
+    }
+    """
+    try:
+        excel_file = generar_plantilla_excel(atributos, nombre_planilla)
+        
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename=Plantilla_{nombre_planilla.replace(' ', '_')}.xlsx"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando plantilla: {str(e)}")
+
+
+# Excel - Cargar recursos desde Excel
+@router.post("/recursos/cargar-desde-excel")
+async def cargar_recursos_excel(
+    file: UploadFile = File(...),
+    id_tipo_recurso: int = Form(...),
+    atributos: str = Form(...),  # JSON string
+    db: Session = Depends(get_db)
+):
+    """
+    Procesa un archivo Excel y carga recursos en la base de datos.
+    
+    El archivo debe tener:
+    - Fila 3: Encabezados (nombres de atributos)
+    - Fila 4+: Datos de recursos
+    """
+    import json
+    
+    try:
+        # Parsear atributos
+        atributos_list = json.loads(atributos)
+        
+        # Leer contenido del archivo
+        file_content = await file.read()
+        
+        # Procesar Excel
+        resultado = procesar_excel_recursos(file_content, id_tipo_recurso, atributos_list)
+        
+        if resultado['errores'] and len(resultado['recursos']) == 0:
+            return {
+                'success': False,
+                'errores': resultado['errores'],
+                'total_procesados': 0
+            }
+        
+        # Guardar recursos en BD
+        recursos_guardados = 0
+        recursos_actualizados = 0
+        errores_guardado = []
+        ids_recursos_procesados = []  # Para devolver los IDs
+        
+        for recurso_data in resultado['recursos']:
+            # Buscar unidad por nombre
+            unidad_nombre = recurso_data.get('unidad', '')
+            unidad = db.scalar(select(Unidad).where(Unidad.nombre == unidad_nombre))
+            
+            if not unidad:
+                errores_guardado.append(f"Unidad '{unidad_nombre}' no encontrada en BD")
+                continue
+            
+            # Extraer atributos personalizados
+            atributos_personalizados = {}
+            campos_base = ['descripcion', 'unidad', 'cantidad', 'costo_unitario', 'costo_total', 'id_tipo_recurso']
+            
+            for key, value in recurso_data.items():
+                if key not in campos_base:
+                    atributos_personalizados[key] = value
+            
+            # Verificar si ya existe un recurso con la misma descripción Y los mismos atributos
+            # Buscar todos los recursos con la misma descripción
+            recursos_con_misma_desc = db.scalars(
+                select(Recurso).where(
+                    Recurso.id_tipo_recurso == id_tipo_recurso,
+                    Recurso.descripcion == recurso_data.get('descripcion')
+                )
+            ).all()
+            
+            # Buscar uno que tenga exactamente los mismos atributos personalizados
+            recurso_existente = None
+            for r in recursos_con_misma_desc:
+                # Comparar atributos personalizados
+                atributos_existentes = r.atributos or {}
+                
+                # Si ambos tienen los mismos atributos (mismo contenido), es el mismo recurso
+                if atributos_existentes == atributos_personalizados:
+                    recurso_existente = r
+                    break
+            
+            if recurso_existente:
+                # Actualizar
+                recurso_existente.id_unidad = unidad.id_unidad
+                recurso_existente.cantidad = recurso_data.get('cantidad', 0)
+                recurso_existente.costo_unitario_predeterminado = recurso_data.get('costo_unitario', 0)
+                recurso_existente.costo_total = recurso_data.get('costo_total', 0)
+                recurso_existente.atributos = atributos_personalizados if atributos_personalizados else None
+                recursos_actualizados += 1
+                ids_recursos_procesados.append(recurso_existente.id_recurso)
+            else:
+                # Crear nuevo
+                nuevo_recurso = Recurso(
+                    id_tipo_recurso=id_tipo_recurso,
+                    descripcion=recurso_data.get('descripcion'),
+                    id_unidad=unidad.id_unidad,
+                    cantidad=recurso_data.get('cantidad', 0),
+                    costo_unitario_predeterminado=recurso_data.get('costo_unitario', 0),
+                    costo_total=recurso_data.get('costo_total', 0),
+                    atributos=atributos_personalizados if atributos_personalizados else None
+                )
+                db.add(nuevo_recurso)
+                db.flush()  # Para obtener el ID antes de commit
+                recursos_guardados += 1
+                ids_recursos_procesados.append(nuevo_recurso.id_recurso)
+        
+        db.commit()
+        
+        todos_errores = resultado['errores'] + errores_guardado
+        
+        # Si hay errores, mostrarlos pero aún así retornar success si se guardó al menos uno
+        if todos_errores and (recursos_guardados + recursos_actualizados) == 0:
+            return {
+                'success': False,
+                'recursos_guardados': 0,
+                'recursos_actualizados': 0,
+                'total_procesados': 0,
+                'ids_recursos_procesados': [],
+                'errores': todos_errores
+            }
+        
+        return {
+            'success': True,
+            'recursos_guardados': recursos_guardados,
+            'recursos_actualizados': recursos_actualizados,
+            'total_procesados': recursos_guardados + recursos_actualizados,
+            'ids_recursos_procesados': ids_recursos_procesados,
+            'errores': todos_errores
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
 
 
