@@ -57,14 +57,28 @@ CREATE TABLE IF NOT EXISTS obras (
     descripcion TEXT
 );
 
+-- Tablas normalizadas para especialidades y unidades
+CREATE TABLE IF NOT EXISTS especialidades (
+    id_especialidad SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) UNIQUE NOT NULL,
+    descripcion TEXT
+);
+
+CREATE TABLE IF NOT EXISTS unidades (
+    id_unidad SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) UNIQUE NOT NULL,
+    simbolo VARCHAR(10),
+    descripcion TEXT
+);
+
 CREATE TABLE IF NOT EXISTS items_obra (
     id_item_obra SERIAL PRIMARY KEY,
     id_obra INTEGER NOT NULL REFERENCES obras(id_obra) ON DELETE CASCADE,
     id_item_padre INTEGER REFERENCES items_obra(id_item_obra) ON DELETE CASCADE,
     codigo VARCHAR(100),
     descripcion_tarea TEXT NOT NULL,
-    especialidad VARCHAR(100),
-    unidad VARCHAR(50),
+    id_especialidad INTEGER REFERENCES especialidades(id_especialidad),
+    id_unidad INTEGER REFERENCES unidades(id_unidad),
     cantidad NUMERIC(18,4) NOT NULL DEFAULT 0
 );
 
@@ -78,8 +92,10 @@ CREATE TABLE IF NOT EXISTS recursos (
     id_recurso SERIAL PRIMARY KEY,
     id_tipo_recurso INTEGER NOT NULL REFERENCES tipos_recurso(id_tipo_recurso),
     descripcion VARCHAR(300) NOT NULL,
-    unidad VARCHAR(50) NOT NULL,
+    id_unidad INTEGER NOT NULL REFERENCES unidades(id_unidad),
+    cantidad NUMERIC(18,4) NOT NULL DEFAULT 0,
     costo_unitario_predeterminado NUMERIC(18,4) NOT NULL DEFAULT 0,
+    costo_total NUMERIC(18,4) NOT NULL DEFAULT 0,
     id_proveedor_preferido INTEGER REFERENCES proveedores(id_proveedor),
     atributos JSONB
 );
@@ -90,8 +106,7 @@ CREATE TABLE IF NOT EXISTS items_obra_costos (
     id_item_obra INTEGER NOT NULL REFERENCES items_obra(id_item_obra) ON DELETE CASCADE,
     id_recurso INTEGER NOT NULL REFERENCES recursos(id_recurso),
     cantidad NUMERIC(18,4) NOT NULL DEFAULT 0,
-    precio_unitario_aplicado NUMERIC(18,4) NOT NULL DEFAULT 0,
-    total_linea NUMERIC(18,4) NOT NULL DEFAULT 0
+    costo_total_item NUMERIC(18,4) NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS incrementos (
@@ -163,7 +178,31 @@ INSERT INTO proveedores (id_proveedor, razon_social, cuit, contacto) VALUES
 ON CONFLICT (id_proveedor) DO NOTHING;
 
 
--- 4. Tipos de Recurso (Planillas)
+-- 4. Especialidades
+INSERT INTO especialidades (id_especialidad, nombre, descripcion) VALUES
+    (1, 'Civil', 'Especialidad en construcción civil'),
+    (2, 'Mecánica', 'Especialidad en mecánica industrial'),
+    (3, 'Eléctrica', 'Especialidad en instalaciones eléctricas'),
+    (4, 'Instrumentación', 'Especialidad en instrumentación y control'),
+    (5, 'Piping', 'Especialidad en tuberías y conexiones'),
+    (6, 'Estructural', 'Especialidad en estructuras metálicas')
+ON CONFLICT (id_especialidad) DO NOTHING;
+
+-- 5. Unidades
+INSERT INTO unidades (id_unidad, nombre, simbolo, descripcion) VALUES
+    (1, 'Unidad', 'un', 'Unidad individual'),
+    (2, 'Metro', 'm', 'Metro lineal'),
+    (3, 'Metro Cuadrado', 'm²', 'Metro cuadrado'),
+    (4, 'Metro Cúbico', 'm³', 'Metro cúbico'),
+    (5, 'Hora', 'h', 'Hora de trabajo'),
+    (6, 'Hora Hombre', 'HH', 'Hora hombre de trabajo'),
+    (7, 'Kilogramo', 'kg', 'Kilogramo de peso'),
+    (8, 'Tonelada', 'tn', 'Tonelada de peso'),
+    (9, 'Pulgada', 'in', 'Pulgada de diámetro'),
+    (10, 'Día', 'día', 'Día de trabajo')
+ON CONFLICT (id_unidad) DO NOTHING;
+
+-- 6. Tipos de Recurso (Planillas)
 INSERT INTO tipos_recurso (id_tipo_recurso, nombre) VALUES
     (1, 'Personal'),
     (2, 'Movil y Equipos'),
@@ -174,29 +213,29 @@ INSERT INTO tipos_recurso (id_tipo_recurso, nombre) VALUES
 ON CONFLICT (id_tipo_recurso) DO NOTHING;
 
 
--- 5. Recursos (Catálogo basado en los Excel)
+-- 7. Recursos (Catálogo basado en los Excel)
 -- Personal
-INSERT INTO recursos (id_tipo_recurso, descripcion, unidad, costo_unitario_predeterminado) VALUES
-    (1, 'SUPERVISOR', 'HH', 21.50),
-    (1, 'OFICIAL ESPECIALIZADO', 'HH', 15.80),
-    (1, 'OFICIAL', 'HH', 13.50),
-    (1, 'MEDIO OFICIAL', 'HH', 11.20),
-    (1, 'AYUDANTE', 'HH', 9.80);
+INSERT INTO recursos (id_tipo_recurso, descripcion, id_unidad, cantidad, costo_unitario_predeterminado, costo_total) VALUES
+    (1, 'SUPERVISOR', 6, 1, 21.50, 21.50),
+    (1, 'OFICIAL ESPECIALIZADO', 6, 1, 15.80, 15.80),
+    (1, 'OFICIAL', 6, 1, 13.50, 13.50),
+    (1, 'MEDIO OFICIAL', 6, 1, 11.20, 11.20),
+    (1, 'AYUDANTE', 6, 1, 9.80, 9.80);
 
 -- Movil y Equipos
-INSERT INTO recursos (id_tipo_recurso, descripcion, unidad, costo_unitario_predeterminado) VALUES
-    (2, 'CAMION GRUA 12 TN', 'HS', 85.00),
-    (2, 'CAMION HIDROGRUA', 'HS', 70.00),
-    (2, 'CAMIONETA 4X4', 'DIA', 150.00),
-    (2, 'EQUIPO DE TERMOFUSION', 'DIA', 120.00),
-    (2, 'GRUPO ELECTROGENO', 'DIA', 90.00);
+INSERT INTO recursos (id_tipo_recurso, descripcion, id_unidad, cantidad, costo_unitario_predeterminado, costo_total) VALUES
+    (2, 'CAMION GRUA 12 TN', 5, 1, 85.00, 85.00),
+    (2, 'CAMION HIDROGRUA', 5, 1, 70.00, 70.00),
+    (2, 'CAMIONETA 4X4', 10, 1, 150.00, 150.00),
+    (2, 'EQUIPO DE TERMOFUSION', 10, 1, 120.00, 120.00),
+    (2, 'GRUPO ELECTROGENO', 10, 1, 90.00, 90.00);
 
 -- Materiales Piping
-INSERT INTO recursos (id_tipo_recurso, descripcion, unidad, costo_unitario_predeterminado) VALUES
-    (3, 'CAÑO DE ACERO 4" SCH40', 'ML', 75.30),
-    (3, 'BRIDA WN 4" 150#', 'UN', 55.00),
-    (3, 'CODO 90° 4" SCH40', 'UN', 30.20),
-    (3, 'VALVULA ESFERICA 4"', 'UN', 450.00);
+INSERT INTO recursos (id_tipo_recurso, descripcion, id_unidad, cantidad, costo_unitario_predeterminado, costo_total) VALUES
+    (3, 'CAÑO DE ACERO 4" SCH40', 2, 1, 75.30, 75.30),
+    (3, 'BRIDA WN 4" 150#', 1, 1, 55.00, 55.00),
+    (3, 'CODO 90° 4" SCH40', 1, 1, 30.20, 30.20),
+    (3, 'VALVULA ESFERICA 4"', 1, 1, 450.00, 450.00);
 -- ... y así sucesivamente para otros materiales
 
 
@@ -214,36 +253,39 @@ ON CONFLICT (id_obra) DO NOTHING;
 
 -- 8. Items de Obra (Estructura jerárquica)
 -- Nivel 1
-INSERT INTO items_obra (id_item_obra, id_obra, id_item_padre, codigo, descripcion_tarea, especialidad, unidad, cantidad) VALUES
-    (1, 1, NULL, 'A', 'OBRAS CIVILES', 'Civil', 'GLB', 1),
-    (2, 1, NULL, 'B', 'OBRAS MECANICAS', 'Mecánica', 'GLB', 1),
-    (3, 1, NULL, 'C', 'OBRAS DE INSTRUMENTOS', 'Instrumentos', 'GLB', 1);
+
+INSERT INTO items_obra (id_item_obra, id_obra, id_item_padre, codigo, descripcion_tarea, id_especialidad, id_unidad, cantidad) VALUES
+    (1, 1, NULL, 'A', 'OBRAS CIVILES', 1, 1, 1),
+    (2, 1, NULL, 'B', 'OBRAS MECANICAS', 2, 1, 1),
+    (3, 1, NULL, 'C', 'OBRAS DE INSTRUMENTOS', 4, 1, 1);
 
 -- Nivel 2 (Hijos de Obras Civiles)
-INSERT INTO items_obra (id_item_obra, id_obra, id_item_padre, codigo, descripcion_tarea, especialidad, unidad, cantidad) VALUES
-    (10, 1, 1, 'A.1', 'Movimiento de suelo y preparación de terreno', 'Civil', 'M3', 1200),
-    (11, 1, 1, 'A.2', 'Construcción de bases y fundaciones', 'Civil', 'M3', 350);
+
+INSERT INTO items_obra (id_item_obra, id_obra, id_item_padre, codigo, descripcion_tarea, id_especialidad, id_unidad, cantidad) VALUES
+    (10, 1, 1, 'A.1', 'Movimiento de suelo y preparación de terreno', 1, 4, 1200),
+    (11, 1, 1, 'A.2', 'Construcción de bases y fundaciones', 1, 4, 350);
 
 -- Nivel 2 (Hijos de Obras Mecánicas)
-INSERT INTO items_obra (id_item_obra, id_obra, id_item_padre, codigo, descripcion_tarea, especialidad, unidad, cantidad) VALUES
-    (20, 1, 2, 'B.1', 'Prefabricado y montaje de piping', 'Mecánica', 'PULG', 5000),
-    (21, 1, 2, 'B.2', 'Montaje de equipos y estructuras', 'Mecánica', 'TN', 25);
+
+INSERT INTO items_obra (id_item_obra, id_obra, id_item_padre, codigo, descripcion_tarea, id_especialidad, id_unidad, cantidad) VALUES
+    (20, 1, 2, 'B.1', 'Prefabricado y montaje de piping', 2, 9, 5000),
+    (21, 1, 2, 'B.2', 'Montaje de equipos y estructuras', 2, 8, 25);
 
 
 -- 9. Asignación de Costos a Items (items_obra_costos)
 -- Costos para "Prefabricado y montaje de piping" (Item ID 20)
 -- Usaremos los IDs de los recursos insertados previamente
-INSERT INTO items_obra_costos (id_item_obra, id_recurso, cantidad, precio_unitario_aplicado, total_linea) VALUES
+INSERT INTO items_obra_costos (id_item_obra, id_recurso, cantidad, costo_total_item) VALUES
     -- Personal (IDs 1-5)
-    (20, 1, 480, 21.50, 10320.00), -- Supervisor
-    (20, 2, 1200, 15.80, 18960.00), -- Oficial Esp.
-    (20, 5, 2000, 9.80, 19600.00), -- Ayudante
+    (20, 1, 480, 10320.00), -- Supervisor
+    (20, 2, 1200, 18960.00), -- Oficial Esp.
+    (20, 5, 2000, 19600.00), -- Ayudante
     -- Equipos (IDs 6-10)
-    (20, 6, 150, 85.00, 12750.00), -- Camion Grua
-    (20, 8, 90, 150.00, 13500.00), -- Camioneta
+    (20, 6, 150, 12750.00), -- Camion Grua
+    (20, 8, 90, 13500.00), -- Camioneta
     -- Materiales (IDs 11-14)
-    (20, 11, 800, 75.30, 60240.00), -- Caño 4"
-    (20, 12, 120, 55.00, 6600.00); -- Brida 4"
+    (20, 11, 800, 60240.00), -- Caño 4"
+    (20, 12, 120, 6600.00); -- Brida 4"
 
 
 -- 10. Incrementos sobre los Items
@@ -275,6 +317,8 @@ SELECT pg_catalog.setval(pg_get_serial_sequence('roles', 'id_rol'), (SELECT MAX(
 SELECT pg_catalog.setval(pg_get_serial_sequence('usuarios', 'id_usuario'), (SELECT MAX(id_usuario) FROM usuarios)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('clientes', 'id_cliente'), (SELECT MAX(id_cliente) FROM clientes)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('proveedores', 'id_proveedor'), (SELECT MAX(id_proveedor) FROM proveedores)+1);
+SELECT pg_catalog.setval(pg_get_serial_sequence('especialidades', 'id_especialidad'), (SELECT MAX(id_especialidad) FROM especialidades)+1);
+SELECT pg_catalog.setval(pg_get_serial_sequence('unidades', 'id_unidad'), (SELECT MAX(id_unidad) FROM unidades)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('tipos_recurso', 'id_tipo_recurso'), (SELECT MAX(id_tipo_recurso) FROM tipos_recurso)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('recursos', 'id_recurso'), (SELECT MAX(id_recurso) FROM recursos)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('cotizaciones', 'id_cotizacion'), (SELECT MAX(id_cotizacion) FROM cotizaciones)+1);
@@ -282,6 +326,3 @@ SELECT pg_catalog.setval(pg_get_serial_sequence('obras', 'id_obra'), (SELECT MAX
 SELECT pg_catalog.setval(pg_get_serial_sequence('items_obra', 'id_item_obra'), (SELECT MAX(id_item_obra) FROM items_obra)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('items_obra_costos', 'id_item_costo'), (SELECT MAX(id_item_costo) FROM items_obra_costos)+1);
 SELECT pg_catalog.setval(pg_get_serial_sequence('incrementos', 'id_incremento'), (SELECT MAX(id_incremento) FROM incrementos)+1);
-
-
-

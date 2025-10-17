@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Edit2, Trash2, Save, X, Check, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, X, Check, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 import { useNavigate } from 'react-router-dom';
 import FinalizeModal from '@/components/modals/FinalizeModal';
@@ -255,7 +255,6 @@ const VerificationPage: React.FC = () => {
             <CardContent>
               <div className="flex gap-4">
                 <Button 
-                  variant="destructive" 
                   onClick={() => setShowDeleteConfirm(true)}
                   className="flex items-center gap-2"
                 >
@@ -282,8 +281,7 @@ const VerificationPage: React.FC = () => {
                     Esta acción no se puede deshacer.
                   </p>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="destructive" 
+                    <Button  
                       onClick={handleDeleteQuote}
                       className="flex items-center gap-2"
                     >

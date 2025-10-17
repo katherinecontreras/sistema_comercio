@@ -77,6 +77,19 @@ const ObrasStep: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Botones de navegación */}
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={handleBack}>
+          ← Anterior
+        </Button>
+        <Button 
+          onClick={handleContinue} 
+          disabled={obras.length === 0}
+        >
+          Continuar →
+        </Button>
+      </div>
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold">Definir Obras</h3>
@@ -180,19 +193,6 @@ const ObrasStep: React.FC = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Botones de navegación */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack}>
-          ← Anterior
-        </Button>
-        <Button 
-          onClick={handleContinue} 
-          disabled={obras.length === 0}
-        >
-          Continuar →
-        </Button>
-      </div>
     </div>
   );
 };

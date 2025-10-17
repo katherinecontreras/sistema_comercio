@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { authService } from './services/auth';
-import MainLayout from './layouts/MainLayout';
+import Layout from './Layout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import QuoteSelection from './pages/QuoteSelection';
+import QuoteSelection from './pages/selection/QuoteSelection';
 import QuoteWizard from './pages/wizard/QuoteWizard';
 
 // Componente para rutas protegidas
@@ -24,7 +24,7 @@ function App() {
           path="/login" 
           element={
             authService.isAuthenticated() ? 
-            <Navigate to="/dashboard" replace /> : 
+            <Navigate to="/seleccionar-cliente" replace /> : 
             <Login />
           } 
         />
@@ -32,14 +32,14 @@ function App() {
           path="/dashboard" 
           element={
             <ProtectedRoute>
-              <MainLayout>
+              <Layout>
                 <Dashboard />
-              </MainLayout>
+              </Layout>
             </ProtectedRoute>
           } 
         />
         <Route
-          path="/seleccionar-cotizacion"
+          path="/seleccionar-cliente"
           element={
             <ProtectedRoute>
               <QuoteSelection />
@@ -56,12 +56,19 @@ function App() {
         />
         <Route 
           path="/" 
-          element={<Navigate to="/seleccionar-cotizacion" replace />} 
+          element={
+            authService.isAuthenticated() ? 
+            <Navigate to="/seleccionar-cliente" replace /> : 
+            <Navigate to="/login" replace />
+          } 
         />
-        {/* Rutas adicionales se agregarán aquí */}
         <Route 
           path="*" 
-          element={<Navigate to="/seleccionar-cotizacion" replace />} 
+          element={
+            authService.isAuthenticated() ? 
+            <Navigate to="/seleccionar-cliente" replace /> : 
+            <Navigate to="/login" replace />
+          } 
         />
       </Routes>
     </Router>

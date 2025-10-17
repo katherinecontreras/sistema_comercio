@@ -32,7 +32,7 @@ const Login: React.FC = () => {
       const response = await authService.login({ dni, password });
       setToken(response.access_token);
       setStoreDni(dni);
-      navigate('/seleccionar-cotizacion');
+      navigate('/seleccionar-cliente');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al iniciar sesión');
     } finally {
@@ -41,8 +41,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    // 1. Contenedor principal: añadimos la clase "dark"
-    <div className="dark min-h-screen flex items-center justify-center p-4 bg-gradient-radial from-gray-900 via-sky-900 to-gray-900 text-white">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white">
       
       <MotionWrap className="w-full max-w-sm">
         <div className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-glow p-8 space-y-8">

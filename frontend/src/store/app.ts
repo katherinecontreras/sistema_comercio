@@ -56,8 +56,14 @@ interface Incremento {
   porcentaje: number;
 }
 
+interface QuoteFormData {
+  nombre_proyecto: string;
+  fecha_creacion: string;
+}
+
 interface WizardState {
   step: WizardStep;
+  quoteFormData: QuoteFormData;
   obras: Obra[];
   items: ItemObra[];
   costos: ItemCosto[];
@@ -75,6 +81,7 @@ interface AppState {
   selectClient: (id: number | null) => void;
   setActiveQuote: (id: number | null) => void;
   setStep: (step: WizardStep) => void;
+  setQuoteFormData: (data: QuoteFormData) => void;
   setObras: (obras: Obra[]) => void;
   setItems: (items: ItemObra[]) => void;
   setCostos: (costos: ItemCosto[]) => void;
@@ -89,7 +96,14 @@ export const useAppStore = create<AppState>((set) => ({
   },
   client: { selectedClientId: null },
   quote: { activeQuoteId: null },
-  wizard: { step: 'cliente', obras: [], items: [], costos: [], incrementos: [] },
+  wizard: { 
+    step: 'cliente', 
+    quoteFormData: { nombre_proyecto: '', fecha_creacion: new Date().toISOString().split('T')[0] },
+    obras: [], 
+    items: [], 
+    costos: [], 
+    incrementos: [] 
+  },
   setToken: (token) => {
     if (typeof localStorage !== 'undefined') {
       if (token) localStorage.setItem('access_token', token);
@@ -101,6 +115,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectClient: (id) => set((s) => ({ ...s, client: { selectedClientId: id } })),
   setActiveQuote: (id) => set((s) => ({ ...s, quote: { activeQuoteId: id } })),
   setStep: (step) => set((s) => ({ ...s, wizard: { ...s.wizard, step } })),
+  setQuoteFormData: (data) => set((s) => ({ ...s, wizard: { ...s.wizard, quoteFormData: data } })),
   setObras: (obras) => set((s) => ({ ...s, wizard: { ...s.wizard, obras } })),
   setItems: (items) => set((s) => ({ ...s, wizard: { ...s.wizard, items } })),
   setCostos: (costos) => set((s) => ({ ...s, wizard: { ...s.wizard, costos } })),
@@ -112,7 +127,14 @@ export const useAppStore = create<AppState>((set) => ({
         user: { accessToken: null, dni: null },
         client: { selectedClientId: null },
         quote: { activeQuoteId: null },
-        wizard: { step: 'cliente', obras: [], items: [], costos: [], incrementos: [] },
+        wizard: { 
+          step: 'cliente', 
+          quoteFormData: { nombre_proyecto: '', fecha_creacion: new Date().toISOString().split('T')[0] },
+          obras: [], 
+          items: [], 
+          costos: [], 
+          incrementos: [] 
+        },
       };
     }),
 }));

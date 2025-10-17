@@ -99,6 +99,16 @@ const IncrementosStep: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Botones de navegación */}
+      <div className="flex justify-between">
+        <Button variant="outline" onClick={handleBack}>
+          ← Anterior
+        </Button>
+        <Button onClick={handleContinue}>
+          Continuar →
+        </Button>
+      </div>
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold">Aplicar Incrementos</h3>
@@ -282,16 +292,6 @@ const IncrementosStep: React.FC = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Botones de navegación */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack}>
-          ← Anterior
-        </Button>
-        <Button onClick={handleContinue}>
-          Continuar →
-        </Button>
-      </div>
     </div>
   );
 };

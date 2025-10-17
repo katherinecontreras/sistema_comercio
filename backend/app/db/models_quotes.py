@@ -37,8 +37,8 @@ class ItemObra(Base):
     id_item_padre: Mapped[int | None] = mapped_column(Integer, ForeignKey("items_obra.id_item_obra"))
     codigo: Mapped[str | None] = mapped_column(String(100))
     descripcion_tarea: Mapped[str] = mapped_column(Text)
-    especialidad: Mapped[str | None] = mapped_column(String(100))
-    unidad: Mapped[str | None] = mapped_column(String(50))
+    id_especialidad: Mapped[int | None] = mapped_column(Integer, ForeignKey("especialidades.id_especialidad"))
+    id_unidad: Mapped[int | None] = mapped_column(Integer, ForeignKey("unidades.id_unidad"))
     cantidad: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
 
     obra = relationship("Obra", back_populates="items")
@@ -54,8 +54,7 @@ class ItemObraCosto(Base):
     id_item_obra: Mapped[int] = mapped_column(Integer, ForeignKey("items_obra.id_item_obra"))
     id_recurso: Mapped[int] = mapped_column(Integer, ForeignKey("recursos.id_recurso"))
     cantidad: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
-    precio_unitario_aplicado: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
-    total_linea: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
+    costo_total_item: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
 
     item = relationship("ItemObra", back_populates="costos")
 

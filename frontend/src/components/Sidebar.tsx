@@ -16,7 +16,7 @@ const Sidebar: React.FC = React.memo(() => {
   ];
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-card">
+    <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-slate-900">
       <div className="flex items-center px-4 h-16">
         <h1 className="text-lg font-bold">Sistema de Comercio</h1>
       </div>

@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from openpyxl import load_workbook
 
 from app.core.deps import role_required
 from app.db.session import get_db
-from app.db.models_catalogs import Cliente, Proveedor, TipoRecurso, Recurso
+from app.db.models_catalogs import Cliente, Proveedor, TipoRecurso, Recurso, Especialidad, Unidad
 from app.schemas.catalogs import (
     ClienteCreate,
     ClienteRead,
@@ -16,6 +16,10 @@ from app.schemas.catalogs import (
     RecursoCreate,
     RecursoUpdate,
     RecursoRead,
+    EspecialidadCreate,
+    EspecialidadRead,
+    UnidadCreate,
+    UnidadRead,
 )
 
 
@@ -54,16 +58,16 @@ def create_proveedor(payload: ProveedorCreate, db: Session = Depends(get_db), _:
 
 # Tipos de Recurso
 @router.get("/tipos_recurso", response_model=list[TipoRecursoRead])
-def list_tipos(db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador", "Cotizador"]))):
+def list_tipos(db: Session = Depends(get_db)):
     return list(db.scalars(select(TipoRecurso)).all())
 
 
 @router.post("/tipos_recurso", response_model=TipoRecursoRead, status_code=status.HTTP_201_CREATED)
-def create_tipo(payload: TipoRecursoCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador"]))):
-    existing = db.scalar(select(TipoRecurso).where(TipoRecurso.nombre == payload.nombre))
+def create_tipo(nombre: str = Form(...), db: Session = Depends(get_db)):
+    existing = db.scalar(select(TipoRecurso).where(TipoRecurso.nombre == nombre))
     if existing:
         raise HTTPException(status_code=400, detail="El tipo ya existe")
-    t = TipoRecurso(nombre=payload.nombre)
+    t = TipoRecurso(nombre=nombre)
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -71,22 +75,54 @@ def create_tipo(payload: TipoRecursoCreate, db: Session = Depends(get_db), _: No
 
 
 # Recursos
-@router.get("/recursos", response_model=list[RecursoRead])
-def list_recursos(db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador", "Cotizador"]))):
-    return list(db.scalars(select(Recurso)).all())
+@router.get("/recursos")
+def list_recursos(db: Session = Depends(get_db)):
+    recursos = db.scalars(select(Recurso)).all()
+    result = []
+    for recurso in recursos:
+        unidad_obj = db.get(Unidad, recurso.id_unidad) if recurso.id_unidad else None
+        result.append({
+            "id_recurso": recurso.id_recurso,
+            "id_tipo_recurso": recurso.id_tipo_recurso,
+            "descripcion": recurso.descripcion,
+            "id_unidad": recurso.id_unidad,
+            "cantidad": float(recurso.cantidad),
+            "costo_unitario_predeterminado": float(recurso.costo_unitario_predeterminado),
+            "costo_total": float(recurso.costo_total),
+            "id_proveedor_preferido": recurso.id_proveedor_preferido,
+            "atributos": recurso.atributos,
+            "unidad": unidad_obj.nombre if unidad_obj else ""
+        })
+    return result
 
 
-@router.post("/recursos", response_model=RecursoRead, status_code=status.HTTP_201_CREATED)
-def create_recurso(payload: RecursoCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador"]))):
+@router.post("/recursos", status_code=status.HTTP_201_CREATED)
+def create_recurso(payload: RecursoCreate, db: Session = Depends(get_db)):
+    # Crear el recurso en la base de datos
     r = Recurso(**payload.model_dump())
     db.add(r)
     db.commit()
     db.refresh(r)
-    return r
+    
+    # Obtener el nombre de la unidad para devolverlo
+    unidad_obj = db.get(Unidad, r.id_unidad) if r.id_unidad else None
+    
+    return {
+        "id_recurso": r.id_recurso,
+        "id_tipo_recurso": r.id_tipo_recurso,
+        "descripcion": r.descripcion,
+        "id_unidad": r.id_unidad,
+        "cantidad": float(r.cantidad),
+        "costo_unitario_predeterminado": float(r.costo_unitario_predeterminado),
+        "costo_total": float(r.costo_total),
+        "id_proveedor_preferido": r.id_proveedor_preferido,
+        "atributos": r.atributos,
+        "unidad": unidad_obj.nombre if unidad_obj else ""
+    }
 
 
-@router.patch("/recursos/{id_recurso}", response_model=RecursoRead)
-def update_recurso(id_recurso: int, payload: RecursoUpdate, db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador"]))):
+@router.patch("/recursos/{id_recurso}")
+def update_recurso(id_recurso: int, payload: RecursoUpdate, db: Session = Depends(get_db)):
     r = db.get(Recurso, id_recurso)
     if not r:
         raise HTTPException(status_code=404, detail="Recurso no encontrado")
@@ -95,7 +131,22 @@ def update_recurso(id_recurso: int, payload: RecursoUpdate, db: Session = Depend
         setattr(r, k, v)
     db.commit()
     db.refresh(r)
-    return r
+    
+    # Obtener el nombre de la unidad para devolverlo
+    unidad_obj = db.get(Unidad, r.id_unidad) if r.id_unidad else None
+    
+    return {
+        "id_recurso": r.id_recurso,
+        "id_tipo_recurso": r.id_tipo_recurso,
+        "descripcion": r.descripcion,
+        "id_unidad": r.id_unidad,
+        "cantidad": float(r.cantidad),
+        "costo_unitario_predeterminado": float(r.costo_unitario_predeterminado),
+        "costo_total": float(r.costo_total),
+        "id_proveedor_preferido": r.id_proveedor_preferido,
+        "atributos": r.atributos,
+        "unidad": unidad_obj.nombre if unidad_obj else ""
+    }
 
 
 # Carga masiva desde Excel (hoja activa con columnas: descripcion, tipo, unidad, costo + columnas adicionales)
@@ -162,5 +213,60 @@ def carga_masiva(file: UploadFile = File(...), db: Session = Depends(get_db), _:
     return {"insertados": count_inserted}
 
 
+# Especialidades
+@router.get("/especialidades", response_model=list[EspecialidadRead])
+def listar_especialidades(db: Session = Depends(get_db)):
+    """Listar todas las especialidades"""
+    return list(db.scalars(select(Especialidad).order_by(Especialidad.nombre)).all())
+
+
+@router.post("/especialidades", response_model=EspecialidadRead, status_code=status.HTTP_201_CREATED)
+def crear_especialidad(
+    nombre: str = Form(...), 
+    descripcion: str = Form(""), 
+    db: Session = Depends(get_db)
+):
+    """Crear una nueva especialidad"""
+    # Verificar si ya existe
+    existing = db.scalar(select(Especialidad).where(Especialidad.nombre == nombre))
+    if existing:
+        raise HTTPException(status_code=400, detail="La especialidad ya existe")
+    
+    especialidad = Especialidad(nombre=nombre, descripcion=descripcion if descripcion else None)
+    db.add(especialidad)
+    db.commit()
+    db.refresh(especialidad)
+    return especialidad
+
+
+# Unidades
+@router.get("/unidades", response_model=list[UnidadRead])
+def listar_unidades(db: Session = Depends(get_db)):
+    """Listar todas las unidades"""
+    return list(db.scalars(select(Unidad).order_by(Unidad.nombre)).all())
+
+
+@router.post("/unidades", response_model=UnidadRead, status_code=status.HTTP_201_CREATED)
+def crear_unidad(
+    nombre: str = Form(...), 
+    simbolo: str = Form(""), 
+    descripcion: str = Form(""), 
+    db: Session = Depends(get_db)
+):
+    """Crear una nueva unidad"""
+    # Verificar si ya existe
+    existing = db.scalar(select(Unidad).where(Unidad.nombre == nombre))
+    if existing:
+        raise HTTPException(status_code=400, detail="La unidad ya existe")
+    
+    unidad = Unidad(
+        nombre=nombre,
+        simbolo=simbolo if simbolo else None,
+        descripcion=descripcion if descripcion else None
+    )
+    db.add(unidad)
+    db.commit()
+    db.refresh(unidad)
+    return unidad
 
 
