@@ -1,29 +1,19 @@
 import React, { useState } from 'react';
-import QuoteDataForm from '@/components/wizard/QuoteDataForm';
+import CotizacionStep from '@/components/wizard/CotizacionStep';
 import ObrasStep from '@/components/wizard/ObrasStep';
 import ItemsStep from '@/components/wizard/ItemsStep';
 import CostosStep from '@/components/wizard/CostosStep';
 import IncrementosStep from '@/components/wizard/IncrementosStep';
-import VerificationPage from '@/pages/VerificationPage';
+import VerificationStep from '@/components/wizard/VerificationStep';
+import { ButtonsHeader } from '@/components/wizard/ButtonsHeader';
+import { BorradorModal } from '@/components/modals';
 import { useAppStore } from '@/store/app';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 const QuoteWizard: React.FC = () => {
-  const { wizard, setStep, setObras, setItems, setCostos, setIncrementos } = useAppStore();
+  const { wizard, setStep } = useAppStore();
   const navigate = useNavigate();
-  const [showEliminarDialog, setShowEliminarDialog] = useState(false);
-  const [showGuardarDialog, setShowGuardarDialog] = useState(false);
+  const [showBorradorModal, setShowBorradorModal] = useState(false);
 
   const steps = [
     { key: 'datos', label: 'Datos', number: 1 },
@@ -34,51 +24,63 @@ const QuoteWizard: React.FC = () => {
     { key: 'verificacion', label: 'Verificación', number: 6 }
   ];
 
+  const stepOrder = ['datos', 'obras', 'items', 'costos', 'incrementos', 'verificacion'];
+
   const getCurrentStepNumber = () => {
     const currentStep = steps.find(s => s.key === wizard.step);
     return currentStep?.number || 1;
   };
 
   const getMaxCompletedStep = () => {
-    // Encuentra el paso más avanzado al que se ha llegado
-    const stepOrder = ['datos', 'obras', 'items', 'costos', 'incrementos', 'verificacion'];
     const currentIndex = stepOrder.indexOf(wizard.step);
     return currentIndex;
   };
 
   const isStepCompleted = (stepKey: string) => {
-    const stepOrder = ['datos', 'obras', 'items', 'costos', 'incrementos', 'verificacion'];
     const stepIndex = stepOrder.indexOf(stepKey);
     const maxCompletedIndex = getMaxCompletedStep();
     return stepIndex < maxCompletedIndex;
   };
 
   const canNavigateToStep = (stepKey: string) => {
-    // Siempre se puede ir al paso actual
     if (stepKey === wizard.step) return true;
-    
-    // Se puede ir a pasos anteriores o iguales al máximo completado
-    const stepOrder = ['datos', 'obras', 'items', 'costos', 'incrementos', 'verificacion'];
     const stepIndex = stepOrder.indexOf(stepKey);
     const maxCompletedIndex = getMaxCompletedStep();
     return stepIndex <= maxCompletedIndex;
   };
 
-  const handleEliminarYSalir = () => {
-    // Limpiar todos los datos del wizard
-    setObras([]);
-    setItems([]);
-    setCostos([]);
-    setIncrementos([]);
-    setStep('datos');
-    // TODO: Eliminar datos de la base de datos si ya se guardaron
-    navigate('/dashboard');
+  const getCurrentStepIndex = () => {
+    return stepOrder.indexOf(wizard.step);
   };
 
-  const handleGuardarYSalir = () => {
-    // Los datos ya se van guardando automáticamente
-    // Solo verificamos y redirigimos
-    // TODO: Verificar que los datos se guardaron correctamente en BD
+  const isFirstStep = () => {
+    return getCurrentStepIndex() === 0;
+  };
+
+  const isLastStep = () => {
+    return getCurrentStepIndex() === stepOrder.length - 1;
+  };
+
+  const handlePrevious = () => {
+    const currentIndex = getCurrentStepIndex();
+    if (currentIndex > 0) {
+      setStep(stepOrder[currentIndex - 1] as any);
+    }
+  };
+
+  const handleNext = () => {
+    const currentIndex = getCurrentStepIndex();
+    if (currentIndex < stepOrder.length - 1) {
+      setStep(stepOrder[currentIndex + 1] as any);
+    }
+  };
+
+  const handleSaveAndExit = () => {
+    setShowBorradorModal(true);
+  };
+
+  const handleBorradorSuccess = () => {
+    setShowBorradorModal(false);
     navigate('/dashboard');
   };
 
@@ -86,26 +88,11 @@ const QuoteWizard: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white">
       <div className="p-6">
         <div className="space-y-6">
-          {/* Header con título y botones */}
+          {/* Header con título */}
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold">Crear Nueva Cotización</h2>
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="destructive"
-                onClick={() => setShowEliminarDialog(true)}
-              >
-                Eliminar Cotización y Salir
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setShowGuardarDialog(true)}
-                className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
-              >
-                Guardar como Borrador y Salir
-              </Button>
-              <div className="text-sm text-slate-300">
-                Paso {getCurrentStepNumber()} de 6
-              </div>
+            <div className="text-sm text-slate-300">
+              Paso {getCurrentStepNumber()} de 6
             </div>
           </div>
 
@@ -148,65 +135,39 @@ const QuoteWizard: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* ButtonsHeader - Navegación de pasos */}
+          <ButtonsHeader
+            currentStep={wizard.step}
+            isFirstStep={isFirstStep()}
+            isLastStep={isLastStep()}
+            canContinue={true}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onSaveAndExit={handleSaveAndExit}
+          />
           
-          {wizard.step === 'datos' && <QuoteDataForm />}
+          {/* Contenido de cada paso */}
+          {wizard.step === 'datos' && <CotizacionStep />}
           {wizard.step === 'obras' && <ObrasStep />}
           {wizard.step === 'items' && <ItemsStep />}
           {wizard.step === 'costos' && <CostosStep />}
           {wizard.step === 'incrementos' && <IncrementosStep />}
-          {wizard.step === 'verificacion' && <VerificationPage />}
+          {wizard.step === 'verificacion' && <VerificationStep />}
         </div>
       </div>
 
-      {/* Dialog para Eliminar Cotización */}
-      <AlertDialog open={showEliminarDialog} onOpenChange={setShowEliminarDialog}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar cotización y salir?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Si continúas, perderás todos los datos que has llenado en esta cotización. 
-              Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleEliminarYSalir}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar y Salir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Dialog para Guardar Borrador */}
-      <AlertDialog open={showGuardarDialog} onOpenChange={setShowGuardarDialog}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Guardar como borrador y salir?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Se guardará el progreso actual de la cotización aunque no la hayas terminado. 
-              Podrás continuar más tarde desde el dashboard.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleGuardarYSalir}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Guardar y Salir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Modal para Guardar Borrador */}
+      <BorradorModal
+        isOpen={showBorradorModal}
+        onClose={() => setShowBorradorModal(false)}
+        onSuccess={handleBorradorSuccess}
+      />
     </div>
   );
 };
 
 export default QuoteWizard;
+
+
+

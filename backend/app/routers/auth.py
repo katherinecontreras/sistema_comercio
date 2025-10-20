@@ -23,7 +23,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
 
     role: Rol | None = db.get(Rol, user.id_rol)
-    claims = {"role": role.nombre_rol if role else None, "uid": str(user.id_usuario)}
+    claims = {"role": role.nombre if role else None, "uid": str(user.id_usuario)}
     token = create_access_token(subject=user.dni, additional_claims=claims)
     return TokenResponse(access_token=token)
 

@@ -19,6 +19,7 @@ interface Obra {
   id: string;
   nombre: string;
   descripcion: string;
+  ubicacion?: string;
 }
 
 interface ItemObra {
@@ -29,7 +30,10 @@ interface ItemObra {
   descripcion_tarea: string;
   especialidad: string;
   unidad: string;
+  id_especialidad?: number;
+  id_unidad?: number;
   cantidad: number;
+  precio_unitario?: number;
   nivel: number;
   expanded: boolean;
 }
@@ -52,13 +56,21 @@ interface ItemCosto {
 interface Incremento {
   id: string;
   id_item_obra: string;
+  concepto: string;
   descripcion: string;
+  tipo_incremento: 'porcentaje' | 'monto_fijo';
+  valor: number;
   porcentaje: number;
+  monto_calculado: number;
 }
 
 interface QuoteFormData {
   nombre_proyecto: string;
+  descripcion_proyecto?: string;
   fecha_creacion: string;
+  fecha_inicio?: string;
+  fecha_vencimiento?: string;
+  moneda?: string;
 }
 
 interface WizardState {
@@ -98,7 +110,14 @@ export const useAppStore = create<AppState>((set) => ({
   quote: { activeQuoteId: null },
   wizard: { 
     step: 'cliente', 
-    quoteFormData: { nombre_proyecto: '', fecha_creacion: new Date().toISOString().split('T')[0] },
+    quoteFormData: { 
+      nombre_proyecto: '', 
+      descripcion_proyecto: '',
+      fecha_creacion: new Date().toISOString().split('T')[0],
+      fecha_inicio: '',
+      fecha_vencimiento: '',
+      moneda: 'USD'
+    },
     obras: [], 
     items: [], 
     costos: [], 
@@ -129,7 +148,14 @@ export const useAppStore = create<AppState>((set) => ({
         quote: { activeQuoteId: null },
         wizard: { 
           step: 'cliente', 
-          quoteFormData: { nombre_proyecto: '', fecha_creacion: new Date().toISOString().split('T')[0] },
+          quoteFormData: { 
+            nombre_proyecto: '', 
+            descripcion_proyecto: '',
+            fecha_creacion: new Date().toISOString().split('T')[0],
+            fecha_inicio: '',
+            fecha_vencimiento: '',
+            moneda: 'USD'
+          },
           obras: [], 
           items: [], 
           costos: [], 

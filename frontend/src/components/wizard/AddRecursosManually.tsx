@@ -5,24 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Edit2, Check, X, Save, AlertTriangle, Package } from 'lucide-react';
 import { generateTempId } from '@/utils/idGenerator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { useCatalogos } from '@/hooks';
+import { AddUnidadModal } from '@/components/modals';
+import { ConfirmDialog, Toast } from '@/components/notifications';
 
 interface Atributo {
   id: string;
@@ -52,6 +37,8 @@ interface Props {
 }
 
 const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCancel, onSave }) => {
+  const { loadUnidades, loadRecursosFrom, handleAddUnidad } = useCatalogos();
+  
   const [paso, setPaso] = useState<1 | 2>(1);
   const [atributos, setAtributos] = useState<Atributo[]>([
     { id: 'descripcion', nombre: 'Descripción', tipo: 'texto', requerido: true },
@@ -74,12 +61,11 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
   const [showUnidadesSuggestions, setShowUnidadesSuggestions] = useState(false);
   const [selectedUnidadIndex, setSelectedUnidadIndex] = useState(0);
   const [showAddUnidadModal, setShowAddUnidadModal] = useState(false);
-  const [newUnidad, setNewUnidad] = useState({ nombre: '', simbolo: '', descripcion: '' });
   const [unidadInput, setUnidadInput] = useState('');
   const [activeSuggestionField, setActiveSuggestionField] = useState<string | null>(null);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<Record<string, number>>({});
   
-  // Alertas
+  // Alertas y notificaciones
   const [showCancelAlert, setShowCancelAlert] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [showEditAlert, setShowEditAlert] = useState(false);
@@ -87,64 +73,48 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
   const [recursoToEdit, setRecursoToEdit] = useState<RecursoLocal | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
 
   // Cargar unidades y recursos de la BD
   React.useEffect(() => {
-    loadUnidades();
-    loadRecursosBD();
-  }, []);
-
-  const loadUnidades = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/unidades');
-      if (response.ok) {
-        const data = await response.json();
-        setUnidades(data);
+    const cargarDatos = async () => {
+      try {
+        const [unidadesData, recursosData] = await Promise.all([
+          loadUnidades(),
+          loadRecursosFrom(planillaId)
+        ]);
+        setUnidades(unidadesData);
+        setRecursosBD(recursosData);
+      } catch (error) {
+        console.error('Error cargando datos:', error);
       }
-    } catch (error) {
-      console.error('Error cargando unidades:', error);
-    }
-  };
+    };
+    cargarDatos();
+  }, [loadUnidades, loadRecursosFrom, planillaId]);
 
-  const loadRecursosBD = async () => {
+  const handleAddUnidadLocal = async (data: { nombre: string; abreviatura: string }) => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/recursos');
-      if (response.ok) {
-        const data = await response.json();
-        // Filtrar solo los de esta planilla
-        const recursosPlanilla = data.filter((r: any) => r.id_tipo_recurso === planillaId);
-        setRecursosBD(recursosPlanilla);
-      }
-    } catch (error) {
-      console.error('Error cargando recursos:', error);
-    }
-  };
-
-  const handleAddUnidad = async () => {
-    if (!newUnidad.nombre.trim()) return;
-    
-    try {
-      const formDataToSend = new URLSearchParams();
-      formDataToSend.append('nombre', newUnidad.nombre.trim());
-      formDataToSend.append('simbolo', newUnidad.simbolo.trim());
-      formDataToSend.append('descripcion', newUnidad.descripcion.trim());
-
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/unidades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formDataToSend
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        await loadUnidades();
-        setFormData({ ...formData, unidad: data.nombre });
-        setUnidadInput(data.nombre);
-        setNewUnidad({ nombre: '', simbolo: '', descripcion: '' });
-        setShowAddUnidadModal(false);
+      const response = await handleAddUnidad(data);
+      
+      if (response) {
+        // Recargar unidades
+        const unidadesData = await loadUnidades();
+        setUnidades(unidadesData);
+        
+        setFormData({ ...formData, unidad: response.nombre });
+        setUnidadInput(response.nombre);
+        
+        setToastMessage(`Unidad "${response.nombre}" creada exitosamente`);
+        setToastType('success');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
       console.error('Error creando unidad:', error);
+      setToastMessage('Error al crear unidad');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
@@ -708,7 +678,6 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    setNewUnidad({ nombre: unidadInput, simbolo: '', descripcion: '' });
                                     setShowAddUnidadModal(true);
                                     setShowUnidadesSuggestions(false);
                                   }}
@@ -946,156 +915,55 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
       )}
 
       {/* Modal para agregar unidad */}
-      <Dialog open={showAddUnidadModal} onOpenChange={setShowAddUnidadModal}>
-        <DialogContent className="bg-slate-800 border-slate-600 text-white">
-          <DialogHeader>
-            <DialogTitle>Agregar Nueva Unidad</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Completa los datos para agregar una nueva unidad al sistema.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleAddUnidad(); }}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-unidad-nombre">Nombre *</Label>
-                <Input
-                  id="new-unidad-nombre"
-                  value={newUnidad.nombre}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, nombre: e.target.value })}
-                  placeholder="Nombre de la unidad"
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-unidad-simbolo">Símbolo</Label>
-                <Input
-                  id="new-unidad-simbolo"
-                  value={newUnidad.simbolo}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, simbolo: e.target.value })}
-                  placeholder="Ej: m, kg, h"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-unidad-desc">Descripción</Label>
-                <Input
-                  id="new-unidad-desc"
-                  value={newUnidad.descripcion}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, descripcion: e.target.value })}
-                  placeholder="Descripción opcional"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={() => setShowAddUnidadModal(false)} 
-                className="bg-slate-700 hover:bg-slate-600 border-slate-600"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit"
-                disabled={!newUnidad.nombre.trim()}
-                className="bg-sky-600 hover:bg-sky-700"
-              >
-                Agregar
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddUnidadModal
+        open={showAddUnidadModal}
+        onClose={() => setShowAddUnidadModal(false)}
+        onAdd={handleAddUnidadLocal}
+      />
 
-      {/* AlertDialog para cancelar */}
-      <AlertDialog open={showCancelAlert} onOpenChange={setShowCancelAlert}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              ¿Cancelar y salir?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Si sales ahora, perderás todos los recursos que has agregado. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 border-slate-600">
-              No, continuar editando
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => {
-                setShowCancelAlert(false);
-                onCancel();
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Sí, cancelar y salir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Diálogo para cancelar y salir */}
+      <ConfirmDialog
+        open={showCancelAlert}
+        onClose={() => setShowCancelAlert(false)}
+        onConfirm={onCancel}
+        title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-yellow-500" />¿Cancelar y salir?</span>}
+        description="Si sales ahora, perderás todos los recursos que has agregado. Esta acción no se puede deshacer."
+        confirmLabel="Sí, cancelar y salir"
+        cancelLabel="No, continuar editando"
+        variant="destructive"
+      />
 
-      {/* AlertDialog para eliminar recurso */}
-      <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              ¿Eliminar recurso?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Se eliminará este recurso de la lista local. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 border-slate-600">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteRecurso}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Diálogo para eliminar recurso */}
+      <ConfirmDialog
+        open={showDeleteAlert}
+        onClose={() => setShowDeleteAlert(false)}
+        onConfirm={confirmDeleteRecurso}
+        title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-red-500" />¿Eliminar recurso?</span>}
+        description="Se eliminará este recurso de la lista local. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="destructive"
+      />
 
-      {/* AlertDialog para editar recurso (cuando hay datos en el form) */}
-      <AlertDialog open={showEditAlert} onOpenChange={setShowEditAlert}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              ¿Reemplazar datos del formulario?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              Hay datos en el formulario que se perderán al cargar este recurso para editar. ¿Deseas continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 border-slate-600">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => recursoToEdit && confirmEditRecurso(recursoToEdit)}
-              className="bg-sky-600 hover:bg-sky-700"
-            >
-              Sí, cargar para editar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Diálogo para editar recurso */}
+      <ConfirmDialog
+        open={showEditAlert}
+        onClose={() => setShowEditAlert(false)}
+        onConfirm={() => recursoToEdit && confirmEditRecurso(recursoToEdit)}
+        title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-yellow-500" />¿Reemplazar datos del formulario?</span>}
+        description="Hay datos en el formulario que se perderán al cargar este recurso para editar. ¿Deseas continuar?"
+        confirmLabel="Sí, cargar para editar"
+        cancelLabel="Cancelar"
+        variant="default" 
+      />
 
       {/* Toast/Notificación temporal */}
-      {showToast && (
-        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-5">
-          <div className="bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]">
-            <Check className="h-5 w-5" />
-            <span>{toastMessage}</span>
-          </div>
-        </div>
-      )}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        show={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 };

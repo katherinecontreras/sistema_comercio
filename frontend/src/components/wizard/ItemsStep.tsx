@@ -1,29 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Edit2, Check, X, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 import { generateTempId } from '@/utils/idGenerator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useCatalogos } from '@/hooks';
+import { addEspecialidad } from '@/actions';
+import { AddEspecialidadModal, AddUnidadModal } from '@/components/modals';
+import { InfoDialog, Toast } from '@/components/notifications';
 
 interface ItemObra {
   id: string;
@@ -52,7 +37,9 @@ interface Unidad {
 }
 
 const ItemsStep: React.FC = () => {
-  const { wizard, setStep, setItems } = useAppStore();
+  const { wizard, setItems } = useAppStore();
+  const { loadEspecialidades, loadUnidades, handleAddUnidad } = useCatalogos();
+  
   const [items, setItemsLocal] = useState<ItemObra[]>(wizard.items);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [selectedObra, setSelectedObra] = useState<string>('');
@@ -60,25 +47,18 @@ const ItemsStep: React.FC = () => {
   // Estados para especialidades y unidades
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [unidades, setUnidades] = useState<Unidad[]>([]);
-  const [showEspecialidadesSuggestions, setShowEspecialidadesSuggestions] = useState(false);
-  const [showUnidadesSuggestions, setShowUnidadesSuggestions] = useState(false);
-  const [especialidadInput, setEspecialidadInput] = useState('');
-  const [unidadInput, setUnidadInput] = useState('');
-  const [selectedEspecialidadIndex, setSelectedEspecialidadIndex] = useState(0);
-  const [selectedUnidadIndex, setSelectedUnidadIndex] = useState(0);
   
   // Estados para modales
   const [showAddEspecialidadModal, setShowAddEspecialidadModal] = useState(false);
   const [showAddUnidadModal, setShowAddUnidadModal] = useState(false);
-  const [newEspecialidad, setNewEspecialidad] = useState({ nombre: '', descripcion: '' });
-  const [newUnidad, setNewUnidad] = useState({ nombre: '', simbolo: '', descripcion: '' });
   
-  // Estado para alertas
+  // Estado para alertas y toast
   const [showValidationAlert, setShowValidationAlert] = useState(false);
   const [validationMessage, setValidationMessage] = useState('');
   const [obrasWithoutItems, setObrasWithoutItems] = useState<string[]>([]);
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
   
   const [formData, setFormData] = useState({
     codigo: '',
@@ -90,90 +70,68 @@ const ItemsStep: React.FC = () => {
 
   // Cargar especialidades y unidades desde la API
   useEffect(() => {
-    loadEspecialidades();
-    loadUnidades();
-  }, []);
-
-  const loadEspecialidades = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/especialidades');
-      if (response.ok) {
-        const data = await response.json();
-        setEspecialidades(data);
+    const cargarCatalogos = async () => {
+      try {
+        const [especialidadesData, unidadesData] = await Promise.all([
+          loadEspecialidades(),
+          loadUnidades()
+        ]);
+        setEspecialidades(especialidadesData);
+        setUnidades(unidadesData);
+      } catch (error) {
+        console.error('Error cargando catálogos:', error);
       }
-    } catch (error) {
-      console.error('Error cargando especialidades:', error);
-    }
-  };
+    };
+    cargarCatalogos();
+  }, [loadEspecialidades, loadUnidades]);
 
-  const loadUnidades = async () => {
+  const handleAddEspecialidad = async (data: { nombre: string; descripcion?: string }) => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/unidades');
-      if (response.ok) {
-        const data = await response.json();
-        setUnidades(data);
-      }
-    } catch (error) {
-      console.error('Error cargando unidades:', error);
-    }
-  };
-
-  const handleAddEspecialidad = async () => {
-    if (!newEspecialidad.nombre.trim()) return;
-    
-    try {
-      const formDataToSend = new URLSearchParams();
-      formDataToSend.append('nombre', newEspecialidad.nombre.trim());
-      formDataToSend.append('descripcion', newEspecialidad.descripcion.trim());
-
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/especialidades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formDataToSend
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        await loadEspecialidades(); // Recargar lista
-        setFormData({ ...formData, especialidad: data.nombre });
-        setEspecialidadInput(data.nombre);
-        setNewEspecialidad({ nombre: '', descripcion: '' });
-        setShowAddEspecialidadModal(false);
-        setSuccessMessage(`Especialidad "${data.nombre}" creada exitosamente`);
-        setShowSuccessAlert(true);
+      const response = await addEspecialidad(data);
+      
+      if (response) {
+        // Recargar especialidades
+        const especialidadesData = await loadEspecialidades();
+        setEspecialidades(especialidadesData);
+        
+        setFormData({ ...formData, especialidad: response.nombre });
+        
+        setToastMessage(`Especialidad "${response.nombre}" creada exitosamente`);
+        setToastType('success');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
       console.error('Error creando especialidad:', error);
+      setToastMessage('Error al crear especialidad');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
-  const handleAddUnidad = async () => {
-    if (!newUnidad.nombre.trim()) return;
-    
+  const handleAddUnidadLocal = async (data: { nombre: string; abreviatura: string }) => {
     try {
-      const formDataToSend = new URLSearchParams();
-      formDataToSend.append('nombre', newUnidad.nombre.trim());
-      formDataToSend.append('simbolo', newUnidad.simbolo.trim());
-      formDataToSend.append('descripcion', newUnidad.descripcion.trim());
-
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/unidades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formDataToSend
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        await loadUnidades(); // Recargar lista
-        setFormData({ ...formData, unidad: data.nombre });
-        setUnidadInput(data.nombre);
-        setNewUnidad({ nombre: '', simbolo: '', descripcion: '' });
-        setShowAddUnidadModal(false);
-        setSuccessMessage(`Unidad "${data.nombre}" creada exitosamente`);
-        setShowSuccessAlert(true);
+      const response = await handleAddUnidad(data);
+      
+      if (response) {
+        // Recargar unidades
+        const unidadesData = await loadUnidades();
+        setUnidades(unidadesData);
+        
+        setFormData({ ...formData, unidad: response.nombre });
+        
+        setToastMessage(`Unidad "${response.nombre}" creada exitosamente`);
+        setToastType('success');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
       console.error('Error creando unidad:', error);
+      setToastMessage('Error al crear unidad');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
@@ -247,6 +205,10 @@ const ItemsStep: React.FC = () => {
     const parentItem = parentId ? items.find(item => item.id === parentId) : null;
     const nivel = parentItem ? parentItem.nivel + 1 : 0;
     
+    // Buscar IDs de especialidad y unidad
+    const especialidadObj = especialidades.find(e => e.nombre === formData.especialidad);
+    const unidadObj = unidades.find(u => u.nombre === formData.unidad);
+    
     const newItem: ItemObra = {
       id: generateTempId(),
       id_obra: selectedObra,
@@ -255,7 +217,10 @@ const ItemsStep: React.FC = () => {
       descripcion_tarea: formData.descripcion_tarea.trim(),
       especialidad: formData.especialidad.trim() || '',
       unidad: formData.unidad.trim() || '',
+      id_especialidad: especialidadObj?.id_especialidad,
+      id_unidad: unidadObj?.id_unidad,
       cantidad: formData.cantidad,
+      precio_unitario: 0,
       nivel,
       expanded: true
     };
@@ -270,8 +235,6 @@ const ItemsStep: React.FC = () => {
       unidad: '',
       cantidad: 1
     });
-    setEspecialidadInput('');
-    setUnidadInput('');
   };
 
   const handleEditItem = (id: string) => {
@@ -767,163 +730,36 @@ const ItemsStep: React.FC = () => {
       
 
       {/* Modal para agregar especialidad */}
-      <Dialog open={showAddEspecialidadModal} onOpenChange={setShowAddEspecialidadModal}>
-        <DialogContent className="bg-slate-800 border-slate-600 text-white">
-          <DialogHeader>
-            <DialogTitle>Agregar Nueva Especialidad</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Completa los datos para agregar una nueva especialidad al sistema.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleAddEspecialidad(); }}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-especialidad-nombre">Nombre *</Label>
-                <Input
-                  id="new-especialidad-nombre"
-                  value={newEspecialidad.nombre}
-                  onChange={(e) => setNewEspecialidad({ ...newEspecialidad, nombre: e.target.value })}
-                  placeholder="Nombre de la especialidad"
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-especialidad-desc">Descripción</Label>
-                <Input
-                  id="new-especialidad-desc"
-                  value={newEspecialidad.descripcion}
-                  onChange={(e) => setNewEspecialidad({ ...newEspecialidad, descripcion: e.target.value })}
-                  placeholder="Descripción opcional"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={() => setShowAddEspecialidadModal(false)} 
-                className="bg-slate-700 hover:bg-slate-600 border-slate-600"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit"
-                disabled={!newEspecialidad.nombre.trim()}
-                className="bg-sky-600 hover:bg-sky-700"
-              >
-                Agregar
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddEspecialidadModal
+        open={showAddEspecialidadModal}
+        onClose={() => setShowAddEspecialidadModal(false)}
+        onAdd={handleAddEspecialidad}
+      />
 
       {/* Modal para agregar unidad */}
-      <Dialog open={showAddUnidadModal} onOpenChange={setShowAddUnidadModal}>
-        <DialogContent className="bg-slate-800 border-slate-600 text-white">
-          <DialogHeader>
-            <DialogTitle>Agregar Nueva Unidad</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Completa los datos para agregar una nueva unidad al sistema.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleAddUnidad(); }}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="new-unidad-nombre">Nombre *</Label>
-                <Input
-                  id="new-unidad-nombre"
-                  value={newUnidad.nombre}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, nombre: e.target.value })}
-                  placeholder="Nombre de la unidad"
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-unidad-simbolo">Símbolo</Label>
-                <Input
-                  id="new-unidad-simbolo"
-                  value={newUnidad.simbolo}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, simbolo: e.target.value })}
-                  placeholder="Ej: m, kg, h"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-unidad-desc">Descripción</Label>
-                <Input
-                  id="new-unidad-desc"
-                  value={newUnidad.descripcion}
-                  onChange={(e) => setNewUnidad({ ...newUnidad, descripcion: e.target.value })}
-                  placeholder="Descripción opcional"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button"
-                variant="outline" 
-                onClick={() => setShowAddUnidadModal(false)} 
-                className="bg-slate-700 hover:bg-slate-600 border-slate-600"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="submit"
-                disabled={!newUnidad.nombre.trim()}
-                className="bg-sky-600 hover:bg-sky-700"
-              >
-                Agregar
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddUnidadModal
+        open={showAddUnidadModal}
+        onClose={() => setShowAddUnidadModal(false)}
+        onAdd={handleAddUnidadLocal}
+      />
 
       {/* AlertDialog para validación */}
-      <AlertDialog open={showValidationAlert} onOpenChange={setShowValidationAlert}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              Obras sin items
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              {validationMessage}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction 
-              onClick={() => setShowValidationAlert(false)}
-              className="bg-sky-600 hover:bg-sky-700"
-            >
-              Entendido
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <InfoDialog
+      open={showValidationAlert} 
+      onClose={() => setShowValidationAlert(false)}
+      title={<span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-yellow-500" />Obras sin items</span>}
+      description={validationMessage} 
+      actionLabel="Entendido"
+      variant="primary"
+    />
 
-      {/* AlertDialog de éxito */}
-      <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
-        <AlertDialogContent className="bg-slate-800 border-slate-600 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-green-500" />
-              ¡Guardado exitoso!
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-300">
-              {successMessage}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction 
-              onClick={() => setShowSuccessAlert(false)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              Aceptar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Toast de notificaciones */}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        show={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </div>
   );
 };

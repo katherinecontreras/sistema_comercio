@@ -33,7 +33,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 def role_required(roles: Iterable[str]) -> Callable[[Usuario], Usuario]:
     def dependency(user: Usuario = Depends(get_current_user), db: Session = Depends(get_db)) -> Usuario:
         role: Rol | None = db.get(Rol, user.id_rol)
-        if not role or role.nombre_rol not in roles:
+        if not role or role.nombre not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permiso denegado")
         return user
 

@@ -1,0 +1,2 @@
+export { AgregarAtributoForm } from './AgregarAtributoForm';
+

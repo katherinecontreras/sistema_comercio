@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, X, Save, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/app';
-import api from '@/services/api';
+import { addCotizacion, addObras, addItems, addCostos, addIncrementos } from '@/actions';
 
 interface FinalizeModalProps {
   isOpen: boolean;
@@ -26,64 +26,71 @@ const FinalizeModal: React.FC<FinalizeModalProps> = ({ isOpen, onClose, onSucces
     setError('');
 
     try {
-      // 1. Crear la cotización
-      const cotizacionResponse = await api.post('/cotizaciones', {
+      // 1. Crear la cotización con estado finalizada
+      const cotizacionId = await addCotizacion({
         id_cliente: client.selectedClientId,
-        nombre_proyecto: 'Proyecto de Ejemplo', // Esto debería venir del wizard
-        fecha_creacion: new Date().toISOString().split('T')[0]
+        nombre_proyecto: wizard.quoteFormData?.nombre_proyecto || 'Proyecto sin nombre',
+        descripcion_proyecto: wizard.quoteFormData?.descripcion_proyecto || '',
+        fecha_inicio: wizard.quoteFormData?.fecha_inicio,
+        fecha_vencimiento: wizard.quoteFormData?.fecha_vencimiento,
+        moneda: wizard.quoteFormData?.moneda || 'USD',
+        estado: 'finalizada'
       });
 
-      const cotizacionId = cotizacionResponse.data.id_cotizacion;
+      // 2. Crear las obras y obtener mapeo de IDs
+      const obrasData = wizard.obras.map(obra => ({
+        id_cotizacion: cotizacionId,
+        nombre_obra: obra.nombre,
+        descripcion: obra.descripcion,
+        ubicacion: obra.ubicacion
+      }));
+      const idsObras = await addObras(obrasData);
+      
+      // Mapear IDs temporales a IDs reales
+      const obraIdMap: { [tempId: string]: string } = {};
+      wizard.obras.forEach((obra, index) => {
+        obraIdMap[obra.id] = idsObras[index];
+      });
 
-      // 2. Crear las obras y mapear IDs temporales a reales
-      const obraIdMap: { [tempId: string]: number } = {};
-      for (const obra of wizard.obras) {
-        const obraResponse = await api.post(`/cotizaciones/${cotizacionId}/obras`, {
-          id_cotizacion: cotizacionId,
-          nombre_obra: obra.nombre,
-          descripcion: obra.descripcion
-        });
-        obraIdMap[obra.id] = obraResponse.data.id_obra;
-      }
+      // 3. Crear los items de obra
+      const itemsData = wizard.items.map(item => ({
+        id_obra: obraIdMap[item.id_obra],
+        codigo: item.codigo,
+        descripcion_tarea: item.descripcion_tarea,
+        id_especialidad: item.id_especialidad,
+        id_unidad: item.id_unidad,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio_unitario
+      }));
+      const idsItems = await addItems(itemsData);
+      
+      // Mapear IDs temporales a IDs reales
+      const itemIdMap: { [tempId: string]: string } = {};
+      wizard.items.forEach((item, index) => {
+        itemIdMap[item.id] = idsItems[index];
+      });
 
-      // 3. Crear los items de obra usando los IDs reales de las obras
-      const itemIdMap: { [tempId: string]: number } = {};
-      for (const item of wizard.items) {
-        const realObraId = obraIdMap[item.id_obra];
-        const realItemPadreId = item.id_item_padre ? itemIdMap[item.id_item_padre] : null;
-        
-        const itemResponse = await api.post(`/cotizaciones/obras/${realObraId}/items`, {
-          id_obra: realObraId,
-          id_item_padre: realItemPadreId,
-          codigo: item.codigo,
-          descripcion_tarea: item.descripcion_tarea,
-          especialidad: item.especialidad,
-          unidad: item.unidad,
-          cantidad: item.cantidad
-        });
-        itemIdMap[item.id] = itemResponse.data.id_item_obra;
-      }
+      // 4. Crear los costos (item-recursos)
+      const costosData = wizard.costos.map(costo => ({
+        id_item_obra: itemIdMap[costo.id_item_obra],
+        id_recurso: costo.id_recurso,
+        cantidad: costo.cantidad,
+        precio_unitario_aplicado: costo.precio_unitario_aplicado,
+        total_linea: costo.total_linea
+      }));
+      await addCostos(costosData);
 
-      // 4. Crear los costos usando los IDs reales de los items
-      for (const costo of wizard.costos) {
-        const realItemId = itemIdMap[costo.id_item_obra];
-        await api.post(`/cotizaciones/items/${realItemId}/costos`, {
-          id_item_obra: realItemId,
-          id_recurso: costo.id_recurso,
-          cantidad: costo.cantidad,
-          precio_unitario_aplicado: costo.precio_unitario_aplicado
-        });
-      }
-
-      // 5. Crear los incrementos usando los IDs reales de los items
-      for (const incremento of wizard.incrementos) {
-        const realItemId = itemIdMap[incremento.id_item_obra];
-        await api.post(`/cotizaciones/items/${realItemId}/incrementos`, {
-          id_item_obra: realItemId,
-          descripcion: incremento.descripcion,
-          porcentaje: incremento.porcentaje
-        });
-      }
+      // 5. Crear los incrementos
+      const incrementosData = wizard.incrementos.map(incremento => ({
+        id_item_obra: itemIdMap[incremento.id_item_obra],
+        concepto: incremento.concepto,
+        tipo_incremento: incremento.tipo_incremento,
+        valor: incremento.valor,
+        monto_calculado: incremento.monto_calculado,
+        porcentaje: incremento.porcentaje,
+        descripcion: incremento.descripcion
+      }));
+      await addIncrementos(incrementosData);
 
       onSuccess();
     } catch (err: any) {

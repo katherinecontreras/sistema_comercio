@@ -30,14 +30,7 @@ router = APIRouter(prefix="/cotizaciones", tags=["cotizaciones"])
 
 @router.post("", response_model=CotizacionRead, status_code=status.HTTP_201_CREATED)
 def crear_cotizacion(payload: CotizacionCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
-    # Convertir string a date
-    fecha_creacion = datetime.strptime(payload.fecha_creacion, "%Y-%m-%d").date()
-    
-    c = Cotizacion(
-        id_cliente=payload.id_cliente,
-        nombre_proyecto=payload.nombre_proyecto,
-        fecha_creacion=fecha_creacion
-    )
+    c = Cotizacion(**payload.model_dump())
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -75,14 +68,7 @@ def crear_item(id_obra: int, payload: ItemCreate, db: Session = Depends(get_db),
 def agregar_costo(id_item: int, payload: CostoCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
     if id_item != payload.id_item_obra:
         raise HTTPException(status_code=400, detail="id_item inconsistente")
-    total_linea = payload.cantidad * payload.precio_unitario_aplicado
-    c = ItemObraCosto(
-        id_item_obra=payload.id_item_obra,
-        id_recurso=payload.id_recurso,
-        cantidad=payload.cantidad,
-        precio_unitario_aplicado=payload.precio_unitario_aplicado,
-        total_linea=total_linea,
-    )
+    c = ItemObraCosto(**payload.model_dump())
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -147,5 +133,3 @@ def exportar_pdf(id_cotizacion: int, db: Session = Depends(get_db), _: None = De
     }
     pdf = generar_pdf_planilla(data)
     return StreamingResponse(iter([pdf]), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=cotizacion_{id_cotizacion}.pdf"})
-
-

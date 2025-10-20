@@ -10,18 +10,24 @@ import { generateTempId } from '@/utils/idGenerator';
 interface Incremento {
   id: string;
   id_item_obra: string;
+  concepto: string;
   descripcion: string;
+  tipo_incremento: 'porcentaje' | 'monto_fijo';
+  valor: number;
   porcentaje: number;
+  monto_calculado: number;
 }
 
 const IncrementosStep: React.FC = () => {
-  const { wizard, setStep, setIncrementos } = useAppStore();
+  const { wizard, setIncrementos } = useAppStore();
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [incrementos, setIncrementosLocal] = useState<Incremento[]>(wizard.incrementos);
   const [editingIncremento, setEditingIncremento] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    concepto: '',
     descripcion: '',
-    porcentaje: 0
+    tipo_incremento: 'porcentaje' as 'porcentaje' | 'monto_fijo',
+    valor: 0
   });
 
   // Obtener items de obra para selección
@@ -37,42 +43,72 @@ const IncrementosStep: React.FC = () => {
   }, {} as Record<string, Incremento[]>);
 
   const handleAddIncremento = () => {
-    if (!selectedItem || !formData.descripcion.trim() || formData.porcentaje <= 0) return;
+    if (!selectedItem || !formData.concepto.trim() || formData.valor <= 0) return;
+
+    // Calcular monto según el item seleccionado
+    const item = wizard.items.find(i => i.id === selectedItem);
+    const costosItem = wizard.costos.filter(c => c.id_item_obra === selectedItem);
+    const subtotalItem = costosItem.reduce((sum, c) => sum + c.total_linea, 0);
+    
+    const monto_calculado = formData.tipo_incremento === 'porcentaje'
+      ? (subtotalItem * formData.valor) / 100
+      : formData.valor;
 
     const newIncremento: Incremento = {
       id: generateTempId(),
       id_item_obra: selectedItem,
+      concepto: formData.concepto.trim(),
       descripcion: formData.descripcion.trim(),
-      porcentaje: formData.porcentaje
+      tipo_incremento: formData.tipo_incremento,
+      valor: formData.valor,
+      porcentaje: formData.tipo_incremento === 'porcentaje' ? formData.valor : 0,
+      monto_calculado
     };
 
     const updatedIncrementos = [...incrementos, newIncremento];
     setIncrementosLocal(updatedIncrementos);
     setIncrementos(updatedIncrementos);
-    setFormData({ descripcion: '', porcentaje: 0 });
+    setFormData({ concepto: '', descripcion: '', tipo_incremento: 'porcentaje', valor: 0 });
   };
 
   const handleEditIncremento = (id: string) => {
     const incremento = incrementos.find(i => i.id === id);
     if (incremento) {
       setFormData({
-        descripcion: incremento.descripcion,
-        porcentaje: incremento.porcentaje
+        concepto: incremento.concepto,
+        descripcion: incremento.descripcion || '',
+        tipo_incremento: incremento.tipo_incremento,
+        valor: incremento.valor
       });
       setEditingIncremento(id);
     }
   };
 
   const handleUpdateIncremento = () => {
-    if (editingIncremento && formData.descripcion.trim() && formData.porcentaje > 0) {
+    if (editingIncremento && formData.concepto.trim() && formData.valor > 0) {
+      const costosItem = wizard.costos.filter(c => c.id_item_obra === selectedItem);
+      const subtotalItem = costosItem.reduce((sum, c) => sum + c.total_linea, 0);
+      
+      const monto_calculado = formData.tipo_incremento === 'porcentaje'
+        ? (subtotalItem * formData.valor) / 100
+        : formData.valor;
+
       const updatedIncrementos = incrementos.map(inc => 
         inc.id === editingIncremento 
-          ? { ...inc, descripcion: formData.descripcion.trim(), porcentaje: formData.porcentaje }
+          ? { 
+              ...inc, 
+              concepto: formData.concepto.trim(),
+              descripcion: formData.descripcion.trim(),
+              tipo_incremento: formData.tipo_incremento,
+              valor: formData.valor,
+              porcentaje: formData.tipo_incremento === 'porcentaje' ? formData.valor : 0,
+              monto_calculado
+            }
           : inc
       );
       setIncrementosLocal(updatedIncrementos);
       setIncrementos(updatedIncrementos);
-      setFormData({ descripcion: '', porcentaje: 0 });
+      setFormData({ concepto: '', descripcion: '', tipo_incremento: 'porcentaje', valor: 0 });
       setEditingIncremento(null);
     }
   };
@@ -156,25 +192,51 @@ const IncrementosStep: React.FC = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="descripcion">Descripción del Incremento *</Label>
+                <Label htmlFor="concepto" className="text-slate-300">Concepto *</Label>
+                <Input
+                  id="concepto"
+                  value={formData.concepto}
+                  onChange={(e) => setFormData({ ...formData, concepto: e.target.value })}
+                  placeholder="Ej: IVA, Gastos Generales, etc."
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tipo" className="text-slate-300">Tipo de Incremento *</Label>
+                <select
+                  id="tipo"
+                  value={formData.tipo_incremento}
+                  onChange={(e) => setFormData({ ...formData, tipo_incremento: e.target.value as 'porcentaje' | 'monto_fijo' })}
+                  className="w-full h-10 px-3 rounded-md bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="porcentaje">Porcentaje (%)</option>
+                  <option value="monto_fijo">Monto Fijo ($)</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="valor" className="text-slate-300">
+                  {formData.tipo_incremento === 'porcentaje' ? 'Porcentaje (%)' : 'Monto ($)'} *
+                </Label>
+                <Input
+                  id="valor"
+                  type="number"
+                  value={formData.valor}
+                  onChange={(e) => setFormData({ ...formData, valor: parseFloat(e.target.value) || 0 })}
+                  min="0"
+                  max={formData.tipo_incremento === 'porcentaje' ? '1000' : undefined}
+                  step="0.01"
+                  placeholder={formData.tipo_incremento === 'porcentaje' ? 'Ej: 15.5' : 'Ej: 5000'}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="descripcion" className="text-slate-300">Descripción Adicional</Label>
                 <Input
                   id="descripcion"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  placeholder="Ej: Gastos Generales, Margen de Ganancia, etc."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="porcentaje">Porcentaje (%) *</Label>
-                <Input
-                  id="porcentaje"
-                  type="number"
-                  value={formData.porcentaje}
-                  onChange={(e) => setFormData({ ...formData, porcentaje: parseFloat(e.target.value) || 0 })}
-                  min="0"
-                  max="1000"
-                  step="0.01"
-                  placeholder="Ej: 15.5"
+                  placeholder="Detalles adicionales (opcional)"
+                  className="bg-slate-700 border-slate-600 text-white"
                 />
               </div>
             </div>
@@ -182,20 +244,32 @@ const IncrementosStep: React.FC = () => {
             <div className="flex gap-2">
               {editingIncremento ? (
                 <>
-                  <Button onClick={handleUpdateIncremento} disabled={!formData.descripcion.trim() || formData.porcentaje <= 0}>
+                  <Button 
+                    onClick={handleUpdateIncremento} 
+                    disabled={!formData.concepto.trim() || formData.valor <= 0}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
                     <Check className="h-4 w-4 mr-2" />
                     Actualizar
                   </Button>
-                  <Button variant="outline" onClick={() => {
-                    setEditingIncremento(null);
-                    setFormData({ descripcion: '', porcentaje: 0 });
-                  }}>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setEditingIncremento(null);
+                      setFormData({ concepto: '', descripcion: '', tipo_incremento: 'porcentaje', valor: 0 });
+                    }}
+                    className="bg-slate-700 hover:bg-slate-600 border-slate-600"
+                  >
                     <X className="h-4 w-4 mr-2" />
                     Cancelar
                   </Button>
                 </>
               ) : (
-                <Button onClick={handleAddIncremento} disabled={!formData.descripcion.trim() || formData.porcentaje <= 0}>
+                <Button 
+                  onClick={handleAddIncremento} 
+                  disabled={!formData.concepto.trim() || formData.valor <= 0}
+                  className="bg-sky-600 hover:bg-sky-700"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Agregar Incremento
                 </Button>
@@ -230,12 +304,18 @@ const IncrementosStep: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                       {itemIncrementos.map((incremento) => (
-                        <div key={incremento.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                        <div key={incremento.id} className="flex items-center justify-between bg-slate-700 p-3 rounded border border-slate-600">
                           <div className="flex-1">
-                            <span className="font-medium">{incremento.descripcion}</span>
-                            <span className="ml-2 text-sm text-gray-500">
-                              {incremento.porcentaje}%
-                            </span>
+                            <div className="font-medium text-white">{incremento.concepto}</div>
+                            {incremento.descripcion && (
+                              <div className="text-sm text-slate-400">{incremento.descripcion}</div>
+                            )}
+                            <div className="text-sm text-sky-400 mt-1">
+                              {incremento.tipo_incremento === 'porcentaje' 
+                                ? `${incremento.valor}%` 
+                                : `$${incremento.valor.toFixed(2)}`
+                              } = ${incremento.monto_calculado.toFixed(2)}
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <Button
