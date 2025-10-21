@@ -165,17 +165,28 @@ def procesar_excel_recursos(
     if len(headers) == 0:
         return {'recursos': [], 'errores': ['No se encontraron encabezados en el archivo']}
     
+    # Función auxiliar para normalizar texto (quitar tildes, espacios, minúsculas)
+    def normalizar_texto(texto):
+        import unicodedata
+        # Quitar tildes
+        texto_sin_tildes = ''.join(
+            c for c in unicodedata.normalize('NFD', texto)
+            if unicodedata.category(c) != 'Mn'
+        )
+        # Minúsculas y reemplazar espacios por _
+        return texto_sin_tildes.lower().replace(' ', '_')
+    
     # Mapear nombres de columnas a IDs de atributos
     # Si un header no está en atributos_esperados, lo tratamos como atributo personalizado (texto)
     columna_a_atributo = {}
     for idx, header in enumerate(headers):
-        # Normalizar el header (quitar espacios, pasar a minúsculas, reemplazar espacios por _)
-        header_normalizado = header.lower().replace(' ', '_')
+        # Normalizar el header
+        header_normalizado = normalizar_texto(header)
         
         # Buscar coincidencia con atributos esperados
         encontrado = False
         for attr in atributos_esperados:
-            attr_normalizado = attr['nombre'].lower().replace(' ', '_')
+            attr_normalizado = normalizar_texto(attr['nombre'])
             
             # Comparar ambos normalizados
             if attr_normalizado == header_normalizado:
@@ -194,6 +205,10 @@ def procesar_excel_recursos(
     recursos = []
     errores = []
     
+    print(f"DEBUG SERVICIO: Iniciando procesamiento de filas desde fila 4 hasta {ws.max_row}")
+    print(f"DEBUG SERVICIO: Headers encontrados: {headers}")
+    print(f"DEBUG SERVICIO: Mapeo de columnas: {columna_a_atributo}")
+    
     for row_idx in range(4, ws.max_row + 1):
         # Leer datos de la fila
         row_data = {}
@@ -207,7 +222,8 @@ def procesar_excel_recursos(
                 
                 if col_idx in columna_a_atributo:
                     attr = columna_a_atributo[col_idx]
-                    attr_id = attr['nombre'].lower().replace(' ', '_')
+                    # Usar la función normalizar_texto para el attr_id también
+                    attr_id = normalizar_texto(attr['nombre'])
                     
                     # Convertir según tipo
                     try:
@@ -223,11 +239,14 @@ def procesar_excel_recursos(
         
         # Si la fila no está vacía, agregar recurso
         if not fila_vacia and row_data:
+            print(f"DEBUG SERVICIO: Fila {row_idx} - Datos: {row_data}")
+            
             # Validar campos requeridos
             campos_requeridos = ['descripcion', 'unidad', 'cantidad', 'costo_unitario']
             faltantes = [c for c in campos_requeridos if c not in row_data or not row_data[c]]
             
             if faltantes:
+                print(f"DEBUG SERVICIO: Fila {row_idx}: faltan campos requeridos {faltantes}")
                 errores.append(f"Fila {row_idx}: faltan campos requeridos {faltantes}")
                 continue
             
@@ -239,6 +258,9 @@ def procesar_excel_recursos(
             
             row_data['id_tipo_recurso'] = id_tipo_recurso
             recursos.append(row_data)
+            print(f"DEBUG SERVICIO: Recurso agregado: {row_data.get('descripcion')}")
+    
+    print(f"DEBUG SERVICIO: Total recursos procesados: {len(recursos)}, errores: {len(errores)}")
     
     return {
         'recursos': recursos,

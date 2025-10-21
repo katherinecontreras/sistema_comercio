@@ -29,10 +29,12 @@ const FinalizeModal: React.FC<FinalizeModalProps> = ({ isOpen, onClose, onSucces
       // 1. Crear la cotización con estado finalizada
       const cotizacionId = await addCotizacion({
         id_cliente: client.selectedClientId,
+        codigo_proyecto: wizard.quoteFormData?.codigo_proyecto,
         nombre_proyecto: wizard.quoteFormData?.nombre_proyecto || 'Proyecto sin nombre',
-        descripcion_proyecto: wizard.quoteFormData?.descripcion_proyecto || '',
-        fecha_inicio: wizard.quoteFormData?.fecha_inicio,
-        fecha_vencimiento: wizard.quoteFormData?.fecha_vencimiento,
+        descripcion_proyecto: wizard.quoteFormData?.descripcion_proyecto,
+        fecha_creacion: wizard.quoteFormData?.fecha_creacion || new Date().toISOString().split('T')[0],
+        fecha_entrega: wizard.quoteFormData?.fecha_entrega,
+        fecha_recepcion: wizard.quoteFormData?.fecha_recepcion,
         moneda: wizard.quoteFormData?.moneda || 'USD',
         estado: 'finalizada'
       });
@@ -92,6 +94,23 @@ const FinalizeModal: React.FC<FinalizeModalProps> = ({ isOpen, onClose, onSucces
       }));
       await addIncrementos(incrementosData);
 
+      // Limpiar wizard después de guardar
+      const { setStep, setQuoteFormData, setObras, setItems, setCostos, setIncrementos } = useAppStore.getState();
+      setStep('cliente');
+      setQuoteFormData({
+        codigo_proyecto: '',
+        nombre_proyecto: '',
+        descripcion_proyecto: '',
+        fecha_creacion: new Date().toISOString().split('T')[0],
+        fecha_entrega: '',
+        fecha_recepcion: '',
+        moneda: 'USD'
+      });
+      setObras([]);
+      setItems([]);
+      setCostos([]);
+      setIncrementos([]);
+      
       onSuccess();
     } catch (err: any) {
       console.error('Error finalizando cotización:', err);

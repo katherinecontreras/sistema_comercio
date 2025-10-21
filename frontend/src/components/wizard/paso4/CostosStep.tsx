@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Plus, 
@@ -11,7 +12,11 @@ import {
   ChevronDown, 
   ChevronUp,
   AlertTriangle,
-  Edit
+  Edit,
+  Download,
+  Upload,
+  ClipboardList,
+  X
 } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 import { generateTempId } from '@/utils/idGenerator';
@@ -19,7 +24,7 @@ import { useCatalogos } from '@/hooks';
 import { addNewPlanilla } from '@/actions';
 import { AddPlanillaModal } from '@/components/modals';
 import { InfoDialog, Toast } from '@/components/notifications';
-import AddRecursosManually from './AddRecursosManually';
+import AddRecursosManually from '@/components/wizard/paso4/AddRecursosManually';
 
 interface TipoRecurso {
   id_tipo_recurso: number;
@@ -63,7 +68,7 @@ interface ObraWithItems {
 
 const CostosStep: React.FC = () => {
   const { wizard, setCostos } = useAppStore();
-  const { loadTypesOfRecursos, loadRecursosFrom, loading } = useCatalogos();
+  const { loadTypesOfRecursos, loadRecursosFrom, loading, loadUnidades, handleAddRecursos } = useCatalogos();
   
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [selectedPlanilla, setSelectedPlanilla] = useState<number | null>(null);
@@ -72,6 +77,7 @@ const CostosStep: React.FC = () => {
   const [itemCostos, setItemCostos] = useState<ItemCosto[]>(wizard.costos || []);
   const [searchTerm, setSearchTerm] = useState('');
   const [collapsedObras, setCollapsedObras] = useState<Set<string>>(new Set());
+  const [showResumen, setShowResumen] = useState(false);
   
   // Estados para agregar recursos manualmente
   const [showAddManually, setShowAddManually] = useState(false);
@@ -137,10 +143,133 @@ const CostosStep: React.FC = () => {
     }
   }, [selectedPlanilla, loadRecursosFrom]);
 
+  // Cargar todos los recursos al inicio para poder verificar los tipos
+  const [todosLosRecursos, setTodosLosRecursos] = useState<Recurso[]>([]);
+  
+  useEffect(() => {
+    const cargarTodosRecursos = async () => {
+      try {
+        const promises = tiposRecurso.map(tipo => loadRecursosFrom(tipo.id_tipo_recurso));
+        const resultados = await Promise.all(promises);
+        const todosRecursos = resultados.flat();
+        setTodosLosRecursos(todosRecursos);
+      } catch (error) {
+        console.error('Error cargando todos los recursos:', error);
+      }
+    };
+    
+    if (tiposRecurso.length > 0) {
+      cargarTodosRecursos();
+    }
+  }, [tiposRecurso, loadRecursosFrom]);
+
   // Persistir costos en el estado global
   useEffect(() => {
     setCostos(itemCostos);
   }, [itemCostos, setCostos]);
+
+  // Función para generar plantilla Excel
+  const handleGenerateExcelTemplate = async () => {
+    if (!selectedPlanilla) {
+      alert('Por favor selecciona una planilla primero');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/catalogos/recursos/generar-plantilla-excel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify({
+          id_tipo_recurso: selectedPlanilla,
+          atributos: [
+            { nombre: 'descripcion', tipo: 'texto' },
+            { nombre: 'unidad', tipo: 'texto' },
+            { nombre: 'cantidad', tipo: 'entero' },
+            { nombre: 'costo_unitario', tipo: 'numerico' },
+            { nombre: 'costo_total', tipo: 'numerico' }
+          ]
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const planillaNombre = tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre || 'plantilla';
+        a.download = `${planillaNombre}_plantilla.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        setToastMessage('Plantilla Excel generada exitosamente');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        alert('Error al generar plantilla Excel');
+      }
+    } catch (error) {
+      console.error('Error generando plantilla:', error);
+      alert('Error al generar plantilla Excel');
+    }
+  };
+
+  // Función para cargar recursos desde Excel
+  const handleUploadExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedPlanilla || !selectedItem) {
+      alert('Por favor selecciona una planilla y un item primero');
+      return;
+    }
+
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('id_tipo_recurso', selectedPlanilla.toString());
+      formData.append('atributos', JSON.stringify([
+        { nombre: 'descripcion', tipo: 'texto' },
+        { nombre: 'unidad', tipo: 'texto' },
+        { nombre: 'cantidad', tipo: 'entero' },
+        { nombre: 'costo_unitario', tipo: 'numerico' },
+        { nombre: 'costo_total', tipo: 'numerico' }
+      ]));
+
+      const response = await fetch('http://localhost:8000/api/v1/catalogos/recursos/cargar-desde-excel', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Recargar recursos de la planilla
+        const recursosActualizados = await loadRecursosFrom(selectedPlanilla);
+        setRecursos(recursosActualizados);
+
+        setToastMessage(`${result.recursos_procesados} recursos cargados exitosamente`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        const error = await response.json();
+        alert(`Error al cargar Excel: ${error.detail || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error('Error cargando Excel:', error);
+      alert('Error al cargar archivo Excel');
+    }
+
+    // Limpiar input
+    event.target.value = '';
+  };
 
   const handleAddRecursoToItem = (recurso: Recurso) => {
     if (!selectedItem) return;
@@ -259,25 +388,33 @@ const CostosStep: React.FC = () => {
     return itemCostos.filter(c => c.id_item_obra === itemId).length;
   };
 
-  const handleContinue = () => {
-    // Validar que todos los items tengan al menos un recurso
-    const itemsWithoutResources = wizard.items.filter(item => !itemHasResources(item.id));
-    
-    if (itemsWithoutResources.length > 0) {
-      setShowValidationAlert(true);
-      return;
-    }
-
-    setStep('incrementos');
-  };
-
-  const handleBack = () => {
-    setStep('items');
-  };
-
   const recursosFiltrados = recursos.filter(recurso =>
     recurso.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Función para determinar si una planilla tiene recursos asignados al item actual
+  const planillaTieneRecursos = (planillaId: number) => {
+    if (!selectedItem) return false;
+    return itemCostos.some(costo => {
+      // Buscar el recurso en la lista completa de recursos para verificar su tipo
+      const recursoEncontrado = todosLosRecursos.find(r => r.id_recurso === costo.id_recurso);
+      return costo.id_item_obra === selectedItem && recursoEncontrado?.id_tipo_recurso === planillaId;
+    });
+  };
+
+  // Función para obtener el color de una planilla
+  const getPlanillaColor = (planillaId: number) => {
+    const isActive = selectedPlanilla === planillaId;
+    const hasResources = planillaTieneRecursos(planillaId);
+    
+    if (isActive) {
+      return 'bg-sky-500 border-sky-400'; // Azul - planilla activa
+    } else if (hasResources) {
+      return 'bg-green-600 border-green-500'; // Verde - tiene recursos
+    } else {
+      return 'bg-slate-700 border-slate-600 hover:bg-slate-600'; // Gris - sin recursos
+    }
+  };
 
   // Iconos disponibles para planillas
   const handleOpenAddManually = (planillaId: number, planillaNombre: string) => {
@@ -294,8 +431,7 @@ const CostosStep: React.FC = () => {
       
       for (const recurso of recursos) {
         // Buscar id_unidad por nombre
-        const unidadResponse = await fetch('http://localhost:8000/api/v1/catalogos/unidades');
-        const unidades = await unidadResponse.json();
+        const unidades = await loadUnidades();
         const unidadEncontrada = unidades.find((u: any) => u.nombre === recurso.unidad);
         
         if (!unidadEncontrada) {
@@ -311,7 +447,7 @@ const CostosStep: React.FC = () => {
           cantidad: parseFloat(recurso.cantidad) || 0,
           costo_unitario_predeterminado: parseFloat(recurso.costo_unitario) || 0,
           costo_total: parseFloat(recurso.costo_total) || 0,
-          atributos: {} // Aquí irían los atributos personalizados
+          atributos: {} as Record<string, any> // Aquí irían los atributos personalizados
         };
 
         // Agregar atributos personalizados (los que no son campos base)
@@ -322,17 +458,14 @@ const CostosStep: React.FC = () => {
         });
 
         // Guardar en BD
-        const response = await api.post('/catalogos/recursos', recursoData);
-        recursosGuardados.push(response.data);
+        const recursos = await handleAddRecursos(recursoData);
+        recursosGuardados.push(recursos);
       }
 
       // 2. Recargar recursos de esta planilla para que aparezcan en la lista
       if (selectedPlanillaForManual.id === selectedPlanilla) {
-        const recursosResponse = await api.get('/catalogos/recursos');
-        const recursosFiltrados = recursosResponse.data.filter(
-          (r: Recurso) => r.id_tipo_recurso === selectedPlanillaForManual.id
-        );
-        setRecursos(recursosFiltrados);
+        const recursos= await loadRecursosFrom(selectedPlanillaForManual.id);
+        setRecursos(recursos);
       }
 
       // 3. Agregar los recursos al item como costos (solo los que no existan)
@@ -393,21 +526,87 @@ const CostosStep: React.FC = () => {
     );
   }
 
+  // Si estamos mostrando el resumen
+  if (showResumen) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-white">Resumen de Costos</h3>
+            <p className="text-slate-400">Revisa los recursos asignados a cada item</p>
+          </div>
+          <Button
+            onClick={() => setShowResumen(false)}
+            variant="outline"
+            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
+          >
+            Volver a Asignar Recursos
+          </Button>
+        </div>
+
+        {/* Resumen por Obra */}
+        {wizard.obras.map(obra => {
+          const obraItems = wizard.items.filter(item => item.id_obra === obra.id);
+          const totalCostoObra = obraItems.reduce((sum, item) => {
+            return sum + itemCostos
+              .filter(c => c.id_item_obra === item.id)
+              .reduce((s, c) => s + c.total_linea, 0);
+          }, 0);
+          const totalRecursosObra = obraItems.reduce((sum, item) => {
+            return sum + itemCostos.filter(c => c.id_item_obra === item.id).length;
+          }, 0);
+
+          if (totalRecursosObra === 0) return null;
+
+          return (
+            <Card key={obra.id}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{obra.nombre}</span>
+                  <div className="text-sm font-normal text-slate-400">
+                    {obraItems.length} items • {totalRecursosObra} recursos • ${totalCostoObra.toFixed(2)}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {obraItems.map(item => {
+                  const itemRecursos = itemCostos.filter(c => c.id_item_obra === item.id);
+                  if (itemRecursos.length === 0) return null;
+
+                  const totalCostoItem = itemRecursos.reduce((sum, c) => sum + c.total_linea, 0);
+
+                  return (
+                    <div key={item.id} className="mb-4 bg-slate-700/50 border border-slate-600 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-white">
+                          {item.codigo && `${item.codigo} - `}{item.descripcion_tarea}
+                        </h4>
+                        <div className="text-green-400 font-semibold">${totalCostoItem.toFixed(2)}</div>
+                      </div>
+                      <div className="space-y-2">
+                        {itemRecursos.map(recurso => (
+                          <div key={recurso.id} className="flex items-center justify-between text-sm bg-slate-800/50 p-2 rounded">
+                            <span className="text-slate-300">{recurso.recurso.descripcion}</span>
+                            <span className="text-slate-400">
+                              {recurso.cantidad} {recurso.recurso.unidad} × ${recurso.precio_unitario_aplicado.toFixed(2)} = ${recurso.total_linea.toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Botones de navegación */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack} className="bg-slate-700 hover:bg-slate-600 border-slate-600">
-          ← Anterior
-        </Button>
-        <Button 
-          onClick={handleContinue}
-          className="bg-sky-600 hover:bg-sky-700"
-        >
-          Continuar →
-        </Button>
-      </div>
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -562,16 +761,14 @@ const CostosStep: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {tiposRecurso.map((tipo) => {
                 const IconComponent = FileSpreadsheet;
+                const colorClass = getPlanillaColor(tipo.id_tipo_recurso);
+                
                 return (
                   <Button
                     key={tipo.id_tipo_recurso}
-                    variant={selectedPlanilla === tipo.id_tipo_recurso ? "default" : "outline"}
+                    variant="outline"
                     onClick={() => setSelectedPlanilla(tipo.id_tipo_recurso)}
-                    className={`h-20 flex flex-col items-center justify-center ${
-                      selectedPlanilla === tipo.id_tipo_recurso
-                        ? 'bg-sky-500 border-sky-400'
-                        : 'bg-slate-700 border-slate-600 hover:bg-slate-600'
-                    }`}
+                    className={`h-20 flex flex-col items-center justify-center ${colorClass}`}
                   >
                     <IconComponent className="h-6 w-6 mb-2" />
                     <span className="text-sm">{tipo.nombre}</span>
@@ -587,20 +784,9 @@ const CostosStep: React.FC = () => {
       {selectedPlanilla && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Recursos: {tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre}</span>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline"
-                  onClick={() => handleOpenAddManually(
-                    selectedPlanilla, 
-                    tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre || ''
-                  )}
-                  className="bg-sky-600 hover:bg-sky-700 border-sky-500 text-white"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Agregar Manualmente
-                </Button>
+            <CardTitle className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <span>Recursos: {tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre}</span>
                 <Button 
                   variant="outline" 
                   onClick={() => {
@@ -611,6 +797,48 @@ const CostosStep: React.FC = () => {
                 >
                   Cerrar Planilla
                 </Button>
+              </div>
+              
+              {/* Botones de Gestión de Recursos */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={() => handleOpenAddManually(
+                    selectedPlanilla, 
+                    tiposRecurso.find(t => t.id_tipo_recurso === selectedPlanilla)?.nombre || ''
+                  )}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  size="sm"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Cargar Manual
+                </Button>
+                
+                <Button 
+                  onClick={handleGenerateExcelTemplate}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Generar Excel
+                </Button>
+                
+                <div>
+                  <input
+                    id="upload-excel"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleUploadExcel}
+                    className="hidden"
+                  />
+                  <Button 
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    size="sm"
+                    onClick={() => document.getElementById('upload-excel')?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Cargar Excel
+                  </Button>
+                </div>
               </div>
             </CardTitle>
           </CardHeader>
@@ -633,21 +861,94 @@ const CostosStep: React.FC = () => {
               ) : recursosFiltrados.length === 0 ? (
                 <div className="text-center py-4 text-slate-400">No hay recursos en esta planilla</div>
               ) : (
-                recursosFiltrados.map((recurso) => (
-                  <div 
-                    key={recurso.id_recurso}
-                    onClick={() => handleAddRecursoToItem(recurso)}
-                    className="flex items-center justify-between p-3 bg-slate-700 hover:bg-slate-600 rounded-lg cursor-pointer transition-colors border border-slate-600"
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium text-white">{recurso.descripcion}</div>
-                      <div className="text-sm text-slate-400">
-                        {recurso.unidad} - ${recurso.costo_unitario_predeterminado.toFixed(2)}
-                      </div>
+                recursosFiltrados.map((recurso) => {
+                  // Verificar si el recurso está seleccionado para el item actual
+                  const costoExistente = selectedItem ? itemCostos.find(
+                    c => c.id_item_obra === selectedItem && c.id_recurso === recurso.id_recurso
+                  ) : null;
+                  const isSelected = !!costoExistente;
+
+                  return (
+                    <div 
+                      key={recurso.id_recurso}
+                      className={`p-3 rounded-lg transition-colors border ${
+                        isSelected
+                          ? 'bg-green-600/20 border-green-500'
+                          : 'bg-slate-700 hover:bg-slate-600 border-slate-600 cursor-pointer'
+                      }`}
+                    >
+                      {isSelected && costoExistente ? (
+                        // Recurso seleccionado - mostrar con controles
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-medium text-white flex items-center gap-2">
+                                <Check className="h-4 w-4 text-green-400" />
+                                {recurso.descripcion}
+                              </div>
+                              <div className="text-sm text-slate-400">
+                                {recurso.unidad}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEliminarCosto(costoExistente.id)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          {/* Controles de cantidad y precio */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="flex items-center gap-1">
+                              <Label className="text-slate-400 text-xs">Cant:</Label>
+                              <Input
+                                type="number"
+                                value={costoExistente.cantidad}
+                                onChange={(e) => handleCantidadChange(costoExistente.id, parseFloat(e.target.value) || 1)}
+                                min="0"
+                                step="0.01"
+                                className="h-8 w-20 text-xs"
+                              />
+                            </div>
+                            <span className="text-slate-400">×</span>
+                            <div className="flex items-center gap-1">
+                              <Label className="text-slate-400 text-xs">Precio:</Label>
+                              <Input
+                                type="number"
+                                value={costoExistente.precio_unitario_aplicado}
+                                onChange={(e) => handlePrecioChange(costoExistente.id, parseFloat(e.target.value) || 0)}
+                                min="0"
+                                step="0.01"
+                                className="h-8 w-24 text-xs"
+                              />
+                            </div>
+                            <span className="text-slate-400">=</span>
+                            <div className="text-sm font-medium text-green-400 ml-auto">
+                              ${costoExistente.total_linea.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Recurso no seleccionado - mostrar normal
+                        <div 
+                          onClick={() => handleAddRecursoToItem(recurso)}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium text-white">{recurso.descripcion}</div>
+                            <div className="text-sm text-slate-400">
+                              {recurso.unidad} - ${recurso.costo_unitario_predeterminado.toFixed(2)}
+                            </div>
+                          </div>
+                          <Plus className="h-4 w-4 text-sky-400" />
+                        </div>
+                      )}
                     </div>
-                    <Plus className="h-4 w-4 text-sky-400" />
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </CardContent>
@@ -751,6 +1052,20 @@ const CostosStep: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Botón para Ver Resumen */}
+      {itemCostos.length > 0 && (
+        <div className="flex justify-center pt-4">
+          <Button
+            onClick={() => setShowResumen(true)}
+            className="bg-sky-600 hover:bg-sky-700 text-white"
+            size="lg"
+          >
+            <ClipboardList className="h-5 w-5 mr-2" />
+            Ver Resumen de Costos
+          </Button>
+        </div>
       )}
 
       {/* Modal para agregar nueva planilla */}

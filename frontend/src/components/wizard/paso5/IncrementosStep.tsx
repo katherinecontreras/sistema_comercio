@@ -46,7 +46,6 @@ const IncrementosStep: React.FC = () => {
     if (!selectedItem || !formData.concepto.trim() || formData.valor <= 0) return;
 
     // Calcular monto según el item seleccionado
-    const item = wizard.items.find(i => i.id === selectedItem);
     const costosItem = wizard.costos.filter(c => c.id_item_obra === selectedItem);
     const subtotalItem = costosItem.reduce((sum, c) => sum + c.total_linea, 0);
     
@@ -80,13 +79,18 @@ const IncrementosStep: React.FC = () => {
         tipo_incremento: incremento.tipo_incremento,
         valor: incremento.valor
       });
+      setSelectedItem(incremento.id_item_obra); // Seleccionar el item del incremento
       setEditingIncremento(id);
     }
   };
 
   const handleUpdateIncremento = () => {
     if (editingIncremento && formData.concepto.trim() && formData.valor > 0) {
-      const costosItem = wizard.costos.filter(c => c.id_item_obra === selectedItem);
+      // Obtener el item del incremento que se está editando
+      const incrementoActual = incrementos.find(inc => inc.id === editingIncremento);
+      const itemIdParaCalculo = incrementoActual?.id_item_obra || selectedItem;
+      
+      const costosItem = wizard.costos.filter(c => c.id_item_obra === itemIdParaCalculo);
       const subtotalItem = costosItem.reduce((sum, c) => sum + c.total_linea, 0);
       
       const monto_calculado = formData.tipo_incremento === 'porcentaje'
@@ -118,15 +122,6 @@ const IncrementosStep: React.FC = () => {
     setIncrementosLocal(updatedIncrementos);
     setIncrementos(updatedIncrementos);
   };
-
-  const handleContinue = () => {
-    setStep('verificacion');
-  };
-
-  const handleBack = () => {
-    setStep('costos');
-  };
-
   // Calcular total de incrementos por item
   const getTotalIncrementos = (itemId: string) => {
     const itemIncrementos = incrementosPorItem[itemId] || [];
@@ -135,15 +130,6 @@ const IncrementosStep: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Botones de navegación */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack}>
-          ← Anterior
-        </Button>
-        <Button onClick={handleContinue}>
-          Continuar →
-        </Button>
-      </div>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

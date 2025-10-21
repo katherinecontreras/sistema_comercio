@@ -10,11 +10,12 @@ class Cotizacion(Base):
 
     id_cotizacion: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id_cliente: Mapped[int] = mapped_column(Integer, ForeignKey("clientes.id_cliente"))
+    codigo_proyecto: Mapped[str | None] = mapped_column(String(50))
     nombre_proyecto: Mapped[str] = mapped_column(String(250))
     descripcion_proyecto: Mapped[str | None] = mapped_column(Text)
     fecha_creacion: Mapped[date] = mapped_column(Date)
-    fecha_inicio: Mapped[date | None] = mapped_column(Date)
-    fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
+    fecha_entrega: Mapped[date | None] = mapped_column(Date)
+    fecha_recepcion: Mapped[date | None] = mapped_column(Date)
     moneda: Mapped[str] = mapped_column(String(10), default="USD")
     estado: Mapped[str] = mapped_column(String(50), default="borrador")
 
@@ -49,6 +50,8 @@ class ItemObra(Base):
 
     obra = relationship("Obra", back_populates="items")
     padre = relationship("ItemObra", remote_side=[id_item_obra])
+    especialidad = relationship("Especialidad")
+    unidad = relationship("Unidad")
     costos = relationship("ItemObraCosto", back_populates="item", cascade="all, delete-orphan")
     incrementos = relationship("Incremento", back_populates="item", cascade="all, delete-orphan")
 

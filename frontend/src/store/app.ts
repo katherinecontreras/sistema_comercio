@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type WizardStep = 'cliente' | 'cotizacion' | 'datos' | 'obras' | 'items' | 'costos' | 'incrementos' | 'verificacion';
+type WizardStep = 'cliente' | 'oferta' | 'obras' | 'items' | 'costos' | 'incrementos' | 'verificacion';
 
 interface UserState {
   accessToken: string | null;
@@ -33,7 +33,7 @@ interface ItemObra {
   id_especialidad?: number;
   id_unidad?: number;
   cantidad: number;
-  precio_unitario?: number;
+  precio_unitario: number;
   nivel: number;
   expanded: boolean;
 }
@@ -65,11 +65,12 @@ interface Incremento {
 }
 
 interface QuoteFormData {
+  codigo_proyecto?: string;
   nombre_proyecto: string;
   descripcion_proyecto?: string;
   fecha_creacion: string;
-  fecha_inicio?: string;
-  fecha_vencimiento?: string;
+  fecha_entrega?: string;
+  fecha_recepcion?: string;
   moneda?: string;
 }
 
@@ -111,11 +112,12 @@ export const useAppStore = create<AppState>((set) => ({
   wizard: { 
     step: 'cliente', 
     quoteFormData: { 
+      codigo_proyecto: '',
       nombre_proyecto: '', 
       descripcion_proyecto: '',
       fecha_creacion: new Date().toISOString().split('T')[0],
-      fecha_inicio: '',
-      fecha_vencimiento: '',
+      fecha_entrega: '',
+      fecha_recepcion: '',
       moneda: 'USD'
     },
     obras: [], 
@@ -149,11 +151,12 @@ export const useAppStore = create<AppState>((set) => ({
         wizard: { 
           step: 'cliente', 
           quoteFormData: { 
+            codigo_proyecto: '',
             nombre_proyecto: '', 
             descripcion_proyecto: '',
             fecha_creacion: new Date().toISOString().split('T')[0],
-            fecha_inicio: '',
-            fecha_vencimiento: '',
+            fecha_entrega: '',
+            fecha_recepcion: '',
             moneda: 'USD'
           },
           obras: [], 

@@ -25,7 +25,7 @@ export const ButtonsHeader: React.FC<ButtonsHeaderProps> = ({
 }) => {
   const getStepTitle = () => {
     const titles: Record<string, string> = {
-      datos: 'Datos de la Cotización',
+      oferta: 'Crear Cotización',
       obras: 'Obras',
       items: 'Items de Obra',
       costos: 'Asignar Costos',
@@ -92,4 +92,5 @@ export const ButtonsHeader: React.FC<ButtonsHeaderProps> = ({
     </div>
   );
 };
+
 

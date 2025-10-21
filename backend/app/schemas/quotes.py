@@ -5,11 +5,12 @@ from datetime import date
 
 class CotizacionCreate(BaseModel):
     id_cliente: int
+    codigo_proyecto: str | None = None
     nombre_proyecto: str
     descripcion_proyecto: str | None = None
     fecha_creacion: date
-    fecha_inicio: date | None = None
-    fecha_vencimiento: date | None = None
+    fecha_entrega: date | None = None
+    fecha_recepcion: date | None = None
     moneda: str | None = "ARS"
     estado: str | None = "Borrador"
 
@@ -17,11 +18,12 @@ class CotizacionCreate(BaseModel):
 class CotizacionRead(BaseModel):
     id_cotizacion: int
     id_cliente: int
+    codigo_proyecto: str | None = None
     nombre_proyecto: str
     descripcion_proyecto: str | None = None
     fecha_creacion: date
-    fecha_inicio: date | None = None
-    fecha_vencimiento: date | None = None
+    fecha_entrega: date | None = None
+    fecha_recepcion: date | None = None
     moneda: str | None = "ARS"
     estado: str
 
@@ -64,9 +66,10 @@ class ItemRead(BaseModel):
     id_item_padre: int | None
     codigo: str | None
     descripcion_tarea: str
-    especialidad: str | None
-    unidad: str | None
+    id_especialidad: int | None
+    id_unidad: int | None
     cantidad: float
+    precio_unitario: float
 
     class Config:
         from_attributes = True

@@ -24,7 +24,7 @@ interface RecursosAgregadosTableProps {
   onDelete: (id: string) => void;
 }
 
-export const RecursosAgregadosTable: React.FC<RecursosAgregadosTableProps> = ({
+const RecursosAgregadosTable: React.FC<RecursosAgregadosTableProps> = ({
   recursos,
   atributos,
   atributosSeleccionados,
@@ -158,3 +158,5 @@ export const RecursosAgregadosTable: React.FC<RecursosAgregadosTableProps> = ({
   );
 };
 
+
+export default RecursosAgregadosTable;

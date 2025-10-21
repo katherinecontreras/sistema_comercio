@@ -1,28 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/store/app';
 import { createCotizacion } from '@/api/quotes';
+import { CotizacionData } from '@/store/cotizacion';
 
-interface CotizacionData {
-  nombre_proyecto: string;
-  descripcion_proyecto: string;
-  fecha_creacion: string;
-  fecha_inicio: string;
-  fecha_vencimiento: string;
-  moneda: string;
-}
 
 const CotizacionStep: React.FC = () => {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState<CotizacionData>({
+    codigo_proyecto: '',
     nombre_proyecto: '',
     descripcion_proyecto: '',
     fecha_creacion: new Date().toISOString().split('T')[0],
-    fecha_inicio: new Date().toISOString().split('T')[0],
-    fecha_vencimiento: '',
+    fecha_entrega: '',
+    fecha_recepcion: '',
     moneda: 'USD'
   });
   
@@ -32,11 +24,12 @@ const CotizacionStep: React.FC = () => {
   useEffect(() => {
     if (wizard.quoteFormData.nombre_proyecto || wizard.quoteFormData.fecha_creacion) {
       setFormData({
+        codigo_proyecto: wizard.quoteFormData.codigo_proyecto || '',
         nombre_proyecto: wizard.quoteFormData.nombre_proyecto || '',
         descripcion_proyecto: wizard.quoteFormData.descripcion_proyecto || '',
         fecha_creacion: wizard.quoteFormData.fecha_creacion || new Date().toISOString().split('T')[0],
-        fecha_inicio: wizard.quoteFormData.fecha_inicio || '',
-        fecha_vencimiento: wizard.quoteFormData.fecha_vencimiento || '',
+        fecha_entrega: wizard.quoteFormData.fecha_entrega || '',
+        fecha_recepcion: wizard.quoteFormData.fecha_recepcion || '',
         moneda: wizard.quoteFormData.moneda || 'USD'
       });
     }
@@ -60,7 +53,6 @@ const CotizacionStep: React.FC = () => {
       return;
     }
 
-    setLoading(true);
     setError('');
 
     try {
@@ -74,16 +66,14 @@ const CotizacionStep: React.FC = () => {
       setStep('obras');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error al crear cotización');
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full mx-auto">
+      <div className="grid grid-cols-5 grid-rows-5 gap-4">
         {/* Nombre del Proyecto */}
-        <div className="md:col-span-2">
+        <div>
           <Label htmlFor="nombre" className="text-slate-300">Nombre del Proyecto *</Label>
           <Input
             id="nombre"
@@ -95,51 +85,14 @@ const CotizacionStep: React.FC = () => {
           />
         </div>
 
-        {/* Descripción */}
-        <div className="md:col-span-2">
-          <Label htmlFor="descripcion" className="text-slate-300">Descripción del Proyecto</Label>
-          <textarea
-            id="descripcion"
-            value={formData.descripcion_proyecto}
-            onChange={(e) => setFormData({ ...formData, descripcion_proyecto: e.target.value })}
-            placeholder="Descripción breve del alcance del proyecto..."
-            className="w-full px-3 py-2 rounded-md bg-slate-700 border border-slate-600 text-white min-h-[100px] focus:outline-none focus:ring-2 focus:ring-sky-500"
-          />
-        </div>
-
-        {/* Fecha Creación */}
+        {/* Código del Proyecto */}
         <div>
-          <Label htmlFor="fecha_creacion" className="text-slate-300">Fecha de Creación *</Label>
+          <Label htmlFor="codigo" className="text-slate-300">Código del Proyecto</Label>
           <Input
-            id="fecha_creacion"
-            type="date"
-            value={formData.fecha_creacion}
-            onChange={(e) => setFormData({ ...formData, fecha_creacion: e.target.value })}
-            className="bg-slate-700 border-slate-600 text-white"
-            required
-          />
-        </div>
-
-        {/* Fecha Inicio */}
-        <div>
-          <Label htmlFor="fecha_inicio" className="text-slate-300">Fecha de Inicio</Label>
-          <Input
-            id="fecha_inicio"
-            type="date"
-            value={formData.fecha_inicio}
-            onChange={(e) => setFormData({ ...formData, fecha_inicio: e.target.value })}
-            className="bg-slate-700 border-slate-600 text-white"
-          />
-        </div>
-
-        {/* Fecha Vencimiento */}
-        <div>
-          <Label htmlFor="fecha_vencimiento" className="text-slate-300">Fecha de Vencimiento</Label>
-          <Input
-            id="fecha_vencimiento"
-            type="date"
-            value={formData.fecha_vencimiento}
-            onChange={(e) => setFormData({ ...formData, fecha_vencimiento: e.target.value })}
+            id="codigo"
+            value={formData.codigo_proyecto}
+            onChange={(e) => setFormData({ ...formData, codigo_proyecto: e.target.value })}
+            placeholder="Ej: PRY-2024-001"
             className="bg-slate-700 border-slate-600 text-white"
           />
         </div>
@@ -159,23 +112,61 @@ const CotizacionStep: React.FC = () => {
             <option value="EUR">EUR - Euro</option>
           </select>
         </div>
-      </div>
 
+        {/* Fecha Entrega */}
+        <div className="row-start-2">
+          <Label htmlFor="fecha_entrega" className="text-slate-300">Fecha de Entrega</Label>
+          <Input
+            id="fecha_entrega"
+            type="date"
+            value={formData.fecha_entrega}
+            onChange={(e) => setFormData({ ...formData, fecha_entrega: e.target.value })}
+            className="bg-slate-700 border-slate-600 text-white"
+          />
+        </div>
+        
+        {/* Fecha Recepción */}
+        <div className="row-start-2">
+          <Label htmlFor="fecha_recepcion" className="text-slate-300">Fecha de Recepción</Label>
+          <Input
+            id="fecha_recepcion"
+            type="date"
+            value={formData.fecha_recepcion}
+            onChange={(e) => setFormData({ ...formData, fecha_recepcion: e.target.value })}
+            className="bg-slate-700 border-slate-600 text-white"
+          />
+        </div>
+        
+        {/* Fecha Creación (Solo lectura) */}
+        <div className="row-start-2">
+          <Label htmlFor="fecha_creacion" className="text-slate-300">Fecha de Creación</Label>
+          <Input
+            id="fecha_creacion"
+            type="date"
+            value={formData.fecha_creacion}
+            className=" text-slate-400 bg-transparent border-transparent cursor-not-allowed"
+            disabled
+            readOnly
+          />
+        </div>
+        
+        {/* Descripción del Proyecto */}
+        <div className="col-span-3 row-start-3">
+          <Label htmlFor="descripcion" className="text-slate-300">Descripción del Proyecto</Label>
+          <textarea
+            id="descripcion"
+            value={formData.descripcion_proyecto}
+            onChange={(e) => setFormData({ ...formData, descripcion_proyecto: e.target.value })}
+            placeholder="Descripción breve del alcance del proyecto..."
+            className="w-full px-3 py-2 rounded-md bg-slate-700 border border-slate-600 text-white min-h-[80px] focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+        </div>
+      </div>
       {error && (
         <div className="bg-red-900/30 border border-red-600/50 rounded-lg p-4">
           <p className="text-sm text-red-300">{error}</p>
         </div>
       )}
-
-      <div className="flex justify-end">
-        <Button 
-          type="submit" 
-          disabled={loading}
-          className="bg-sky-600 hover:bg-sky-700 text-white px-8"
-        >
-          {loading ? 'Guardando...' : 'Continuar'}
-        </Button>
-      </div>
     </form>
   );
 };

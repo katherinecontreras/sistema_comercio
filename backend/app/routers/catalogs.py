@@ -327,12 +327,16 @@ async def cargar_recursos_excel(
     try:
         # Parsear atributos
         atributos_list = json.loads(atributos)
+        print(f"DEBUG RUTA: Atributos recibidos: {atributos_list}")
+        print(f"DEBUG RUTA: ID tipo recurso: {id_tipo_recurso}")
         
         # Leer contenido del archivo
         file_content = await file.read()
+        print(f"DEBUG RUTA: Archivo leído, tamaño: {len(file_content)} bytes")
         
         # Procesar Excel
         resultado = procesar_excel_recursos(file_content, id_tipo_recurso, atributos_list)
+        print(f"DEBUG RUTA: Resultado procesamiento: {resultado['total_procesados']} recursos, {len(resultado['errores'])} errores")
         
         if resultado['errores'] and len(resultado['recursos']) == 0:
             return {
@@ -347,14 +351,29 @@ async def cargar_recursos_excel(
         errores_guardado = []
         ids_recursos_procesados = []  # Para devolver los IDs
         
-        for recurso_data in resultado['recursos']:
+        print(f"DEBUG RUTA: Iniciando guardado de {len(resultado['recursos'])} recursos")
+        
+        for idx, recurso_data in enumerate(resultado['recursos'], 1):
+            print(f"DEBUG RUTA: Procesando recurso {idx}: {recurso_data.get('descripcion')}")
+            
             # Buscar unidad por nombre
             unidad_nombre = recurso_data.get('unidad', '')
             unidad = db.scalar(select(Unidad).where(Unidad.nombre == unidad_nombre))
             
             if not unidad:
-                errores_guardado.append(f"Unidad '{unidad_nombre}' no encontrada en BD")
-                continue
+                # Si la unidad no existe, crearla automáticamente
+                print(f"DEBUG RUTA: Unidad '{unidad_nombre}' no encontrada, creándola automáticamente...")
+                nueva_unidad = Unidad(
+                    nombre=unidad_nombre,
+                    simbolo=unidad_nombre,
+                    descripcion=f"Unidad {unidad_nombre} (creada automáticamente)"
+                )
+                db.add(nueva_unidad)
+                db.flush()  # Para obtener el ID
+                unidad = nueva_unidad
+                print(f"DEBUG RUTA: Unidad '{unidad_nombre}' creada con ID: {unidad.id_unidad}")
+            else:
+                print(f"DEBUG RUTA: Unidad encontrada: {unidad.nombre} (ID: {unidad.id_unidad})")
             
             # Extraer atributos personalizados
             atributos_personalizados = {}
@@ -386,6 +405,7 @@ async def cargar_recursos_excel(
             
             if recurso_existente:
                 # Actualizar
+                print(f"DEBUG RUTA: Actualizando recurso existente ID: {recurso_existente.id_recurso}")
                 recurso_existente.id_unidad = unidad.id_unidad
                 recurso_existente.cantidad = recurso_data.get('cantidad', 0)
                 recurso_existente.costo_unitario_predeterminado = recurso_data.get('costo_unitario', 0)
@@ -395,6 +415,7 @@ async def cargar_recursos_excel(
                 ids_recursos_procesados.append(recurso_existente.id_recurso)
             else:
                 # Crear nuevo
+                print(f"DEBUG RUTA: Creando nuevo recurso: {recurso_data.get('descripcion')}")
                 nuevo_recurso = Recurso(
                     id_tipo_recurso=id_tipo_recurso,
                     descripcion=recurso_data.get('descripcion'),
@@ -408,8 +429,11 @@ async def cargar_recursos_excel(
                 db.flush()  # Para obtener el ID antes de commit
                 recursos_guardados += 1
                 ids_recursos_procesados.append(nuevo_recurso.id_recurso)
+                print(f"DEBUG RUTA: Nuevo recurso creado con ID: {nuevo_recurso.id_recurso}")
         
+        print(f"DEBUG RUTA: Haciendo commit...")
         db.commit()
+        print(f"DEBUG RUTA: Commit exitoso. Total guardados: {recursos_guardados}, actualizados: {recursos_actualizados}")
         
         todos_errores = resultado['errores'] + errores_guardado
         

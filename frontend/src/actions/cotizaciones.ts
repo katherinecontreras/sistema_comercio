@@ -3,10 +3,12 @@ import api from '@/services/api';
 // Cotización
 export const addCotizacion = async (cotizacionData: {
   id_cliente: number;
+  codigo_proyecto?: string;
   nombre_proyecto: string;
   descripcion_proyecto?: string;
-  fecha_inicio?: string;
-  fecha_vencimiento?: string;
+  fecha_creacion?: string;
+  fecha_entrega?: string;
+  fecha_recepcion?: string;
   moneda: string;
   estado: 'borrador' | 'finalizada' | 'aprobada' | 'rechazada';
 }) => {

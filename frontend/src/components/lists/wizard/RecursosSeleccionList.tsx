@@ -102,3 +102,5 @@ export const RecursosSeleccionList: React.FC<RecursosSeleccionListProps> = ({
   );
 };
 
+
+export default RecursosSeleccionList;

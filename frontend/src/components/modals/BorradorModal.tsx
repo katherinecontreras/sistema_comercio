@@ -29,11 +29,13 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
       // 1. Crear la cotización con estado borrador
       const cotizacionId = await addCotizacion({
         id_cliente: client.selectedClientId,
+        codigo_proyecto: wizard.quoteFormData?.codigo_proyecto,
         nombre_proyecto: wizard.quoteFormData?.nombre_proyecto || 'Borrador sin nombre',
-        descripcion_proyecto: '',
-        fecha_inicio: wizard.quoteFormData?.fecha_creacion,
-        fecha_vencimiento: wizard.quoteFormData?.fecha_creacion,
-        moneda: 'USD',
+        descripcion_proyecto: wizard.quoteFormData?.descripcion_proyecto,
+        fecha_creacion: wizard.quoteFormData?.fecha_creacion || new Date().toISOString().split('T')[0],
+        fecha_entrega: wizard.quoteFormData?.fecha_entrega,
+        fecha_recepcion: wizard.quoteFormData?.fecha_recepcion,
+        moneda: wizard.quoteFormData?.moneda || 'USD',
         estado: 'borrador'
       });
 
@@ -43,7 +45,7 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
           id_cotizacion: cotizacionId,
           nombre_obra: obra.nombre,
           descripcion: obra.descripcion,
-          ubicacion: ''
+          ubicacion: obra.ubicacion
         }));
         const idsObras = await addObras(obrasData);
         
@@ -59,10 +61,10 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
             id_obra: obraIdMap[item.id_obra],
             codigo: item.codigo,
             descripcion_tarea: item.descripcion_tarea,
-            id_especialidad: undefined,
-            id_unidad: undefined,
+            id_especialidad: item.id_especialidad,
+            id_unidad: item.id_unidad,
             cantidad: item.cantidad,
-            precio_unitario: 0
+            precio_unitario: item.precio_unitario
           }));
           const idsItems = await addItems(itemsData);
           
@@ -88,18 +90,35 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
           if (wizard.incrementos.length > 0) {
             const incrementosData = wizard.incrementos.map(incremento => ({
               id_item_obra: itemIdMap[incremento.id_item_obra],
-              concepto: incremento.descripcion,
-              descripcion: '',
-              tipo_incremento: 'porcentaje' as const,
-              valor: incremento.porcentaje,
+              concepto: incremento.concepto,
+              descripcion: incremento.descripcion,
+              tipo_incremento: incremento.tipo_incremento,
+              valor: incremento.valor,
               porcentaje: incremento.porcentaje,
-              monto_calculado: 0
+              monto_calculado: incremento.monto_calculado
             }));
             await addIncrementos(incrementosData);
           }
         }
       }
 
+      // Limpiar wizard después de guardar
+      const { setStep, setQuoteFormData, setObras, setItems, setCostos, setIncrementos } = useAppStore.getState();
+      setStep('cliente');
+      setQuoteFormData({
+        codigo_proyecto: '',
+        nombre_proyecto: '',
+        descripcion_proyecto: '',
+        fecha_creacion: new Date().toISOString().split('T')[0],
+        fecha_entrega: '',
+        fecha_recepcion: '',
+        moneda: 'USD'
+      });
+      setObras([]);
+      setItems([]);
+      setCostos([]);
+      setIncrementos([]);
+      
       onSuccess();
     } catch (err: any) {
       console.error('Error guardando borrador:', err);

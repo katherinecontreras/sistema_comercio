@@ -133,3 +133,5 @@ export const ObrasConItemsList: React.FC<ObrasConItemsListProps> = ({
   );
 };
 
+
+export default ObrasConItemsList;

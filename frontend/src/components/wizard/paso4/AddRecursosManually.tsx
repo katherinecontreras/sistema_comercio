@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Edit2, Check, X, Save, AlertTriangle, Package } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, AlertTriangle, Package } from 'lucide-react';
 import { generateTempId } from '@/utils/idGenerator';
 import { useCatalogos } from '@/hooks';
 import { AddUnidadModal } from '@/components/modals';
 import { ConfirmDialog, Toast } from '@/components/notifications';
+import AtributosTable from '@/components/tables/AtributosTable';
+import { AgregarAtributoForm } from '@/components/forms/wizard/AgregarAtributoForm';
 
 interface Atributo {
   id: string;
@@ -37,7 +39,7 @@ interface Props {
 }
 
 const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCancel, onSave }) => {
-  const { loadUnidades, loadRecursosFrom, handleAddUnidad } = useCatalogos();
+  const { loadUnidades, loadRecursosFrom, handleAddUnidad, handleAddRecursos } = useCatalogos();
   
   const [paso, setPaso] = useState<1 | 2>(1);
   const [atributos, setAtributos] = useState<Atributo[]>([
@@ -50,7 +52,6 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
     new Set(['descripcion', 'unidad', 'cantidad', 'costo_unitario'])
   );
   const [showAddAtributo, setShowAddAtributo] = useState(false);
-  const [newAtributo, setNewAtributo] = useState({ nombre: '', tipo: 'texto' as 'texto' | 'numerico' });
   
   // Paso 2
   const [recursosLocales, setRecursosLocales] = useState<RecursoLocal[]>([]);
@@ -116,38 +117,6 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
-  };
-
-  // Paso 1: Manejo de atributos
-  const toggleAtributo = (atributoId: string) => {
-    // No permitir deseleccionar costo_unitario (costo_total se calcula automáticamente)
-    if (atributoId === 'costo_unitario' && atributosSeleccionados.has(atributoId)) {
-      return;
-    }
-
-    const newSelected = new Set(atributosSeleccionados);
-    if (newSelected.has(atributoId)) {
-      newSelected.delete(atributoId);
-    } else {
-      newSelected.add(atributoId);
-    }
-    setAtributosSeleccionados(newSelected);
-  };
-
-  const handleAddAtributo = () => {
-    if (!newAtributo.nombre.trim()) return;
-
-    const nuevoAtributo: Atributo = {
-      id: generateTempId(),
-      nombre: newAtributo.nombre.trim(),
-      tipo: newAtributo.tipo,
-      requerido: false
-    };
-
-    setAtributos([...atributos, nuevoAtributo]);
-    setAtributosSeleccionados(new Set([...atributosSeleccionados, nuevoAtributo.id]));
-    setNewAtributo({ nombre: '', tipo: 'texto' });
-    setShowAddAtributo(false);
   };
 
   const handleContinuarPaso1 = () => {
@@ -250,23 +219,67 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
     }
   };
 
-  const handleGuardarTodo = async () => {
+  // Función para guardar recursos y volver
+  const handleGuardarYVolver = async () => {
     if (recursosLocales.length === 0) {
-      alert('No hay recursos para guardar');
+      setToastMessage('Debes agregar al menos un recurso antes de guardar');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
       return;
     }
 
-    onSave(recursosLocales.map(r => r.datos));
-  };
+    try {
+      // Guardar cada recurso en la BD
+      const recursosGuardados = [];
+      
+      for (const recursoLocal of recursosLocales) {
+        // Buscar id_unidad por nombre
+        const unidadEncontrada = unidades.find((u: any) => u.nombre === recursoLocal.datos.unidad);
+        
+        if (!unidadEncontrada) {
+          console.error('Unidad no encontrada:', recursoLocal.datos.unidad);
+          continue;
+        }
 
-  const handleCancelar = () => {
-    if (recursosLocales.length > 0 || Object.values(formData).some(v => v !== '' && v !== 0)) {
-      setShowCancelAlert(true);
-    } else {
-      onCancel();
+        // Preparar datos del recurso para la BD
+        const recursoData = {
+          id_tipo_recurso: planillaId,
+          descripcion: recursoLocal.datos.descripcion,
+          id_unidad: unidadEncontrada.id_unidad,
+          cantidad: parseFloat(recursoLocal.datos.cantidad) || 0,
+          costo_unitario_predeterminado: parseFloat(recursoLocal.datos.costo_unitario) || 0,
+          costo_total: parseFloat(recursoLocal.datos.costo_total) || 0,
+          atributos: {} as Record<string, any>
+        };
+
+        // Agregar atributos personalizados
+        Object.keys(recursoLocal.datos).forEach(key => {
+          if (!['descripcion', 'unidad', 'cantidad', 'costo_unitario', 'costo_total'].includes(key)) {
+            recursoData.atributos[key] = recursoLocal.datos[key];
+          }
+        });
+
+        // Guardar en BD usando handleAddRecursos del hook
+        const recursoGuardado = await handleAddRecursos(recursoData);
+        recursosGuardados.push({
+          ...recursoGuardado,
+          cantidad: recursoLocal.datos.cantidad,
+          costo_unitario: recursoLocal.datos.costo_unitario,
+          unidad: recursoLocal.datos.unidad
+        });
+      }
+
+      // Llamar al callback onSave con los recursos guardados
+      onSave(recursosGuardados);
+    } catch (error) {
+      console.error('Error guardando recursos:', error);
+      setToastMessage('Error al guardar los recursos en la base de datos');
+      setToastType('error');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
-
   // Autocompletado - busca en recursos locales Y en la BD
   const getSuggestions = (atributoId: string, value: string) => {
     if (!value || value.length < 2) return [];
@@ -435,27 +448,6 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
 
   return (
     <div className="space-y-6">
-      {/* Botones de navegación modificados */}
-      <div className="flex justify-between">
-        <Button 
-          variant="destructive" 
-          onClick={handleCancelar}
-        >
-          <X className="h-4 w-4 mr-2" />
-          Cancelar
-        </Button>
-        {paso === 2 && (
-          <Button 
-            onClick={handleGuardarTodo}
-            disabled={recursosLocales.length === 0}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Guardar Recursos ({recursosLocales.length})
-          </Button>
-        )}
-      </div>
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -479,135 +471,54 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
           <CardContent className="space-y-6">
             {/* Tabla visual de atributos */}
             <div className="border border-slate-600 rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-slate-700">
-                  <tr>
-                    <th className="text-left p-3 text-white text-sm">Estado</th>
-                    <th className="text-left p-3 text-white text-sm">Atributo</th>
-                    <th className="text-center p-3 text-white text-sm">Tipo de Dato</th>
-                    <th className="text-center p-3 text-white text-sm">Obligatorio</th>
-                    <th className="text-center p-3 text-white text-sm">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {atributos.map((attr) => {
-                    const isSelected = atributosSeleccionados.has(attr.id);
-                    const isLocked = attr.id === 'costo_unitario';
-                    
-                    return (
-                      <tr 
-                        key={attr.id}
-                        className={`border-t border-slate-600 transition-colors ${
-                          isSelected ? 'bg-green-900/20' : 'bg-slate-800/50'
-                        }`}
-                      >
-                        <td className="p-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
-                            isSelected
-                              ? 'bg-green-600 border-green-500'
-                              : 'bg-slate-700 border-slate-600'
-                          }`}>
-                            {isSelected && <Check className="h-4 w-4 text-white" />}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className="text-white font-medium">{attr.nombre}</span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">
-                            {attr.tipo === 'numerico' ? 'Numérico' : 'Texto'}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          {isLocked && (
-                            <span className="text-xs bg-red-900/30 text-red-400 px-2 py-1 rounded border border-red-700">
-                              SÍ
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-center">
-                          <Button
-                            size="sm"
-                            onClick={() => toggleAtributo(attr.id)}
-                            disabled={isLocked && isSelected}
-                            className={`${
-                              isSelected
-                                ? 'bg-red-600 hover:bg-red-700'
-                                : 'bg-green-600 hover:bg-green-700'
-                            } ${isLocked && isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            {isSelected ? 'Quitar' : 'Agregar'}
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Botón para agregar nuevo atributo */}
-            <Button
-              onClick={() => setShowAddAtributo(!showAddAtributo)}
-              className="bg-sky-600 hover:bg-sky-700 w-full"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Nuevo Atributo Personalizado
-            </Button>
-
-            {/* Form para agregar nuevo atributo */}
-            {showAddAtributo && (
-              <div className="border border-slate-600 rounded-lg p-4 bg-slate-700/50 space-y-4">
-                <h4 className="font-medium text-white">Nuevo Atributo Personalizado</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="attr-nombre">Nombre del Atributo *</Label>
-                    <Input
-                      id="attr-nombre"
-                      value={newAtributo.nombre}
-                      onChange={(e) => setNewAtributo({ ...newAtributo, nombre: e.target.value })}
-                      placeholder="Ej: Marca, Modelo, Potencia, etc."
-                      autoFocus
+              <AtributosTable
+                atributos={atributos}
+                atributosSeleccionados={atributosSeleccionados}
+                onToggleAtributo={(id) => {
+                  // tu lógica existente: evita deseleccionar costo_unitario
+                  if (id === 'costo_unitario' && atributosSeleccionados.has(id)) return;
+                  setAtributosSeleccionados(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                }}
+                eliminarAtributo={(id) => {
+                  // opcional: si querés permitir borrar atributos personalizados
+                  setAtributos(prev => prev.filter(a => a.id !== id));
+                  setAtributosSeleccionados(prev => {
+                    const next = new Set(prev);
+                    next.delete(id);
+                    return next;
+                  });
+                }}
+                extraForm={
+                  showAddAtributo ? (
+                    <AgregarAtributoForm
+                      onAdd={(nuevo) => {
+                        const newAttr = {
+                          id: generateTempId(),
+                          nombre: nuevo.nombre.trim(),
+                          tipo: nuevo.tipo,
+                          requerido: false,
+                        };
+                        setAtributos(prev => [...prev, newAttr]);
+                        setAtributosSeleccionados(prev => new Set([...Array.from(prev), newAttr.id]));
+                        setShowAddAtributo(false);
+                      }}
+                      onCancel={() => setShowAddAtributo(false)}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="attr-tipo">Tipo de Dato</Label>
-                    <select
-                      id="attr-tipo"
-                      value={newAtributo.tipo}
-                      onChange={(e) => setNewAtributo({ ...newAtributo, tipo: e.target.value as 'texto' | 'numerico' })}
-                      className="w-full h-10 rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white"
-                    >
-                      <option value="texto">Texto</option>
-                      <option value="numerico">Numérico</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm"
-                    onClick={handleAddAtributo}
-                    disabled={!newAtributo.nombre.trim()}
-                    className="bg-sky-600 hover:bg-sky-700"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Agregar Atributo
-                  </Button>
-                  <Button 
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddAtributo(false);
-                      setNewAtributo({ nombre: '', tipo: 'texto' });
-                    }}
-                    className="bg-slate-600 hover:bg-slate-500 border-slate-500"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            )}
+                  ) : (
+                    <div className="p-2">
+                      <Button onClick={() => setShowAddAtributo(true)} className="w-full bg-sky-600 hover:bg-sky-700">
+                        <Plus className="h-4 w-4 mr-2" /> Agregar Nuevo Atributo Personalizado
+                      </Button>
+                    </div>
+                  )
+                }
+              />
+            </div>
 
             <div className="flex justify-end">
               <Button 
@@ -911,6 +822,38 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Botones de navegación para el paso 2 */}
+      {paso === 2 && (
+        <div className="flex justify-between mt-6">
+          <Button
+            variant="outline"
+            onClick={() => setShowCancelAlert(true)}
+            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Cancelar y Salir
+          </Button>
+          
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPaso(1)}
+              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
+            >
+              Volver al Paso 1
+            </Button>
+            <Button
+              onClick={handleGuardarYVolver}
+              disabled={recursosLocales.length === 0}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Guardar y Volver ({recursosLocales.length} recurso{recursosLocales.length !== 1 ? 's' : ''})
+            </Button>
+          </div>
         </div>
       )}
 

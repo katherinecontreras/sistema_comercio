@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Edit2, Check, X, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/app';
@@ -9,32 +9,10 @@ import { useCatalogos } from '@/hooks';
 import { addEspecialidad } from '@/actions';
 import { AddEspecialidadModal, AddUnidadModal } from '@/components/modals';
 import { InfoDialog, Toast } from '@/components/notifications';
-
-interface ItemObra {
-  id: string;
-  id_obra: string;
-  id_item_padre: string | null;
-  codigo: string;
-  descripcion_tarea: string;
-  especialidad: string;
-  unidad: string;
-  cantidad: number;
-  nivel: number;
-  expanded: boolean;
-}
-
-interface Especialidad {
-  id_especialidad: number;
-  nombre: string;
-  descripcion?: string;
-}
-
-interface Unidad {
-  id_unidad: number;
-  nombre: string;
-  simbolo?: string;
-  descripcion?: string;
-}
+import { ItemObra } from '@/store/obra';
+import { Especialidad } from '@/store/especialidad';
+import { Unidad } from '@/store/unidad';
+import ItemForm from '@/components/forms/wizard/ItemsForm';
 
 const ItemsStep: React.FC = () => {
   const { wizard, setItems } = useAppStore();
@@ -59,7 +37,22 @@ const ItemsStep: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
-  
+
+  // Estados para inputs de autocompletado
+  const [especialidadInput, setEspecialidadInput] = useState('');
+  const [showEspecialidadesSuggestions, setShowEspecialidadesSuggestions] = useState(false);
+  const [selectedEspecialidadIndex, setSelectedEspecialidadIndex] = useState(0);
+
+  const [unidadInput, setUnidadInput] = useState('');
+  const [showUnidadesSuggestions, setShowUnidadesSuggestions] = useState(false);
+  const [selectedUnidadIndex, setSelectedUnidadIndex] = useState(0);
+
+  // Estados para creación rápida
+  const [newEspecialidad, setNewEspecialidad] = useState<{ nombre: string; descripcion: string }>({ nombre: '', descripcion: '' });
+  const [newUnidad, setNewUnidad] = useState<{ nombre: string; simbolo: string; descripcion: string }>({ nombre: '', simbolo: '', descripcion: '' });
+
+
+
   const [formData, setFormData] = useState({
     codigo: '',
     descripcion_tarea: '',
@@ -235,6 +228,10 @@ const ItemsStep: React.FC = () => {
       unidad: '',
       cantidad: 1
     });
+    setEspecialidadInput('');
+    setUnidadInput('');
+    setShowEspecialidadesSuggestions(false);
+    setShowUnidadesSuggestions(false);
   };
 
   const handleEditItem = (id: string) => {
@@ -394,29 +391,6 @@ const ItemsStep: React.FC = () => {
     return 'empty'; // Gris (sin items)
   };
 
-  const handleContinue = () => {
-    // Validar que todas las obras tengan al menos un item
-    const obrasWithoutItemsList = wizard.obras.filter(obra => {
-      const obraItems = items.filter(item => item.id_obra === obra.id);
-      return obraItems.length === 0;
-    });
-
-    if (obrasWithoutItemsList.length > 0) {
-      setObrasWithoutItems(obrasWithoutItemsList.map(o => o.id));
-      setValidationMessage(
-        `Las siguientes obras no tienen items: ${obrasWithoutItemsList.map(o => o.nombre).join(', ')}. Por favor, agrega al menos un item a cada obra antes de continuar.`
-      );
-      setShowValidationAlert(true);
-      return;
-    }
-
-    setStep('costos');
-  };
-
-  const handleBack = () => {
-    setStep('obras');
-  };
-
   // Filtrar especialidades según búsqueda
   const filteredEspecialidades = especialidades.filter(esp =>
     esp.nombre.toLowerCase().includes(especialidadInput.toLowerCase())
@@ -438,19 +412,6 @@ const ItemsStep: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Botones de navegación */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack} className="bg-slate-700 hover:bg-slate-600 border-slate-600">
-          ← Anterior
-        </Button>
-        <Button 
-          onClick={handleContinue} 
-          disabled={items.length === 0}
-          className="bg-sky-600 hover:bg-sky-700"
-        >
-          Continuar →
-        </Button>
-      </div>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -514,192 +475,39 @@ const ItemsStep: React.FC = () => {
 
       {/* Formulario para agregar/editar item */}
       {selectedObra && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              {editingItem ? 'Editar Item' : 'Agregar Nuevo Item'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="codigo">Código</Label>
-                <Input
-                  id="codigo"
-                  value={formData.codigo}
-                  onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-                  placeholder="Ej: 1.1, 1.2.1, etc."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="descripcion_tarea">Descripción de la Tarea *</Label>
-                <Input
-                  id="descripcion_tarea"
-                  value={formData.descripcion_tarea}
-                  onChange={(e) => setFormData({ ...formData, descripcion_tarea: e.target.value })}
-                  placeholder="Descripción de la tarea"
-                />
-              </div>
-              
-              {/* Input de búsqueda para Especialidad */}
-              <div className="space-y-2 relative">
-                <Label htmlFor="especialidad">Especialidad</Label>
-                <Input
-                  id="especialidad"
-                  value={especialidadInput}
-                  onChange={(e) => handleEspecialidadChange(e.target.value)}
-                  onKeyDown={(e) => handleEspecialidadKeyDown(e, filteredEspecialidades)}
-                  onFocus={() => setShowEspecialidadesSuggestions(especialidadInput.length > 0)}
-                  onBlur={() => setTimeout(() => setShowEspecialidadesSuggestions(false), 200)}
-                  placeholder="Buscar o escribir especialidad..."
-                  autoComplete="off"
-                />
-                
-                {/* Sugerencias de especialidades */}
-                {showEspecialidadesSuggestions && (
-                  <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {filteredEspecialidades.length > 0 ? (
-                      <div className="py-1">
-                        {filteredEspecialidades.map((esp, index) => (
-                          <button
-                            key={esp.id_especialidad}
-                            onClick={() => handleSelectEspecialidad(esp.nombre)}
-                            className={`w-full text-left px-4 py-2 text-white transition-colors ${
-                              index === selectedEspecialidadIndex
-                                ? 'bg-sky-600'
-                                : 'hover:bg-slate-700'
-                            }`}
-                          >
-                            {esp.nombre}
-                            {esp.descripcion && (
-                              <span className="text-xs text-slate-400 block">{esp.descripcion}</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    ) : especialidadInput.trim() && !especialidadExists ? (
-                      <div className="p-4 text-center">
-                        <p className="text-sm text-slate-400 mb-2">No se encontró la especialidad</p>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setNewEspecialidad({ nombre: especialidadInput, descripcion: '' });
-                            setShowAddEspecialidadModal(true);
-                            setShowEspecialidadesSuggestions(false);
-                          }}
-                          className="bg-sky-600 hover:bg-sky-700"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Agregar "{especialidadInput}"
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-
-              {/* Input de búsqueda para Unidad */}
-              <div className="space-y-2 relative">
-                <Label htmlFor="unidad">Unidad</Label>
-                <Input
-                  id="unidad"
-                  value={unidadInput}
-                  onChange={(e) => handleUnidadChange(e.target.value)}
-                  onKeyDown={(e) => handleUnidadKeyDown(e, filteredUnidades)}
-                  onFocus={() => setShowUnidadesSuggestions(unidadInput.length > 0)}
-                  onBlur={() => setTimeout(() => setShowUnidadesSuggestions(false), 200)}
-                  placeholder="Buscar o escribir unidad..."
-                  autoComplete="off"
-                />
-                
-                {/* Sugerencias de unidades */}
-                {showUnidadesSuggestions && (
-                  <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {filteredUnidades.length > 0 ? (
-                      <div className="py-1">
-                        {filteredUnidades.map((uni, index) => (
-                          <button
-                            key={uni.id_unidad}
-                            onClick={() => handleSelectUnidad(uni.nombre)}
-                            className={`w-full text-left px-4 py-2 text-white transition-colors ${
-                              index === selectedUnidadIndex
-                                ? 'bg-sky-600'
-                                : 'hover:bg-slate-700'
-                            }`}
-                          >
-                            {uni.nombre} {uni.simbolo && <span className="text-slate-400">({uni.simbolo})</span>}
-                            {uni.descripcion && (
-                              <span className="text-xs text-slate-400 block">{uni.descripcion}</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    ) : unidadInput.trim() && !unidadExists ? (
-                      <div className="p-4 text-center">
-                        <p className="text-sm text-slate-400 mb-2">No se encontró la unidad</p>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setNewUnidad({ nombre: unidadInput, simbolo: '', descripcion: '' });
-                            setShowAddUnidadModal(true);
-                            setShowUnidadesSuggestions(false);
-                          }}
-                          className="bg-sky-600 hover:bg-sky-700"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Agregar "{unidadInput}"
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cantidad">Cantidad</Label>
-                <Input
-                  id="cantidad"
-                  type="number"
-                  value={formData.cantidad}
-                  onChange={(e) => setFormData({ ...formData, cantidad: parseFloat(e.target.value) || 1 })}
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              {editingItem ? (
-                <>
-                  <Button onClick={handleUpdateItem} disabled={!formData.descripcion_tarea.trim()}>
-                    <Check className="h-4 w-4 mr-2" />
-                    Actualizar
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    setEditingItem(null);
-                    setFormData({
-                      codigo: '',
-                      descripcion_tarea: '',
-                      especialidad: '',
-                      unidad: '',
-                      cantidad: 1
-                    });
-                  }}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancelar
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => handleAddItem()} disabled={!formData.descripcion_tarea.trim()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Item
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <ItemForm
+          selectedObra={selectedObra}
+          editingItem={editingItem}
+          formData={formData}
+          setFormData={setFormData}
+          handleAddItem={handleAddItem}
+          handleUpdateItem={handleUpdateItem}
+          setEditingItem={setEditingItem}
+          especialidadInput={especialidadInput}
+          handleEspecialidadChange={handleEspecialidadChange}
+          handleEspecialidadKeyDown={handleEspecialidadKeyDown}
+          handleSelectEspecialidad={handleSelectEspecialidad}
+          filteredEspecialidades={filteredEspecialidades}
+          showEspecialidadesSuggestions={showEspecialidadesSuggestions}
+          setShowEspecialidadesSuggestions={setShowEspecialidadesSuggestions}
+          selectedEspecialidadIndex={selectedEspecialidadIndex}
+          especialidadExists={especialidadExists}
+          setNewEspecialidad={setNewEspecialidad}
+          setShowAddEspecialidadModal={setShowAddEspecialidadModal}
+          unidadInput={unidadInput}
+          handleUnidadChange={handleUnidadChange}
+          handleUnidadKeyDown={handleUnidadKeyDown}
+          handleSelectUnidad={handleSelectUnidad}
+          filteredUnidades={filteredUnidades}
+          showUnidadesSuggestions={showUnidadesSuggestions}
+          setShowUnidadesSuggestions={setShowUnidadesSuggestions}
+          selectedUnidadIndex={selectedUnidadIndex}
+          unidadExists={unidadExists}
+          setNewUnidad={setNewUnidad}
+          setShowAddUnidadModal={setShowAddUnidadModal}
+        />
       )}
+
 
       {/* Lista de items por obra */}
       {wizard.obras.map((obra) => {
@@ -726,7 +534,6 @@ const ItemsStep: React.FC = () => {
           </Card>
         );
       })}
-
       
 
       {/* Modal para agregar especialidad */}

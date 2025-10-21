@@ -44,3 +44,4 @@ export const addEspecialidad = async (formData: { nombre: string; descripcion?: 
   return response.data;
 };
 
+

@@ -1,23 +1,18 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 import { generateTempId } from '@/utils/idGenerator';
+import { Obra } from '@/store/obra';
+import ObraForm from '@/components/forms/wizard/ObraForm';
 
-interface Obra {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  ubicacion?: string;
-}
 
 const ObrasStep: React.FC = () => {
   const { wizard, setObras } = useAppStore();
   const [obras, setObrasLocal] = useState<Obra[]>(wizard.obras);
   const [editingObra, setEditingObra] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -36,6 +31,7 @@ const ObrasStep: React.FC = () => {
       setObrasLocal(updatedObras);
       setObras(updatedObras);
       setFormData({ nombre: '', descripcion: '', ubicacion: '' });
+      setShowForm(false); // Ocultar formulario después de agregar
     }
   };
 
@@ -48,6 +44,7 @@ const ObrasStep: React.FC = () => {
         ubicacion: obra.ubicacion || ''
       });
       setEditingObra(id);
+      setShowForm(true); // Mostrar formulario al editar
     }
   };
 
@@ -67,6 +64,7 @@ const ObrasStep: React.FC = () => {
       setObras(updatedObras);
       setFormData({ nombre: '', descripcion: '', ubicacion: '' });
       setEditingObra(null);
+      setShowForm(false); // Ocultar formulario después de actualizar
     }
   };
 
@@ -76,108 +74,42 @@ const ObrasStep: React.FC = () => {
     setObras(updatedObras);
   };
 
-  const handleContinue = () => {
-    if (obras.length > 0) {
-      // Guardar obras en el store
-      setStep('items');
-    }
-  };
-
-  const handleBack = () => {
-    setStep('datos');
-  };
-
   return (
     <div className="space-y-6">
-      {/* Botones de navegación */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handleBack}>
-          ← Anterior
-        </Button>
-        <Button 
-          onClick={handleContinue} 
-          disabled={obras.length === 0}
-        >
-          Continuar →
-        </Button>
-      </div>
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold">Definir Obras</h3>
           <p className="text-muted-foreground">Agrega las obras que componen esta cotización</p>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {obras.length} obra{obras.length !== 1 ? 's' : ''} agregada{obras.length !== 1 ? 's' : ''}
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            {obras.length} obra{obras.length !== 1 ? 's' : ''} agregada{obras.length !== 1 ? 's' : ''}
+          </div>
+          <Button 
+            onClick={() => {
+              setShowForm(!showForm);
+              setEditingObra(null);
+              setFormData({ nombre: '', descripcion: '', ubicacion: '' });
+            }}
+            className="bg-sky-600 hover:bg-sky-700 text-white"
+          >
+            {showForm ? 'Cancelar' : 'Agregar Obra'}
+          </Button>
         </div>
       </div>
 
-      {/* Formulario para agregar/editar obra */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            {editingObra ? 'Editar Obra' : 'Agregar Nueva Obra'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nombre" className="text-slate-300">Nombre de la Obra *</Label>
-              <Input
-                id="nombre"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="Ej: Satélite 3, Torre Principal, etc."
-                className="bg-slate-700 border-slate-600 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ubicacion" className="text-slate-300">Ubicación</Label>
-              <Input
-                id="ubicacion"
-                value={formData.ubicacion}
-                onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                placeholder="Ej: CABA, Buenos Aires, etc."
-                className="bg-slate-700 border-slate-600 text-white"
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="descripcion" className="text-slate-300">Descripción</Label>
-              <textarea
-                id="descripcion"
-                value={formData.descripcion}
-                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                placeholder="Descripción opcional de la obra"
-                className="w-full px-3 py-2 rounded-md bg-slate-700 border border-slate-600 text-white min-h-[80px] focus:outline-none focus:ring-2 focus:ring-sky-500"
-              />
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            {editingObra ? (
-              <>
-                <Button onClick={handleUpdateObra} disabled={!formData.nombre.trim()}>
-                  <Check className="h-4 w-4 mr-2" />
-                  Actualizar
-                </Button>
-                <Button variant="outline" onClick={() => {
-                  setEditingObra(null);
-                  setFormData({ nombre: '', descripcion: '', ubicacion: '' });
-                }}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancelar
-                </Button>
-              </>
-            ) : (
-              <Button onClick={handleAddObra} disabled={!formData.nombre.trim()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar Obra
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Formulario para agregar/editar obra - Solo visible cuando showForm es true */}
+      {showForm && (
+        <ObraForm
+          formData={formData}
+          setFormData={setFormData}
+          editingObra={editingObra}
+          setEditingObra={setEditingObra}
+          handleAddObra={handleAddObra}
+          handleUpdateObra={handleUpdateObra}
+        />
+      )}
+
 
       {/* Lista de obras agregadas */}
       {obras.length > 0 && (

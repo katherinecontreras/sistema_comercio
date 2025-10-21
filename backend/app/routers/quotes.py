@@ -121,7 +121,7 @@ def exportar_pdf(id_cotizacion: int, db: Session = Depends(get_db), _: None = De
             {
                 "codigo": db.get(ItemObra, iid).codigo if db.get(ItemObra, iid) else "",
                 "descripcion_tarea": db.get(ItemObra, iid).descripcion_tarea if db.get(ItemObra, iid) else "",
-                "unidad": db.get(ItemObra, iid).unidad if db.get(ItemObra, iid) else "",
+                "unidad": db.get(ItemObra, iid).unidad.nombre if db.get(ItemObra, iid) and db.get(ItemObra, iid).unidad else "",
                 "cantidad": float(db.get(ItemObra, iid).cantidad) if db.get(ItemObra, iid) else 0,
                 "subtotal_costos": float(subtot),
                 "total_incrementos": float(inc),

@@ -144,3 +144,5 @@ export const RecursosAsignadosList: React.FC<RecursosAsignadosListProps> = ({
   );
 };
 
+
+export default RecursosAsignadosList;

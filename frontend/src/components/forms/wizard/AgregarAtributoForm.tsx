@@ -80,3 +80,5 @@ export const AgregarAtributoForm: React.FC<AgregarAtributoFormProps> = ({
   );
 };
 
+export default AgregarAtributoForm;
+

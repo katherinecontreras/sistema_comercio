@@ -63,3 +63,5 @@ export const PlanillasList: React.FC<PlanillasListProps> = ({
   );
 };
 
+
+export default PlanillasList;

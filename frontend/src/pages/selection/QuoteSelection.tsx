@@ -8,7 +8,7 @@ const QuoteSelection: React.FC = () => {
   const navigate = useNavigate();
 
   const handleGenerarCotizacion = () => {
-    setStep('datos');
+    setStep('oferta');
     navigate('/wizard');
   };
 
