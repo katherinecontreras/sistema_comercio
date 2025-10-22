@@ -93,7 +93,7 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
     cargarDatos();
   }, [loadUnidades, loadRecursosFrom, planillaId]);
 
-  const handleAddUnidadLocal = async (data: { nombre: string; abreviatura: string }) => {
+  const handleAddUnidadLocal = async (data: { nombre: string; simbolo: string; descripcion?: string }) => {
     try {
       const response = await handleAddUnidad(data);
       
@@ -862,6 +862,7 @@ const AddRecursosManually: React.FC<Props> = ({ planillaNombre, planillaId, onCa
         open={showAddUnidadModal}
         onClose={() => setShowAddUnidadModal(false)}
         onAdd={handleAddUnidadLocal}
+        initialNombre={unidadInput}
       />
 
       {/* Diálogo para cancelar y salir */}

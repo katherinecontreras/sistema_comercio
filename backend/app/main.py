@@ -7,7 +7,7 @@ from app.routers.auth import router as auth_router
 from app.routers.roles import router as roles_router
 from app.routers.usuarios import router as usuarios_router
 from app.routers.catalogs import router as catalogs_router
-from app.routers.quotes import router as quotes_router
+from app.routers.obras import router as obras_router
 from app.routers.configuracion import router as config_router
 from app.db.session import get_db
 from app.services.startup import seed_admin
@@ -29,7 +29,7 @@ app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
 app.include_router(roles_router, prefix=settings.API_V1_PREFIX)
 app.include_router(usuarios_router, prefix=settings.API_V1_PREFIX)
 app.include_router(catalogs_router, prefix=settings.API_V1_PREFIX)
-app.include_router(quotes_router, prefix=settings.API_V1_PREFIX)
+app.include_router(obras_router, prefix=settings.API_V1_PREFIX)
 app.include_router(config_router, prefix=settings.API_V1_PREFIX)
 
 

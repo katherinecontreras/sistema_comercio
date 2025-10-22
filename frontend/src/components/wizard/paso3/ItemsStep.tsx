@@ -103,7 +103,7 @@ const ItemsStep: React.FC = () => {
     }
   };
 
-  const handleAddUnidadLocal = async (data: { nombre: string; abreviatura: string }) => {
+  const handleAddUnidadLocal = async (data: { nombre: string; simbolo: string; descripcion?: string }) => {
     try {
       const response = await handleAddUnidad(data);
       
@@ -541,6 +541,7 @@ const ItemsStep: React.FC = () => {
         open={showAddEspecialidadModal}
         onClose={() => setShowAddEspecialidadModal(false)}
         onAdd={handleAddEspecialidad}
+        initialNombre={especialidadInput}
       />
 
       {/* Modal para agregar unidad */}
@@ -548,6 +549,7 @@ const ItemsStep: React.FC = () => {
         open={showAddUnidadModal}
         onClose={() => setShowAddUnidadModal(false)}
         onAdd={handleAddUnidadLocal}
+        initialNombre={unidadInput}
       />
 
       {/* AlertDialog para validación */}

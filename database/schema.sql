@@ -1,102 +1,90 @@
--- PostgreSQL schema for Sistema de Comercio - Cotizaciones
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Tabla: Roles
+-- PASO 1: Crear tablas base
 CREATE TABLE roles (
     id_rol SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) UNIQUE NOT NULL,
+    nombre_rol VARCHAR(50) NOT NULL UNIQUE,
     descripcion TEXT
 );
 
--- Tabla: Usuarios
 CREATE TABLE usuarios (
     id_usuario SERIAL PRIMARY KEY,
-    dni VARCHAR(20) UNIQUE NOT NULL,
     nombre VARCHAR(100) NOT NULL,
-    apellido VARCHAR(100) NOT NULL,
-    email VARCHAR(150) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    id_rol INTEGER NOT NULL REFERENCES roles(id_rol),
-    activo BOOLEAN DEFAULT TRUE
+    dni VARCHAR(20) NOT NULL UNIQUE,
+    id_rol INTEGER REFERENCES roles(id_rol),
+    activo BOOLEAN DEFAULT TRUE,
+    password_hash VARCHAR(255) NOT NULL
 );
 
--- Tabla: Clientes
 CREATE TABLE clientes (
     id_cliente SERIAL PRIMARY KEY,
     razon_social VARCHAR(250) NOT NULL,
-    cuit VARCHAR(50) NOT NULL,
+    cuit VARCHAR(20) NOT NULL UNIQUE,
     direccion TEXT
 );
 
--- Tabla: Proveedores
-CREATE TABLE proveedores (
-    id_proveedor SERIAL PRIMARY KEY,
-    razon_social VARCHAR(250) NOT NULL,
-    cuit VARCHAR(50) NOT NULL,
-    contacto TEXT
+-- PASO 2: Crear tablas de catálogos
+CREATE TABLE especialidades (
+    id_especialidad SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion TEXT
 );
 
--- Tabla: Unidades
 CREATE TABLE unidades (
     id_unidad SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
     simbolo VARCHAR(10),
     descripcion TEXT
 );
 
--- Tabla: Especialidades
-CREATE TABLE especialidades (
-    id_especialidad SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) UNIQUE NOT NULL,
-    descripcion TEXT
+CREATE TABLE proveedores (
+    id_proveedor SERIAL PRIMARY KEY,
+    nombre VARCHAR(250) NOT NULL,
+    contacto VARCHAR(100),
+    telefono VARCHAR(20),
+    email VARCHAR(100)
 );
 
--- Tabla: Tipos de Recurso (Planillas)
 CREATE TABLE tipos_recurso (
     id_tipo_recurso SERIAL PRIMARY KEY,
-    nombre VARCHAR(120) NOT NULL
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    icono VARCHAR(50)
 );
 
--- Tabla: Recursos
 CREATE TABLE recursos (
     id_recurso SERIAL PRIMARY KEY,
-    id_tipo_recurso INTEGER NOT NULL REFERENCES tipos_recurso(id_tipo_recurso) ON DELETE CASCADE,
-    descripcion VARCHAR(300) NOT NULL,
-    id_unidad INTEGER NOT NULL REFERENCES unidades(id_unidad),
-    cantidad NUMERIC(18, 4) DEFAULT 0,
-    costo_unitario_predeterminado NUMERIC(18, 4) DEFAULT 0,
-    costo_total NUMERIC(18, 4) DEFAULT 0,
-    id_proveedor_preferido INTEGER REFERENCES proveedores(id_proveedor),
-    atributos JSONB
+    id_tipo_recurso INTEGER REFERENCES tipos_recurso(id_tipo_recurso),
+    descripcion TEXT NOT NULL,
+    unidad VARCHAR(50),
+    costo_unitario_predeterminado NUMERIC(18, 4) DEFAULT 0
 );
 
--- Tabla: Cotizaciones
-CREATE TABLE cotizaciones (
-    id_cotizacion SERIAL PRIMARY KEY,
-    id_cliente INTEGER NOT NULL REFERENCES clientes(id_cliente),
+-- PASO 3: Crear nueva estructura de obras
+CREATE TABLE obras (
+    id_obra SERIAL PRIMARY KEY,
+    id_cliente INTEGER REFERENCES clientes(id_cliente),
+    codigo_proyecto VARCHAR(50),
     nombre_proyecto VARCHAR(250) NOT NULL,
     descripcion_proyecto TEXT,
     fecha_creacion DATE NOT NULL,
-    fecha_inicio DATE,
-    fecha_vencimiento DATE,
+    fecha_entrega DATE,
+    fecha_recepcion DATE,
     moneda VARCHAR(10) DEFAULT 'USD',
     estado VARCHAR(50) DEFAULT 'borrador'
 );
 
--- Tabla: Obras
-CREATE TABLE obras (
-    id_obra SERIAL PRIMARY KEY,
-    id_cotizacion INTEGER NOT NULL REFERENCES cotizaciones(id_cotizacion) ON DELETE CASCADE,
-    nombre_obra VARCHAR(250) NOT NULL,
+CREATE TABLE partidas (
+    id_partida SERIAL PRIMARY KEY,
+    id_obra INTEGER REFERENCES obras(id_obra),
+    nombre_partida VARCHAR(250) NOT NULL,
     descripcion TEXT,
-    ubicacion VARCHAR(250)
+    ubicacion VARCHAR(250),
+    codigo VARCHAR(100),
+    tiene_subpartidas BOOLEAN DEFAULT FALSE
 );
 
--- Tabla: Items de Obra
-CREATE TABLE items_obra (
-    id_item_obra SERIAL PRIMARY KEY,
-    id_obra INTEGER NOT NULL REFERENCES obras(id_obra) ON DELETE CASCADE,
-    id_item_padre INTEGER REFERENCES items_obra(id_item_obra),
+CREATE TABLE subpartidas (
+    id_subpartida SERIAL PRIMARY KEY,
+    id_partida INTEGER REFERENCES partidas(id_partida),
     codigo VARCHAR(100),
     descripcion_tarea TEXT NOT NULL,
     id_especialidad INTEGER REFERENCES especialidades(id_especialidad),
@@ -105,20 +93,28 @@ CREATE TABLE items_obra (
     precio_unitario NUMERIC(18, 4) DEFAULT 0
 );
 
--- Tabla: Costos de Items (Item-Recurso)
-CREATE TABLE items_obra_costos (
-    id_item_costo SERIAL PRIMARY KEY,
-    id_item_obra INTEGER NOT NULL REFERENCES items_obra(id_item_obra) ON DELETE CASCADE,
-    id_recurso INTEGER NOT NULL REFERENCES recursos(id_recurso),
+CREATE TABLE partidas_costos (
+    id_costo SERIAL PRIMARY KEY,
+    id_partida INTEGER REFERENCES partidas(id_partida),
+    id_recurso INTEGER REFERENCES recursos(id_recurso),
     cantidad NUMERIC(18, 4) DEFAULT 0,
     precio_unitario_aplicado NUMERIC(18, 4) DEFAULT 0,
     total_linea NUMERIC(18, 4) DEFAULT 0
 );
 
--- Tabla: Incrementos
+CREATE TABLE subpartidas_costos (
+    id_costo SERIAL PRIMARY KEY,
+    id_subpartida INTEGER REFERENCES subpartidas(id_subpartida),
+    id_recurso INTEGER REFERENCES recursos(id_recurso),
+    cantidad NUMERIC(18, 4) DEFAULT 0,
+    precio_unitario_aplicado NUMERIC(18, 4) DEFAULT 0,
+    total_linea NUMERIC(18, 4) DEFAULT 0
+);
+
 CREATE TABLE incrementos (
     id_incremento SERIAL PRIMARY KEY,
-    id_item_obra INTEGER NOT NULL REFERENCES items_obra(id_item_obra) ON DELETE CASCADE,
+    id_partida INTEGER REFERENCES partidas(id_partida),
+    id_subpartida INTEGER REFERENCES subpartidas(id_subpartida),
     concepto VARCHAR(250) NOT NULL,
     descripcion TEXT,
     tipo_incremento VARCHAR(50) DEFAULT 'porcentaje',
@@ -127,116 +123,177 @@ CREATE TABLE incrementos (
     monto_calculado NUMERIC(18, 4) DEFAULT 0
 );
 
--- PASO 3: INSERTAR DATOS INICIALES
--- =========================================
-
+-- PASO 4: Insertar datos de ejemplo
 -- Roles
-INSERT INTO roles (nombre, descripcion) VALUES
+INSERT INTO roles (nombre_rol, descripcion) VALUES 
 ('Administrador', 'Acceso completo al sistema'),
-('Cotizador', 'Puede crear y gestionar cotizaciones'),
-('Visor', 'Solo puede ver cotizaciones');
+('Cotizador', 'Puede crear y gestionar cotizaciones');
 
--- Usuario de prueba (password: admin123)
-INSERT INTO usuarios (dni, nombre, apellido, email, password_hash, id_rol, activo) VALUES
-('12345678', 'Admin', 'Sistema', 'admin@sistema.com', '$2b$12$HeYCOnJYqXLPrDCkh/SU5OMquDCHQIYvASLiPRTPAB2mzInmXs9rS', 1, TRUE);
+-- Usuarios
+INSERT INTO usuarios (nombre, dni, id_rol, password_hash) VALUES 
+('Admin Sistema', '12345678', 1, '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/8KzK8K2'),
+('Juan Cotizador', '87654321', 2, '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/8KzK8K2');
 
--- Clientes de prueba
-INSERT INTO clientes (razon_social, cuit, direccion) VALUES
-('Empresa Demo S.A.', '30-12345678-9', 'Av. Siempre Viva 123, CABA'),
-('Constructora XYZ', '30-87654321-0', 'Calle Falsa 456, Buenos Aires');
+-- Clientes
+INSERT INTO clientes (razon_social, cuit, direccion) VALUES 
+('Constructora ABC S.A.', '20-12345678-9', 'Av. Principal 123, Buenos Aires'),
+('Empresa XYZ S.R.L.', '30-87654321-0', 'Calle Secundaria 456, Córdoba'),
+('Inversiones DEF S.A.', '27-11223344-5', 'Ruta Nacional 789, Rosario');
 
--- Proveedores de prueba
-INSERT INTO proveedores (razon_social, cuit, contacto) VALUES
-('Proveedor Industrial S.R.L.', '30-11111111-1', 'contacto@proveedor.com'),
-('Materiales del Sur', '30-22222222-2', 'ventas@materialesur.com');
+-- Especialidades
+INSERT INTO especialidades (nombre, descripcion) VALUES 
+('Electricidad', 'Instalaciones eléctricas y sistemas de iluminación'),
+('Plomería', 'Sistemas de agua y gas'),
+('Albañilería', 'Construcción en mampostería'),
+('Pintura', 'Aplicación de pinturas y acabados'),
+('Carpintería', 'Trabajos en madera');
 
--- Unidades básicas
-INSERT INTO unidades (nombre, simbolo, descripcion) VALUES
-('unidad', 'un', 'Unidad genérica'),
+-- Unidades
+INSERT INTO unidades (nombre, simbolo, descripcion) VALUES 
 ('Metro', 'm', 'Unidad de longitud'),
 ('Metro cuadrado', 'm²', 'Unidad de superficie'),
 ('Metro cúbico', 'm³', 'Unidad de volumen'),
 ('Kilogramo', 'kg', 'Unidad de masa'),
-('Litro', 'l', 'Unidad de capacidad'),
 ('Hora', 'h', 'Unidad de tiempo'),
-('Pieza', 'pz', 'Pieza individual'),
-('Global', 'gl', 'Precio global');
+('Unidad', 'u', 'Unidad de conteo'),
+('Hora hombre', 'HH', 'Unidad de trabajo');
 
--- Especialidades básicas
-INSERT INTO especialidades (nombre, descripcion) VALUES
-('Arquitectura', 'Trabajos de diseño arquitectónico'),
-('Estructura', 'Trabajos estructurales'),
-('Electricidad', 'Instalaciones eléctricas'),
-('Plomería', 'Instalaciones sanitarias'),
-('HVAC', 'Climatización y ventilación'),
-('Obra Civil', 'Trabajos de obra civil general');
+-- Proveedores
+INSERT INTO proveedores (nombre, contacto, telefono, email) VALUES 
+('Materiales del Norte', 'Carlos López', '011-4567-8901', 'carlos@materialesnorte.com'),
+('Ferretería Central', 'María González', '0341-234-5678', 'ventas@ferreteriacentral.com'),
+('Distribuidora Sur', 'Roberto Silva', '0810-123-4567', 'info@distribuidorasur.com');
 
--- Tipos de Recurso (Planillas)
-INSERT INTO tipos_recurso (nombre) VALUES
-('Materiales'),
-('Mano de Obra'),
-('Equipos'),
-('Herramientas'),
-('Servicios');
+-- Tipos de Recursos (Planillas)
+INSERT INTO tipos_recurso (nombre, icono) VALUES 
+('Mano de Obra', '👷'),
+('Materiales', '🧱'),
+('Equipos', '🚜'),
+('Herramientas', '🔧'),
+('Servicios', '⚙️');
 
--- Recursos de ejemplo para cada tipo
+-- Recursos
+INSERT INTO recursos (id_tipo_recurso, descripcion, unidad, costo_unitario_predeterminado) VALUES 
+-- Mano de Obra
+(1, 'Obrero general', 'HH', 2500.00),
+(1, 'Obrero especializado', 'HH', 3500.00),
+(1, 'Capataz', 'HH', 4500.00),
+(1, 'Supervisor', 'HH', 6000.00),
+(1, 'Ingeniero', 'HH', 8000.00),
 
--- Recursos de Materiales (id_tipo_recurso = 1)
-INSERT INTO recursos (id_tipo_recurso, descripcion, id_unidad, cantidad, costo_unitario_predeterminado, costo_total) VALUES
-(1, 'Cemento Portland 50kg', 8, 1, 850.00, 850.00),
-(1, 'Arena fina m³', 4, 1, 1200.00, 1200.00),
-(1, 'Ladrillo común', 8, 1000, 12.50, 12500.00),
-(1, 'Hierro 8mm barra 12m', 8, 1, 2100.00, 2100.00),
-(1, 'Pintura látex interior 20l', 8, 1, 4500.00, 4500.00);
+-- Materiales
+(2, 'Cemento Portland', 'kg', 150.00),
+(2, 'Arena gruesa', 'm³', 2500.00),
+(2, 'Piedra partida', 'm³', 3000.00),
+(2, 'Ladrillos comunes', 'u', 25.00),
+(2, 'Hierro del 8', 'kg', 180.00),
+(2, 'Hierro del 12', 'kg', 200.00),
 
--- Recursos de Mano de Obra (id_tipo_recurso = 2)
-INSERT INTO recursos (id_tipo_recurso, descripcion, id_unidad, cantidad, costo_unitario_predeterminado, costo_total) VALUES
-(2, 'Oficial albañil', 7, 1, 3500.00, 3500.00),
-(2, 'Ayudante de albañil', 7, 1, 2800.00, 2800.00),
-(2, 'Electricista matriculado', 7, 1, 4000.00, 4000.00),
-(2, 'Plomero matriculado', 7, 1, 3800.00, 3800.00),
-(2, 'Pintor profesional', 7, 1, 3200.00, 3200.00);
+-- Equipos
+(3, 'Retroexcavadora', 'h', 15000.00),
+(3, 'Camión volcador', 'h', 8000.00),
+(3, 'Hormigonera', 'h', 2000.00),
+(3, 'Martillo neumático', 'h', 1500.00),
 
--- Recursos de Equipos (id_tipo_recurso = 3)
-INSERT INTO recursos (id_tipo_recurso, descripcion, id_unidad, cantidad, costo_unitario_predeterminado, costo_total) VALUES
-(3, 'Retroexcavadora día', 7, 1, 15000.00, 15000.00),
-(3, 'Hormigonera 150l', 7, 1, 800.00, 800.00),
-(3, 'Andamio tubular m²', 2, 1, 450.00, 450.00),
-(3, 'Compresor aire 10HP', 7, 1, 2500.00, 2500.00);
+-- Herramientas
+(4, 'Martillo', 'h', 500.00),
+(4, 'Destornillador', 'h', 200.00),
+(4, 'Nivel', 'h', 300.00),
+(4, 'Cinta métrica', 'h', 100.00),
 
--- PASO 4: CREAR ÍNDICES PARA PERFORMANCE
--- =========================================
+-- Servicios
+(5, 'Alquiler de andamios', 'día', 5000.00),
+(5, 'Servicio de limpieza', 'h', 2000.00),
+(5, 'Seguridad', 'h', 3000.00);
 
-CREATE INDEX idx_cotizaciones_cliente ON cotizaciones(id_cliente);
-CREATE INDEX idx_cotizaciones_estado ON cotizaciones(estado);
-CREATE INDEX idx_obras_cotizacion ON obras(id_cotizacion);
-CREATE INDEX idx_items_obra ON items_obra(id_obra);
-CREATE INDEX idx_items_padre ON items_obra(id_item_padre);
-CREATE INDEX idx_costos_item ON items_obra_costos(id_item_obra);
-CREATE INDEX idx_costos_recurso ON items_obra_costos(id_recurso);
-CREATE INDEX idx_incrementos_item ON incrementos(id_item_obra);
-CREATE INDEX idx_recursos_tipo ON recursos(id_tipo_recurso);
-CREATE INDEX idx_recursos_unidad ON recursos(id_unidad);
+-- Obras de ejemplo
+INSERT INTO obras (id_cliente, codigo_proyecto, nombre_proyecto, descripcion_proyecto, fecha_creacion, fecha_entrega, moneda) VALUES 
+(1, 'PROJ-001', 'Edificio Residencial', 'Construcción de edificio de 10 pisos con 40 departamentos', '2024-01-15', '2024-12-31', 'USD'),
+(2, 'PROJ-002', 'Obra Industrial', 'Ampliación de planta industrial con nuevas instalaciones', '2024-02-01', '2024-10-15', 'USD'),
+(3, 'PROJ-003', 'Centro Comercial', 'Construcción de centro comercial con locales y estacionamiento', '2024-03-01', '2025-06-30', 'USD');
 
--- PASO 5: VERIFICACIÓN
--- =========================================
+-- Partidas de ejemplo
+INSERT INTO partidas (id_obra, nombre_partida, descripcion, ubicacion, codigo) VALUES 
+-- Obra 1
+(1, 'Excavación y Movimiento de Suelos', 'Excavación para cimientos y sótanos', 'Planta baja', 'EXC-001'),
+(1, 'Estructura de Hormigón', 'Construcción de estructura principal', 'Todos los pisos', 'EST-001'),
+(1, 'Instalaciones', 'Instalaciones eléctricas, plomería y gas', 'Todo el edificio', 'INS-001'),
 
-SELECT 'TABLAS CREADAS:' as mensaje;
-SELECT table_name FROM information_schema.tables 
-WHERE table_schema = 'public' 
-ORDER BY table_name;
+-- Obra 2
+(2, 'Preparación del Terreno', 'Limpieza y nivelación del terreno', 'Área principal', 'PRE-001'),
+(2, 'Construcción de Naves', 'Estructura metálica para naves industriales', 'Zona de producción', 'NAV-001'),
 
-SELECT 'DATOS INSERTADOS:' as mensaje;
-SELECT 'Roles', COUNT(*) FROM roles
-UNION ALL SELECT 'Usuarios', COUNT(*) FROM usuarios
-UNION ALL SELECT 'Clientes', COUNT(*) FROM clientes
-UNION ALL SELECT 'Proveedores', COUNT(*) FROM proveedores
-UNION ALL SELECT 'Unidades', COUNT(*) FROM unidades
-UNION ALL SELECT 'Especialidades', COUNT(*) FROM especialidades
-UNION ALL SELECT 'Tipos de Recurso', COUNT(*) FROM tipos_recurso
-UNION ALL SELECT 'Recursos', COUNT(*) FROM recursos;
+-- Obra 3
+(3, 'Cimientos y Estructura', 'Fundaciones y estructura de hormigón', 'Planta baja', 'CIM-001'),
+(3, 'Obra Seca', 'Mampostería, cielorrasos y divisiones', 'Todos los niveles', 'SEC-001');
 
--- =========================================
--- FIN DEL SCRIPT
--- =========================================
+-- Subpartidas de ejemplo
+INSERT INTO subpartidas (id_partida, codigo, descripcion_tarea, id_especialidad, id_unidad, cantidad, precio_unitario) VALUES 
+-- Partida 1 (Excavación)
+(1, 'EXC-001-01', 'Excavación manual para cimientos', 3, 3, 50.0, 2500.00),
+(1, 'EXC-001-02', 'Excavación mecánica para sótanos', 3, 3, 200.0, 15000.00),
 
+-- Partida 2 (Estructura)
+(2, 'EST-001-01', 'Hormigón armado para losas', 3, 3, 500.0, 25000.00),
+(2, 'EST-001-02', 'Hormigón armado para columnas', 3, 3, 100.0, 30000.00),
+
+-- Partida 3 (Instalaciones)
+(3, 'INS-001-01', 'Instalación eléctrica general', 1, 1, 1000.0, 150.00),
+(3, 'INS-001-02', 'Instalación de plomería', 2, 1, 500.0, 200.00);
+
+-- Marcar partidas que tienen subpartidas
+UPDATE partidas SET tiene_subpartidas = TRUE WHERE id_partida IN (1, 2, 3);
+
+-- Costos de ejemplo para partidas sin subpartidas
+INSERT INTO partidas_costos (id_partida, id_recurso, cantidad, precio_unitario_aplicado, total_linea) VALUES 
+(4, 1, 40.0, 2500.00, 100000.00),  -- Obrero general para preparación
+(4, 6, 10.0, 150.00, 1500.00),     -- Cemento
+(5, 1, 80.0, 2500.00, 200000.00),  -- Obrero general para naves
+(5, 6, 20.0, 150.00, 3000.00),     -- Cemento
+(6, 1, 60.0, 2500.00, 150000.00),  -- Obrero general para cimientos
+(6, 6, 15.0, 150.00, 2250.00),     -- Cemento
+(7, 1, 100.0, 2500.00, 250000.00), -- Obrero general para obra seca
+(7, 6, 25.0, 150.00, 3750.00);     -- Cemento
+
+-- Costos de ejemplo para subpartidas
+INSERT INTO subpartidas_costos (id_subpartida, id_recurso, cantidad, precio_unitario_aplicado, total_linea) VALUES 
+(1, 1, 20.0, 2500.00, 50000.00),   -- Obrero general excavación manual
+(1, 11, 8.0, 15000.00, 120000.00), -- Retroexcavadora
+(2, 1, 30.0, 2500.00, 75000.00),   -- Obrero general excavación mecánica
+(2, 11, 12.0, 15000.00, 180000.00), -- Retroexcavadora
+(3, 1, 40.0, 2500.00, 100000.00),   -- Obrero general hormigón losas
+(3, 6, 100.0, 150.00, 15000.00),   -- Cemento
+(3, 7, 20.0, 3000.00, 60000.00),   -- Arena
+(4, 1, 25.0, 2500.00, 62500.00),   -- Obrero general hormigón columnas
+(4, 6, 50.0, 150.00, 7500.00),     -- Cemento
+(4, 7, 10.0, 3000.00, 30000.00),   -- Arena
+(5, 1, 50.0, 2500.00, 125000.00),   -- Obrero general instalación eléctrica
+(5, 2, 10.0, 3500.00, 35000.00),   -- Obrero especializado
+(6, 1, 30.0, 2500.00, 75000.00),   -- Obrero general instalación plomería
+(6, 2, 5.0, 3500.00, 17500.00);     -- Obrero especializado
+
+-- Incrementos de ejemplo
+INSERT INTO incrementos (id_partida, concepto, descripcion, tipo_incremento, valor, porcentaje, monto_calculado) VALUES 
+(1, 'Gastos Generales', 'Gastos administrativos y de dirección', 'porcentaje', 0, 15.0, 0),
+(2, 'Utilidad', 'Margen de utilidad del proyecto', 'porcentaje', 0, 20.0, 0),
+(3, 'Seguro de Obra', 'Póliza de seguro durante la construcción', 'monto_fijo', 50000.00, 0, 50000.00);
+
+-- PASO 5: Crear índices para mejorar rendimiento
+CREATE INDEX idx_obras_cliente ON obras(id_cliente);
+CREATE INDEX idx_partidas_obra ON partidas(id_obra);
+CREATE INDEX idx_subpartidas_partida ON subpartidas(id_partida);
+CREATE INDEX idx_partidas_costos_partida ON partidas_costos(id_partida);
+CREATE INDEX idx_subpartidas_costos_subpartida ON subpartidas_costos(id_subpartida);
+CREATE INDEX idx_incrementos_partida ON incrementos(id_partida);
+CREATE INDEX idx_incrementos_subpartida ON incrementos(id_subpartida);
+
+-- PASO 6: Verificar datos insertados
+SELECT 'Obras creadas:' as info, COUNT(*) as cantidad FROM obras
+UNION ALL
+SELECT 'Partidas creadas:', COUNT(*) FROM partidas
+UNION ALL
+SELECT 'Subpartidas creadas:', COUNT(*) FROM subpartidas
+UNION ALL
+SELECT 'Recursos creados:', COUNT(*) FROM recursos
+UNION ALL
+SELECT 'Tipos de recursos:', COUNT(*) FROM tipos_recurso;

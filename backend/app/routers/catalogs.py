@@ -7,12 +7,10 @@ from typing import List, Dict
 
 from app.core.deps import role_required
 from app.db.session import get_db
-from app.db.models_catalogs import Cliente, Proveedor, TipoRecurso, Recurso, Especialidad, Unidad
+from app.db.models import Cliente, TipoRecurso, Recurso, Especialidad, Unidad
 from app.schemas.catalogs import (
     ClienteCreate,
     ClienteRead,
-    ProveedorCreate,
-    ProveedorRead,
     TipoRecursoCreate,
     TipoRecursoRead,
     RecursoCreate,
@@ -42,21 +40,6 @@ def create_cliente(payload: ClienteCreate, db: Session = Depends(get_db), _: Non
     db.commit()
     db.refresh(c)
     return c
-
-
-# Proveedores
-@router.get("/proveedores", response_model=list[ProveedorRead])
-def list_proveedores(db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador", "Cotizador"]))):
-    return list(db.scalars(select(Proveedor)).all())
-
-
-@router.post("/proveedores", response_model=ProveedorRead, status_code=status.HTTP_201_CREATED)
-def create_proveedor(payload: ProveedorCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Administrador"]))):
-    p = Proveedor(**payload.model_dump())
-    db.add(p)
-    db.commit()
-    db.refresh(p)
-    return p
 
 
 # Tipos de Recurso

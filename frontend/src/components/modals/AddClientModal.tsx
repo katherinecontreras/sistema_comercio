@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { createCliente } from '@/api/clients';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { addCliente } from '@/actions';
 
 interface Props {
   open: boolean;
@@ -16,6 +16,16 @@ const AddClientModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Limpiar campos cuando se abre el modal
+  useEffect(() => {
+    if (open) {
+      setRazon('');
+      setCuit('');
+      setDireccion('');
+      setError('');
+    }
+  }, [open]);
+
   if (!open) return null;
 
   const submit = async (e: React.FormEvent) => {
@@ -23,7 +33,11 @@ const AddClientModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
     setLoading(true);
     setError('');
     try {
-      await createCliente({ razon_social, cuit, direccion });
+      await addCliente({ razon_social, cuit, direccion });
+      // Limpiar campos después de crear exitosamente
+      setRazon('');
+      setCuit('');
+      setDireccion('');
       onCreated();
       onClose();
     } catch (err: any) {

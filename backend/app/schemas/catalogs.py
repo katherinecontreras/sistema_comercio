@@ -18,23 +18,6 @@ class ClienteRead(ClienteBase):
         from_attributes = True
 
 
-class ProveedorBase(BaseModel):
-    razon_social: str
-    cuit: str
-    contacto: str | None = None
-
-
-class ProveedorCreate(ProveedorBase):
-    pass
-
-
-class ProveedorRead(ProveedorBase):
-    id_proveedor: int
-
-    class Config:
-        from_attributes = True
-
-
 class TipoRecursoBase(BaseModel):
     nombre: str
 

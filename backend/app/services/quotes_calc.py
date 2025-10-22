@@ -2,7 +2,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
-from app.db.models_quotes import ItemObra, ItemObraCosto, Incremento, Obra, Cotizacion
+from backend.app.db.models import ItemObra, ItemObraCosto, Incremento, Obra, Cotizacion
 
 
 def calcular_totales_cotizacion(db: Session, id_cotizacion: int) -> tuple[Decimal, Decimal, list[tuple[int, Decimal, Decimal, Decimal]]]:

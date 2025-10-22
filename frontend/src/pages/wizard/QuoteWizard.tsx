@@ -209,7 +209,7 @@ const QuoteWizard: React.FC = () => {
             currentStep={wizard.step}
             isFirstStep={isFirstStep()}
             isLastStep={isLastStep()}
-            canContinue={isCurrentStepComplete()}
+            canContinue={isCurrentStepComplete() ? true : false}
             onPrevious={handlePrevious}
             onNext={wizard.step === 'oferta' ? handleStep1Continue : handleNext}
             onSaveAndExit={handleSaveAndExit}

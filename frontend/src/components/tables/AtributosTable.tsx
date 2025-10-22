@@ -102,3 +102,4 @@ const AtributosTable: React.FC<AtributoTableProps> = ({
 };
 
 export default AtributosTable;
+

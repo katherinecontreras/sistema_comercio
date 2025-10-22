@@ -73,7 +73,7 @@ export const useCatalogos = () => {
   }, []);
 
   // Agregar unidad
-  const handleAddUnidad = useCallback(async (formData: { nombre: string; abreviatura: string }) => {
+  const handleAddUnidad = useCallback(async (formData: { nombre: string; simbolo: string; descripcion?: string }) => {
     try {
       setLoading(true);
       setError(null);

@@ -1,4 +1,4 @@
 export * from './catalogos';
-export * from './cotizaciones';
+export * from './obras';
 
 

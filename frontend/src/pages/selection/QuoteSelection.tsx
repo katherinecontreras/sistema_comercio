@@ -9,7 +9,7 @@ const QuoteSelection: React.FC = () => {
 
   const handleGenerarCotizacion = () => {
     setStep('oferta');
-    navigate('/wizard');
+    navigate('/obra');
   };
 
   const handleIngresarSistema = () => {

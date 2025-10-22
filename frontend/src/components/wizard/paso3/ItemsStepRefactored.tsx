@@ -181,7 +181,7 @@ const ItemsStepRefactored: React.FC = () => {
     }
   };
 
-  const handleAddUnidadLocal = async (data: { nombre: string; abreviatura: string; descripcion?: string }) => {
+  const handleAddUnidadLocal = async (data: { nombre: string; simbolo: string; descripcion?: string }) => {
     try {
       const nuevaUnidad = await handleAddUnidad(data);
       setUnidades([...unidades, nuevaUnidad]);

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Cliente, fetchClientes } from '@/api/clients';
+import { Cliente } from '@/store/cliente';
 import { Button } from '@/components/ui/button';
 import AddClientModal from '@/components/modals/AddClientModal';
 import { useAppStore } from '@/store/app';
+import { getClientes } from '@/actions/catalogos';
 
 interface Props {
   onGenerarCotizacion: () => void;
@@ -16,7 +17,7 @@ const ClientSelector: React.FC<Props> = ({ onGenerarCotizacion, onIngresarSistem
   const selectClient = useAppStore((s) => s.selectClient);
 
   const load = async () => {
-    const data = await fetchClientes();
+    const data = await getClientes();
     setRows(data);
   };
 

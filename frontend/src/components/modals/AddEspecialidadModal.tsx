@@ -15,16 +15,23 @@ interface AddEspecialidadModalProps {
   open: boolean;
   onClose: () => void;
   onAdd: (data: { nombre: string; descripcion?: string }) => Promise<void>;
+  initialNombre?: string; // Para pre-llenar el nombre
 }
 
 export const AddEspecialidadModal: React.FC<AddEspecialidadModalProps> = ({
   open,
   onClose,
-  onAdd
+  onAdd,
+  initialNombre = ''
 }) => {
-  const [nombre, setNombre] = useState('');
+  const [nombre, setNombre] = useState(initialNombre);
   const [descripcion, setDescripcion] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Actualizar el nombre cuando cambie initialNombre
+  React.useEffect(() => {
+    setNombre(initialNombre);
+  }, [initialNombre]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +56,7 @@ export const AddEspecialidadModal: React.FC<AddEspecialidadModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-800 border-slate-600 text-white">
+      <DialogContent className="bg-slate-800 border-slate-600 text-white w-[30vw] max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-green-500" />
