@@ -63,8 +63,14 @@ class PartidaBase(BaseModel):
     especialidad: Optional[dict] = None
 
 
-class PartidaCreate(PartidaBase):
-    pass
+class PartidaCreate(BaseModel):
+    nombre_partida: str
+    descripcion: Optional[str] = None
+    codigo: Optional[str] = None
+    duracion: float = 0
+    id_tipo_tiempo: Optional[int] = None
+    especialidad: Optional[dict] = None
+    tiene_subpartidas: bool = False
 
 
 class PartidaRead(PartidaBase):

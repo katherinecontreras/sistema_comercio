@@ -20,6 +20,7 @@ class ClienteRead(ClienteBase):
 
 class TipoRecursoBase(BaseModel):
     nombre: str
+    icono: str | None = None
 
 
 class TipoRecursoCreate(TipoRecursoBase):

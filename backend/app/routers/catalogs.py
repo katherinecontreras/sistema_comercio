@@ -7,7 +7,7 @@ from typing import List, Dict
 
 from app.core.deps import role_required
 from app.db.session import get_db
-from app.db.models import Cliente, TipoRecurso, Recurso, Especialidad, Unidad
+from app.db.models import Cliente, TipoRecurso, Recurso, Especialidad, Unidad, TipoTiempo
 from app.schemas.catalogs import (
     ClienteCreate,
     ClienteRead,
@@ -21,6 +21,7 @@ from app.schemas.catalogs import (
     UnidadCreate,
     UnidadRead,
 )
+from app.schemas.obras import TipoTiempoRead
 from app.services.excel_recursos import generar_plantilla_excel, procesar_excel_recursos
 
 
@@ -49,11 +50,11 @@ def list_tipos(db: Session = Depends(get_db)):
 
 
 @router.post("/tipos_recurso", response_model=TipoRecursoRead, status_code=status.HTTP_201_CREATED)
-def create_tipo(nombre: str = Form(...), db: Session = Depends(get_db)):
+def create_tipo(nombre: str = Form(...), icono: str = Form(None), db: Session = Depends(get_db)):
     existing = db.scalar(select(TipoRecurso).where(TipoRecurso.nombre == nombre))
     if existing:
         raise HTTPException(status_code=400, detail="El tipo ya existe")
-    t = TipoRecurso(nombre=nombre)
+    t = TipoRecurso(nombre=nombre, icono=icono)
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -62,8 +63,12 @@ def create_tipo(nombre: str = Form(...), db: Session = Depends(get_db)):
 
 # Recursos
 @router.get("/recursos")
-def list_recursos(db: Session = Depends(get_db)):
-    recursos = db.scalars(select(Recurso)).all()
+def list_recursos(tipo: int = None, db: Session = Depends(get_db)):
+    query = select(Recurso)
+    if tipo:
+        query = query.where(Recurso.id_tipo_recurso == tipo)
+    
+    recursos = db.scalars(query).all()
     result = []
     for recurso in recursos:
         unidad_obj = db.get(Unidad, recurso.id_unidad) if recurso.id_unidad else None
@@ -443,5 +448,13 @@ async def cargar_recursos_excel(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
+
+
+# Tipos de Tiempo
+@router.get("/tipos-tiempo", response_model=List[TipoTiempoRead])
+def listar_tipos_tiempo(db: Session = Depends(get_db)):
+    """Listar todos los tipos de tiempo"""
+    tipos = db.scalars(select(TipoTiempo)).all()
+    return list(tipos)
 
 

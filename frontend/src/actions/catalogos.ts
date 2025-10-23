@@ -7,7 +7,17 @@ export const getTiposRecursos = async () => {
 };
 
 export const createTipoRecurso = async (tipoData: { nombre: string; icono?: string }) => {
-  const response = await api.post('/catalogos/tipos_recurso', tipoData);
+  const formData = new FormData();
+  formData.append('nombre', tipoData.nombre);
+  if (tipoData.icono) {
+    formData.append('icono', tipoData.icono);
+  }
+  
+  const response = await api.post('/catalogos/tipos_recurso', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 

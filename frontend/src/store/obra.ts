@@ -32,6 +32,7 @@ interface Partida {
   id_tipo_tiempo?: number;
   especialidad?: any[];
   subpartidas?: SubPartida[];
+  planillas?: Array<{id: number, nombre: string}>; // Planillas seleccionadas con nombre
   completa?: boolean;
 }
 
@@ -43,6 +44,7 @@ interface SubPartida {
   id_especialidad?: number;
   costos?: SubPartidaCosto[];
   incrementos?: Incremento[];
+  planillas?: Array<{id: number, nombre: string}>; // Planillas seleccionadas con nombre
   completa?: boolean;
 }
 
@@ -58,7 +60,7 @@ interface SubPartidaCosto {
   recurso?: {
     id_recurso: number;
     descripcion: string;
-    unidad: string;
+  unidad: string;
     costo_unitario_predeterminado: number;
   };
 }
@@ -95,7 +97,16 @@ interface ObraActions {
   setSelectedSubPartida: (id: number | null) => void;
   setSelectedPlanilla: (id: number | null) => void;
   setShowResumen: (show: boolean) => void;
+  clearSelection: () => void;
   clearObra: () => void;
+  // Funciones para costos
+  addCostoPartida: (costo: any) => void;
+  addCostoSubPartida: (costo: any) => void;
+  updateCostoPartida: (id: number, costo: any) => void;
+  updateCostoSubPartida: (id: number, costo: any) => void;
+  // Funciones para planillas
+  addPlanillasToPartida: (idPartida: number, planillas: Array<{id: number, nombre: string}>) => void;
+  addPlanillasToSubPartida: (idPartida: number, idSubPartida: number, planillas: Array<{id: number, nombre: string}>) => void;
   // Funciones para guardado local
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
@@ -116,9 +127,12 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
   
   setPartidas: (partidas) => set({ partidas }),
   
-  addPartida: (partida) => set((state) => ({
-    partidas: [...state.partidas, partida]
-  })),
+  addPartida: (partida) => set((state) => {
+    console.log('Store: Agregando partida:', partida);
+    const newPartidas = [...state.partidas, partida];
+    console.log('Store: Total partidas después de agregar:', newPartidas.length);
+    return { partidas: newPartidas };
+  }),
   
   updatePartida: (id, updates) => set((state) => ({
     partidas: state.partidas.map(p => 
@@ -126,8 +140,9 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
     )
   })),
   
-  addSubPartida: (idPartida, subpartida) => set((state) => ({
-    partidas: state.partidas.map(p => 
+  addSubPartida: (idPartida, subpartida) => set((state) => {
+    console.log('Store: Agregando subpartida:', subpartida, 'a partida:', idPartida);
+    const newPartidas = state.partidas.map(p => 
       p.id_partida === idPartida 
         ? { 
             ...p, 
@@ -135,8 +150,10 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
             subpartidas: [...(p.subpartidas || []), subpartida]
           }
         : p
-    )
-  })),
+    );
+    console.log('Store: Partidas después de agregar subpartida:', newPartidas);
+    return { partidas: newPartidas };
+  }),
   
   updateSubPartida: (id, updates) => set((state) => ({
     partidas: state.partidas.map(p => ({
@@ -155,13 +172,18 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
   
   setSelectedSubPartida: (id) => set({ 
     selectedSubPartida: id, 
-    selectedPartida: null,
     selectedPlanilla: null 
   }),
   
   setSelectedPlanilla: (id) => set({ selectedPlanilla: id }),
   
   setShowResumen: (show) => set({ showResumen: show }),
+  
+  clearSelection: () => set({ 
+    selectedPartida: null, 
+    selectedSubPartida: null, 
+    selectedPlanilla: null 
+  }),
   
   clearObra: () => set({
     obra: null,
@@ -171,6 +193,89 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
     selectedPlanilla: null,
     showResumen: false
   }),
+  
+  // Funciones para costos
+  addCostoPartida: (costo) => {
+    set((state) => ({
+      partidas: state.partidas.map(p => 
+        p.id_partida === costo.id_partida 
+          ? { ...p, costos: [...(p.costos || []), costo] }
+          : p
+      )
+    }));
+  },
+  
+  addCostoSubPartida: (costo) => {
+    set((state) => ({
+      partidas: state.partidas.map(p => ({
+        ...p,
+        subpartidas: p.subpartidas?.map(sp =>
+          sp.id_subpartida === costo.id_subpartida
+            ? { ...sp, costos: [...(sp.costos || []), costo] }
+            : sp
+        ) || []
+      }))
+    }));
+  },
+  
+  updateCostoPartida: (id, costo) => {
+    set((state) => ({
+      partidas: state.partidas.map(p => ({
+        ...p,
+        costos: p.costos?.map(c => c.id_costo === id ? { ...c, ...costo } : c) || []
+      }))
+    }));
+  },
+  
+  updateCostoSubPartida: (id, costo) => {
+    set((state) => ({
+      partidas: state.partidas.map(p => ({
+        ...p,
+        subpartidas: p.subpartidas?.map(sp => ({
+          ...sp,
+          costos: sp.costos?.map(c => c.id_costo === id ? { ...c, ...costo } : c) || []
+        })) || []
+      }))
+    }));
+  },
+
+  // Funciones para manejar planillas
+  addPlanillasToPartida: (idPartida, planillas) => {
+    console.log('Store: addPlanillasToPartida llamada con:', { idPartida, planillas });
+    set((state) => {
+      const newState = {
+        partidas: state.partidas.map(p => 
+          p.id_partida === idPartida 
+            ? { ...p, planillas: planillas }
+            : p
+        )
+      };
+      console.log('Store: Estado después de agregar planillas a partida:', newState);
+      return newState;
+    });
+  },
+
+  addPlanillasToSubPartida: (idPartida, idSubPartida, planillas) => {
+    console.log('Store: addPlanillasToSubPartida llamada con:', { idPartida, idSubPartida, planillas });
+    set((state) => {
+      const newState = {
+        partidas: state.partidas.map(p => 
+          p.id_partida === idPartida 
+            ? {
+                ...p,
+                subpartidas: p.subpartidas?.map(sp =>
+                  sp.id_subpartida === idSubPartida
+                    ? { ...sp, planillas: planillas }
+                    : sp
+                ) || []
+              }
+            : p
+        )
+      };
+      console.log('Store: Estado después de agregar planillas a subpartida:', newState);
+      return newState;
+    });
+  },
   
   // Funciones para guardado local
   saveToLocalStorage: () => {

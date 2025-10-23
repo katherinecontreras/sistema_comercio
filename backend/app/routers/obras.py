@@ -185,7 +185,7 @@ def listar_incrementos(id_obra: int, db: Session = Depends(get_db), _: None = De
 
 # Tipos de Tiempo
 @router.get("/tipos-tiempo", response_model=List[TipoTiempoRead])
-def listar_tipos_tiempo(db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+def listar_tipos_tiempo(db: Session = Depends(get_db)):
     tipos = db.scalars(select(TipoTiempo)).all()
     return list(tipos)
 

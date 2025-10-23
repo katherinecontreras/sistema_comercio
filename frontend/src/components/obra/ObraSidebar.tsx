@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 // import { Card } from '@/components/ui/card';
 import { 
@@ -9,60 +9,86 @@ import {
   Circle,
   BarChart3,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Edit,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useObraStore } from '@/store/obra';
-import { createPartida, createSubPartida } from '@/actions/obras';
-import PartidaForm from './PartidaForm';
-import SubPartidaForm from './SubPartidaForm';
 
 interface ObraSidebarProps {
   obra: any;
   selectedPartida: number | null;
   selectedSubPartida: number | null;
+  selectedPlanilla: number | null;
   onSelectPartida: (id: number | null) => void;
   onSelectSubPartida: (id: number | null) => void;
+  onSelectPlanilla: (id: number | null) => void;
+  onEditPartida: (id: number) => void;
   onShowResumen: () => void;
+  onShowPartidaForm: () => void;
+  onShowSubPartidaForm: (idPartida: number) => void;
+  onShowPlanillaSelection: (id: number, type: 'partida' | 'subpartida') => void;
+  onTriggerAutoExpand?: (fn: (partidaId: number, subpartidaId: number) => void) => void;
 }
 
 const ObraSidebar: React.FC<ObraSidebarProps> = ({
   obra,
   selectedPartida,
   selectedSubPartida,
+  selectedPlanilla,
   onSelectPartida,
   onSelectSubPartida,
-  onShowResumen
+  onSelectPlanilla,
+  onEditPartida,
+  onShowResumen,
+  onShowPartidaForm,
+  onShowSubPartidaForm,
+  onShowPlanillaSelection,
+  onTriggerAutoExpand
 }) => {
-  const { partidas, setPartidas } = useObraStore();
-  const [showAddPartida, setShowAddPartida] = useState(false);
-  const [showAddSubPartida, setShowAddSubPartida] = useState<number | null>(null);
+  const { partidas } = useObraStore();
   const [expandedPartidas, setExpandedPartidas] = useState<Set<number>>(new Set());
+  const [autoExpand, setAutoExpand] = useState<{partidaId: number, subpartidaId: number} | null>(null);
 
-  const handleAddPartida = async (data: any) => {
-    try {
-      const partida = await createPartida(obra.id_obra, data);
-      setPartidas([...partidas, partida]);
-      setShowAddPartida(false);
-    } catch (error) {
-      console.error('Error creando partida:', error);
-    }
-  };
 
-  const handleAddSubPartida = async (idPartida: number, data: any) => {
-    try {
-      const subpartida = await createSubPartida(idPartida, data);
-      // Actualizar la partida para marcar que tiene subpartidas
-      const updatedPartidas = partidas.map(p => 
-        p.id_partida === idPartida 
-          ? { ...p, tiene_subpartidas: true, subpartidas: [...(p.subpartidas || []), subpartida] }
-          : p
-      );
-      setPartidas(updatedPartidas);
-      setShowAddSubPartida(null);
-    } catch (error) {
-      console.error('Error creando subpartida:', error);
+
+  // useEffect(() => {
+  //   console.log('ObraSidebar: Partidas recibidas:', partidas);
+  //   console.log('ObraSidebar: Cantidad de partidas:', partidas.length);
+  //   partidas.forEach((partida, index) => {
+  //     console.log(`Partida ${index}:`, {
+  //       id: partida.id_partida,
+  //       nombre: partida.nombre_partida,
+  //       tiene_subpartidas: partida.tiene_subpartidas,
+  //       planillas: partida.planillas,
+  //       subpartidas: partida.subpartidas?.map(sp => ({
+  //         id: sp.id_subpartida,
+  //         descripcion: sp.descripcion_tarea,
+  //         planillas: sp.planillas
+  //       }))
+  //     });
+  //   });
+  // }, [partidas]);
+
+  // Efecto para expansión automática cuando se agregan planillas
+  useEffect(() => {
+    if (autoExpand) {
+      console.log('Expandiendo automáticamente:', autoExpand);
+      const newExpanded = new Set(expandedPartidas);
+      newExpanded.add(autoExpand.partidaId);
+      newExpanded.add(autoExpand.subpartidaId);
+      setExpandedPartidas(newExpanded);
+      setAutoExpand(null);
     }
-  };
+  }, [autoExpand, expandedPartidas]);
+
+  // Exponer la función triggerAutoExpand al componente padre
+  useEffect(() => {
+    if (onTriggerAutoExpand) {
+      onTriggerAutoExpand(triggerAutoExpand);
+    }
+  }, [onTriggerAutoExpand]);
+
 
   const togglePartida = (idPartida: number) => {
     const newExpanded = new Set(expandedPartidas);
@@ -72,6 +98,11 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
       newExpanded.add(idPartida);
     }
     setExpandedPartidas(newExpanded);
+  };
+
+  // Función para activar expansión automática
+  const triggerAutoExpand = (partidaId: number, subpartidaId: number) => {
+    setAutoExpand({ partidaId, subpartidaId });
   };
 
   const getPartidaStatus = (partida: any) => {
@@ -110,7 +141,7 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
       {/* Botón Agregar Partida */}
       <div className="p-4 border-b border-slate-700">
         <Button
-          onClick={() => setShowAddPartida(true)}
+          onClick={onShowPartidaForm}
           className="w-full bg-sky-600 hover:bg-sky-700 text-white"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -128,18 +159,18 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                 selectedPartida === partida.id_partida ? 'bg-slate-600' : ''
               }`}
               onClick={() => {
-                if (partida.tiene_subpartidas) {
-                  togglePartida(partida.id_partida);
+                if (partida.tiene_subpartidas || (partida.planillas && partida.planillas.length > 0)) {
+                  togglePartida(partida.id_partida!);
                 } else {
-                  onSelectPartida(partida.id_partida);
+                  onSelectPartida(partida.id_partida!);
                   onSelectSubPartida(null);
                 }
               }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  {partida.tiene_subpartidas ? (
-                    expandedPartidas.has(partida.id_partida) ? (
+                  {(partida.tiene_subpartidas || (partida.planillas && partida.planillas.length > 0)) ? (
+                    expandedPartidas.has(partida.id_partida!) ? (
                       <ChevronDown className="h-4 w-4 text-slate-400" />
                     ) : (
                       <ChevronRight className="h-4 w-4 text-slate-400" />
@@ -148,14 +179,12 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                     <Circle className="h-4 w-4 text-slate-400" />
                   )}
                   
-                  {partida.tiene_subpartidas ? (
-                    expandedPartidas.has(partida.id_partida) ? (
+                  {(partida.tiene_subpartidas || (partida.planillas && partida.planillas.length > 0)) && (
+                    expandedPartidas.has(partida.id_partida!) ? (
                       <FolderOpen className="h-4 w-4 text-slate-400" />
                     ) : (
                       <Folder className="h-4 w-4 text-slate-400" />
                     )
-                  ) : (
-                    <Circle className="h-4 w-4 text-slate-400" />
                   )}
                   
                   <span className="text-white text-sm truncate">{partida.nombre_partida}</span>
@@ -166,69 +195,164 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   )}
                   
-                  {!partida.tiene_subpartidas && (
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAddSubPartida(partida.id_partida);
-                      }}
-                      className="bg-slate-600 hover:bg-slate-500 text-white h-6 px-2"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  )}
+                  {/* Botón de editar */}
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditPartida(partida.id_partida!);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-500 text-white h-6 px-2"
+                    title="Editar partida"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  
+                  {/* Botón de agregar subpartida */}
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onShowSubPartidaForm(partida.id_partida!);
+                    }}
+                    className="bg-slate-600 hover:bg-slate-500 text-white h-6 px-2"
+                    title="Agregar subpartida"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             </div>
 
             {/* SubPartidas */}
-            {partida.tiene_subpartidas && expandedPartidas.has(partida.id_partida) && (
+            {partida.tiene_subpartidas && expandedPartidas.has(partida.id_partida!) && (
               <div className="bg-slate-750 border-l-2 border-slate-600">
                 {partida.subpartidas?.map((subpartida: any) => (
-                  <div
-                    key={subpartida.id_subpartida}
-                    className={`p-3 pl-6 cursor-pointer hover:bg-slate-700 ${
-                      selectedSubPartida === subpartida.id_subpartida ? 'bg-slate-600' : ''
+                  <div key={subpartida.id_subpartida}>
+                    <div
+                      className={`p-3 pl-6 cursor-pointer hover:bg-slate-700 ${
+                        selectedSubPartida === subpartida.id_subpartida ? 'bg-slate-600' : ''
+                      }`}
+                      onClick={() => {
+                        // Si la subpartida tiene planillas, expandir/colapsar
+                        if (subpartida.planillas && subpartida.planillas.length > 0) {
+                          togglePartida(subpartida.id_subpartida!);
+                        } else {
+                          // Si no tiene planillas, seleccionar directamente
+                          onSelectSubPartida(subpartida.id_subpartida!);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          {/* Icono de expansión/colapso para subpartidas con planillas */}
+                          {(subpartida.planillas && subpartida.planillas.length > 0) ? (
+                            expandedPartidas.has(subpartida.id_subpartida!) ? (
+                              <ChevronDown className="h-3 w-3 text-slate-400" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 text-slate-400" />
+                            )
+                          ) : (
+                            <Circle className="h-3 w-3 text-slate-400" />
+                          )}
+                          
+                          {/* Icono de carpeta para subpartidas con planillas */}
+                          {(subpartida.planillas && subpartida.planillas.length > 0) && (
+                            expandedPartidas.has(subpartida.id_subpartida!) ? (
+                              <FolderOpen className="h-3 w-3 text-slate-400" />
+                            ) : (
+                              <Folder className="h-3 w-3 text-slate-400" />
+                            )
+                          )}
+                          
+                          <span className="text-white text-sm truncate">{subpartida.descripcion_tarea}</span>
+                        </div>
+                        
+                        {getSubPartidaStatus(subpartida) === 'complete' && (
+                          <CheckCircle className="h-3 w-3 text-green-500" />
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Planillas de la SubPartida */}
+                    {subpartida.planillas && subpartida.planillas.length > 0 && expandedPartidas.has(subpartida.id_subpartida!) && (
+                      <div className="bg-slate-800 border-l-2 border-slate-500">
+                        {subpartida.planillas.map((planillaId: {id: number, nombre: string}) => (
+                          <div
+                            key={`subpartida-${subpartida.id_subpartida}-planilla-${planillaId.id}`}
+                            className={`p-2 pl-8 cursor-pointer hover:bg-slate-700 ${
+                              selectedPlanilla === planillaId.id && selectedSubPartida === subpartida.id_subpartida ? 'bg-slate-500' : ''
+                            }`}
+                            onClick={() => {
+                              onSelectPlanilla(planillaId.id);
+                            }}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <FileSpreadsheet className="h-3 w-3 text-slate-400" />
+                              <span className="text-slate-300 text-xs truncate">
+                                {typeof planillaId === 'object' ? planillaId.nombre : `Planilla ${planillaId}`}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Botón Agregar Planilla */}
+                        <div
+                          className="p-2 pl-8 cursor-pointer hover:bg-slate-700 text-slate-400 hover:text-white"
+                          onClick={() => {
+                            onShowPlanillaSelection(subpartida.id_subpartida!, 'subpartida');
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Plus className="h-3 w-3" />
+                            <span className="text-xs">Agregar Planilla</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Planillas de la Partida (solo si está expandida) */}
+            {partida.planillas && partida.planillas.length > 0 && expandedPartidas.has(partida.id_partida!) && (
+              <div className="bg-slate-800 border-l-2 border-slate-500">
+                        {partida.planillas.map((planillaId: {id: number, nombre: string}) => (
+                          <div
+                            key={`partida-${partida.id_partida}-planilla-${planillaId.id}`}
+                    className={`p-2 pl-6 cursor-pointer hover:bg-slate-700 ${
+                      selectedPlanilla === planillaId.id && selectedPartida === partida.id_partida ? 'bg-slate-500' : ''
                     }`}
                     onClick={() => {
-                      onSelectSubPartida(subpartida.id_subpartida);
-                      onSelectPartida(null);
+                      onSelectPlanilla(planillaId.id);
                     }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Circle className="h-3 w-3 text-slate-400" />
-                        <span className="text-white text-sm truncate">{subpartida.descripcion_tarea}</span>
-                      </div>
-                      
-                      {getSubPartidaStatus(subpartida) === 'complete' && (
-                        <CheckCircle className="h-3 w-3 text-green-500" />
-                      )}
+                    <div className="flex items-center space-x-2">
+                      <FileSpreadsheet className="h-3 w-3 text-slate-400" />
+                      <span className="text-slate-300 text-xs truncate">
+                        {typeof planillaId === 'object' ? planillaId.nombre : `Planilla ${planillaId}`}
+                      </span>
                     </div>
                   </div>
                 ))}
+                {/* Botón Agregar Planilla */}
+                <div
+                  className="p-2 pl-6 cursor-pointer hover:bg-slate-700 text-slate-400 hover:text-white"
+                  onClick={() => {
+                    onShowPlanillaSelection(partida.id_partida!, 'partida');
+                  }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Plus className="h-3 w-3" />
+                    <span className="text-xs">Agregar Planilla</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* Modales */}
-      {showAddPartida && (
-        <PartidaForm
-          onSave={handleAddPartida}
-          onCancel={() => setShowAddPartida(false)}
-        />
-      )}
-
-      {showAddSubPartida && (
-        <SubPartidaForm
-          partidaId={showAddSubPartida}
-          onSave={(data: any) => handleAddSubPartida(showAddSubPartida, data)}
-          onCancel={() => setShowAddSubPartida(null)}
-        />
-      )}
     </div>
   );
 };

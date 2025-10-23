@@ -35,11 +35,25 @@ export const getObra = async (id: number) => {
 export const createPartida = async (idObra: number, partidaData: {
   nombre_partida: string;
   descripcion?: string;
-  ubicacion?: string;
   codigo?: string;
+  duracion?: number;
+  id_tipo_tiempo?: number;
+  especialidad?: any[];
+  tiene_subpartidas?: boolean;
 }) => {
-  const response = await api.post(`/obras/${idObra}/partidas`, partidaData);
-  return response.data;
+  console.log('=== LLAMANDO A API createPartida ===');
+  console.log('URL:', `/obras/${idObra}/partidas`);
+  console.log('Datos:', partidaData);
+  
+  try {
+    const response = await api.post(`/obras/${idObra}/partidas`, partidaData);
+    console.log('✅ Respuesta del backend:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error en createPartida:', error);
+    console.error('Detalles del error:', error.response?.data);
+    throw error;
+  }
 };
 
 export const getPartidas = async (idObra: number) => {
@@ -129,7 +143,7 @@ export const deleteIncremento = async (idIncremento: number) => {
 
 // Tipos de Tiempo
 export const getTiposTiempo = async () => {
-  const response = await api.get('/obras/tipos-tiempo');
+  const response = await api.get('/catalogos/tipos-tiempo');
   return response.data;
 };
 

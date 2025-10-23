@@ -8,8 +8,8 @@ import { useObraStore } from '@/store/obra';
 interface CostoFormProps {
   onClose: () => void;
   costo?: any; // Para editar
-  idPartida?: number;
-  idSubPartida?: number;
+  idPartida?: number | null;
+  idSubPartida?: number | null;
 }
 
 const CostoForm: React.FC<CostoFormProps> = ({ onClose, costo, idPartida, idSubPartida }) => {
@@ -61,6 +61,15 @@ const CostoForm: React.FC<CostoFormProps> = ({ onClose, costo, idPartida, idSubP
         }
       }
       
+      // Limpiar campos y cerrar modal
+      setFormData({
+        id_recurso: 0,
+        cantidad: 0,
+        precio_unitario_aplicado: 0,
+        total_linea: 0,
+        porcentaje_de_uso: 0,
+        tiempo_de_uso: 0
+      });
       onClose();
     } catch (error) {
       console.error('Error guardando costo:', error);
@@ -86,7 +95,7 @@ const CostoForm: React.FC<CostoFormProps> = ({ onClose, costo, idPartida, idSubP
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
       <Card className="w-full max-w-lg bg-slate-800 border-slate-700">
         <div className="p-6">
           <h2 className="text-xl font-bold text-white mb-6">
@@ -193,3 +202,5 @@ const CostoForm: React.FC<CostoFormProps> = ({ onClose, costo, idPartida, idSubP
 };
 
 export default CostoForm;
+
+

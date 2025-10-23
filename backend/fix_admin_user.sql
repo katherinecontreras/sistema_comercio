@@ -10,3 +10,7 @@ INSERT INTO usuarios (nombre, apellido, dni, email, password_hash, id_rol, activ
 
 -- Verificar que se creó correctamente
 SELECT 'Usuario admin creado:' as info, COUNT(*) as cantidad FROM usuarios WHERE dni = '12345678';
+
+
+
+

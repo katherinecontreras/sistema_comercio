@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, DollarSign, CheckCircle, Circle, Loader2 } from 'lucide-react';
-import { useObraStore } from '@/store/obra';
+import { Plus, DollarSign, CheckCircle, Circle, Loader2 } from 'lucide-react';
+// import { useObraStore } from '@/store/obra'; // Comentado porque no se usa
 import { 
   getPartidas, 
   getSubPartidas, 
@@ -13,11 +13,10 @@ import {
 
 interface ResumenViewProps {
   obra: any;
-  onBack: () => void;
 }
 
-const ResumenView: React.FC<ResumenViewProps> = ({ obra, onBack }) => {
-  const { setPartidas } = useObraStore();
+const ResumenView: React.FC<ResumenViewProps> = ({ obra }) => {
+  // const { setPartidas } = useObraStore(); // Comentado porque no se usa
   const [loading, setLoading] = useState(true);
   const [partidasConCostos, setPartidasConCostos] = useState<any[]>([]);
   const [incrementos, setIncrementos] = useState<any[]>([]);
@@ -33,7 +32,7 @@ const ResumenView: React.FC<ResumenViewProps> = ({ obra, onBack }) => {
     try {
       // Cargar partidas
       const partidasData = await getPartidas(obra.id_obra);
-      setPartidas(partidasData);
+      // setPartidas(partidasData); // Comentado para evitar sobrescribir partidas locales
 
       // Cargar costos para cada partida
       const partidasConDatos = await Promise.all(
@@ -107,19 +106,9 @@ const ResumenView: React.FC<ResumenViewProps> = ({ obra, onBack }) => {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
-          <Button
-            onClick={onBack}
-            variant="outline"
-            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Resumen de Costos</h1>
-            <p className="text-slate-400">{obra.nombre_proyecto}</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Resumen de Costos</h1>
+          <p className="text-slate-400">{obra.nombre_proyecto}</p>
         </div>
         
         <div className="text-right">

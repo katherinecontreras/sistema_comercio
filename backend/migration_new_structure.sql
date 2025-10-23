@@ -68,3 +68,7 @@ UNION ALL
 SELECT 'Partidas con tipo_tiempo:', COUNT(*) FROM partidas WHERE id_tipo_tiempo IS NOT NULL
 UNION ALL
 SELECT 'Costos con porcentaje:', COUNT(*) FROM partidas_costos WHERE porcentaje_de_uso IS NOT NULL;
+
+
+
+
