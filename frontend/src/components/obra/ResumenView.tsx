@@ -1,272 +1,379 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
+import React, {useState} from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, DollarSign, CheckCircle, Circle, Loader2 } from 'lucide-react';
-// import { useObraStore } from '@/store/obra'; // Comentado porque no se usa
-import { 
-  getPartidas, 
-  getSubPartidas, 
-  getCostosPartida, 
-  getCostosSubPartida,
-  getIncrementos 
-} from '@/actions/obras';
+import { Plus, DollarSign, FileText, Clock, Package, Eye, TrendingUp } from 'lucide-react';
+import { useObraStore } from '@/store/obra';
+import { AddIncrementModal } from '../modals';
 
 interface ResumenViewProps {
-  obra: any;
+  onShowIncrementos?: () => void;
 }
 
-const ResumenView: React.FC<ResumenViewProps> = ({ obra }) => {
-  // const { setPartidas } = useObraStore(); // Comentado porque no se usa
-  const [loading, setLoading] = useState(true);
-  const [partidasConCostos, setPartidasConCostos] = useState<any[]>([]);
-  const [incrementos, setIncrementos] = useState<any[]>([]);
+const ResumenView: React.FC<ResumenViewProps> = ({ onShowIncrementos }) => {
+  const { obra, partidas, incrementos, resumen, addIncremento, updateIncremento, calcularTotalesObra } = useObraStore();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingIncrement, setEditingIncrement] = useState<any>(null);
 
-  useEffect(() => {
-    cargarDatos();
-  }, [obra]);
-
-  const cargarDatos = async () => {
-    if (!obra) return;
-    
-    setLoading(true);
-    try {
-      // Cargar partidas
-      const partidasData = await getPartidas(obra.id_obra);
-      // setPartidas(partidasData); // Comentado para evitar sobrescribir partidas locales
-
-      // Cargar costos para cada partida
-      const partidasConDatos = await Promise.all(
-        partidasData.map(async (partida: any) => {
-          let costo_total = 0;
-          let subpartidasConCostos = [];
-
-          if (partida.tiene_subpartidas) {
-            // Cargar subpartidas y sus costos
-            const subpartidas = await getSubPartidas(partida.id_partida);
-            subpartidasConCostos = await Promise.all(
-              subpartidas.map(async (subpartida: any) => {
-                const costos = await getCostosSubPartida(subpartida.id_subpartida);
-                const costoSubpartida = costos.reduce((sum: number, c: any) => sum + c.total_linea, 0);
-                costo_total += costoSubpartida;
-                
-                return {
-                  ...subpartida,
-                  costos,
-                  costo: costoSubpartida,
-                  completa: costos.length > 0
-                };
-              })
-            );
-          } else {
-            // Cargar costos directos de la partida
-            const costos = await getCostosPartida(partida.id_partida);
-            costo_total = costos.reduce((sum: number, c: any) => sum + c.total_linea, 0);
-          }
-
-          return {
-            ...partida,
-            subpartidas: subpartidasConCostos,
-            costo_total,
-            completa: costo_total > 0
-          };
-        })
-      );
-
-      setPartidasConCostos(partidasConDatos);
-
-      // Cargar incrementos
-      const incrementosData = await getIncrementos(obra.id_obra);
-      setIncrementos(incrementosData);
-
-    } catch (error) {
-      console.error('Error cargando datos del resumen:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleAddIncrement = (incrementData: any) => {
+    addIncremento(incrementData);
+    setShowAddModal(false);
   };
 
-  const costo_total_obra = partidasConCostos.reduce((sum, p) => sum + p.costo_total, 0);
-  const total_incrementos = incrementos.reduce((sum, i) => sum + i.monto_calculado, 0);
-  const costo_total_con_incrementos = costo_total_obra + total_incrementos;
-  const total_duracion_obra = partidasConCostos.reduce((sum, p) => sum + (p.duracion || 0), 0);
+  const handleUpdateIncrement = (incrementData: any) => {
+    updateIncremento(editingIncrement.id_incremento, incrementData);
+    setEditingIncrement(null);
+    setShowAddModal(false);
+  };
 
-  if (loading) {
+  // Usar los datos del resumen calculado automáticamente
+  const totales = resumen;
+
+  if (!obra) {
     return (
       <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-3">
-            <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
-            <span className="text-white">Cargando resumen...</span>
+        <Card className="bg-slate-800 border-slate-700">
+          <div className="p-6 text-center">
+            <FileText className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No hay obra seleccionada
+            </h3>
+            <p className="text-slate-400">
+              Crea una nueva obra para comenzar
+            </p>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="p-6">
+      {/* Header con botones de incrementos */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Resumen de Costos</h1>
-          <p className="text-slate-400">{obra.nombre_proyecto}</p>
+          <h1 className="text-2xl font-bold text-white">{obra.nombre_proyecto}</h1>
+          <p className="text-slate-400">Resumen de la obra</p>
         </div>
-        
-        <div className="text-right">
-          <div className="text-3xl font-bold text-green-500">
-            ${costo_total_con_incrementos.toLocaleString()}
-          </div>
-          <div className="text-slate-400">Costo Total con Incrementos</div>
-          <div className="text-sm text-slate-500 mt-1">
-            Base: ${costo_total_obra.toLocaleString()} | Incrementos: ${total_incrementos.toLocaleString()}
-          </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Agregar Incremento
+          </Button>
+          <Button
+            onClick={onShowIncrementos}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Ver Incrementos
+          </Button>
         </div>
       </div>
 
-      {/* Estadísticas Generales */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-slate-800 border-slate-700 p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-400">{partidasConCostos.length}</div>
-            <div className="text-slate-400 text-sm">Total Partidas</div>
-          </div>
-        </Card>
-        
-        <Card className="bg-slate-800 border-slate-700 p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-400">
-              {partidasConCostos.reduce((sum, p) => sum + (p.subpartidas?.length || 0), 0)}
+      {/* Tarjetas de resumen */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-blue-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Partidas</p>
+                      <p className="text-white text-xl font-semibold">{totales.cantidad_partidas}</p>
+              </div>
             </div>
-            <div className="text-slate-400 text-sm">Total Subpartidas</div>
-          </div>
+          </CardContent>
         </Card>
-        
-        <Card className="bg-slate-800 border-slate-700 p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-400">{total_duracion_obra}</div>
-            <div className="text-slate-400 text-sm">Duración Total</div>
-          </div>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-purple-400" />
+              <div>
+                <p className="text-slate-400 text-sm">SubPartidas</p>
+                      <p className="text-white text-xl font-semibold">{totales.cantidad_subpartidas}</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-        
-        <Card className="bg-slate-800 border-slate-700 p-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-400">{incrementos.length}</div>
-            <div className="text-slate-400 text-sm">Incrementos</div>
-          </div>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-green-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Incrementos</p>
+                <p className="text-white text-xl font-semibold">{totales.totalIncrementos}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <FileText className="h-8 w-8 text-yellow-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Planillas</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_planillas_total}</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
-      {/* Resumen por Partidas */}
-      <div className="space-y-4">
-        {partidasConCostos.map((partida) => (
-          <Card key={partida.id} className="bg-slate-800 border-slate-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  {partida.completa ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-slate-400" />
-                  )}
-                  <h3 className="text-lg font-semibold text-white">{partida.nombre}</h3>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <div className="text-xl font-semibold text-white">
-                      ${partida.costo_total.toLocaleString()}
+      {/* Tarjetas de incrementos */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-red-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Total Incrementos</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_incrementos}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-orange-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Incrementos Partidas</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_incrementos_por_partida}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-yellow-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Incrementos SubPartidas</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_incrementos_por_subpartida}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-purple-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Incrementos Oferta</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_incrementos_por_oferta}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tarjetas de recursos y planillas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-cyan-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Recursos por Planilla</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_recursos_por_planilla}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-indigo-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Recursos por Partida</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_recursos_por_partida}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-pink-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Recursos por SubPartida</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_recursos_por_subpartida}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Package className="h-8 w-8 text-teal-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Total Recursos</p>
+                <p className="text-white text-xl font-semibold">{totales.total_recursos_por_planilla}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tarjetas de costos */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <DollarSign className="h-8 w-8 text-green-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Costo Base</p>
+                <p className="text-white text-xl font-semibold">
+                  ${totales.costo_total_oferta_sin_incremento.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 text-orange-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Total Incrementos</p>
+                <p className="text-white text-xl font-semibold">
+                  ${totales.costo_total_incrementos.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <DollarSign className="h-8 w-8 text-blue-400" />
+              <div>
+                <p className="text-slate-400 text-sm">Costo Total</p>
+                <p className="text-white text-xl font-semibold">
+                  ${totales.costo_total_oferta_con_incremento.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Duración total */}
+      <Card className="bg-slate-800 border-slate-700 mb-6">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Duración Total de la Obra
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {totales.total_duracion_oferta.años > 0 && (
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totales.total_duracion_oferta.años}</p>
+                <p className="text-slate-400 text-sm">Años</p>
+              </div>
+            )}
+            {totales.total_duracion_oferta.meses > 0 && (
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totales.total_duracion_oferta.meses}</p>
+                <p className="text-slate-400 text-sm">Meses</p>
+              </div>
+            )}
+            {totales.total_duracion_oferta.dias > 0 && (
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totales.total_duracion_oferta.dias}</p>
+                <p className="text-slate-400 text-sm">Días</p>
+              </div>
+            )}
+            {totales.total_duracion_oferta.horas > 0 && (
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totales.total_duracion_oferta.horas}</p>
+                <p className="text-slate-400 text-sm">Horas</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista de partidas */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white">Partidas de la Obra</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {partidas.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">No hay partidas</h3>
+              <p className="text-slate-400">
+                Agrega partidas para comenzar a estructurar tu obra
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {partidas.map((partida) => (
+                <div key={partida.id_partida} className="border border-slate-600 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-lg font-semibold text-white">{partida.nombre_partida}</h4>
+                    <div className="flex items-center gap-2">
+                      {partida.tiene_subpartidas ? (
+                        <span className="px-2 py-1 bg-purple-900 text-purple-300 rounded text-xs">
+                          {partida.subpartidas?.length || 0} SubPartidas
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-blue-900 text-blue-300 rounded text-xs">
+                          Partida Directa
+                        </span>
+                      )}
+                      <span className="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">
+                        {partida.planillas?.length || 0} Planillas
+                      </span>
                     </div>
-                    <div className="text-sm text-slate-400">Costo Total</div>
                   </div>
                   
-                  <Button
-                    size="sm"
-                    className="bg-sky-600 hover:bg-sky-700 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Incremento
-                  </Button>
-                </div>
-              </div>
-
-              {/* SubPartidas */}
-              {partida.subpartidas && partida.subpartidas.length > 0 && (
-                <div className="ml-6 space-y-2">
-                  {partida.subpartidas.map((subpartida: any) => (
-                    <div
-                      key={subpartida.id}
-                      className="flex items-center justify-between p-3 bg-slate-700 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {subpartida.completa ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Circle className="h-4 w-4 text-slate-400" />
-                        )}
-                        <span className="text-white">{subpartida.nombre}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <div className="text-white font-medium">
-                          ${subpartida.costo.toLocaleString()}
-                        </div>
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="bg-slate-600 hover:bg-slate-500 text-white border-slate-500"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Incremento
-                        </Button>
+                  {partida.descripcion && (
+                    <p className="text-slate-300 text-sm mb-2">{partida.descripcion}</p>
+                  )}
+                  
+                  {partida.tiene_subpartidas && partida.subpartidas && (
+                    <div className="mt-3">
+                      <h5 className="text-sm font-medium text-slate-300 mb-2">SubPartidas:</h5>
+                      <div className="space-y-2">
+                        {partida.subpartidas.map((subpartida: any) => (
+                          <div key={subpartida.id_subpartida} className="bg-slate-700 rounded p-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-white">{subpartida.descripcion_tarea}</p>
+                              <span className="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">
+                                {subpartida.planillas?.length || 0} Planillas
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
+              ))}
             </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Resumen Final */}
-      <Card className="mt-6 bg-slate-800 border-slate-700">
-        <div className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <DollarSign className="h-6 w-6 text-green-500" />
-              <h2 className="text-xl font-semibold text-white">Resumen Final</h2>
-            </div>
-            
-            <div className="text-right">
-              <div className="text-3xl font-bold text-green-500">
-                ${costo_total_obra.toLocaleString()}
-              </div>
-              <div className="text-slate-400">Total de la Obra</div>
-            </div>
-          </div>
-          
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-slate-700 rounded-lg">
-              <div className="text-2xl font-bold text-white">{partidasConCostos.length}</div>
-              <div className="text-slate-400">Partidas</div>
-            </div>
-            
-            <div className="text-center p-4 bg-slate-700 rounded-lg">
-              <div className="text-2xl font-bold text-white">
-                {partidasConCostos.reduce((sum, p) => sum + (p.subpartidas?.length || 0), 0)}
-              </div>
-              <div className="text-slate-400">SubPartidas</div>
-            </div>
-            
-            <div className="text-center p-4 bg-slate-700 rounded-lg">
-              <div className="text-2xl font-bold text-green-500">
-                {partidasConCostos.filter(p => p.completa).length}/{partidasConCostos.length}
-              </div>
-              <div className="text-slate-400">Completadas</div>
-            </div>
-          </div>
-        </div>
+          )}
+        </CardContent>
       </Card>
+      {/* Modal para agregar/editar incremento */}
+      <AddIncrementModal
+        open={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingIncrement(null);
+        }}
+        onSave={editingIncrement ? handleUpdateIncrement : handleAddIncrement}
+      />
     </div>
   );
 };

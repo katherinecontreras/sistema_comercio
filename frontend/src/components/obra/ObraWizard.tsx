@@ -5,6 +5,7 @@ import ObraForm from './ObraForm';
 import ObraSidebar from './ObraSidebar';
 import ObraContent from './ObraContent';
 import ResumenView from './ResumenView';
+import IncrementosView from './IncrementosView';
 import ActionButtons from './ActionButtons';
 import PartidaForm from './PartidaForm';
 import SubPartidaForm from './SubPartidaForm';
@@ -18,17 +19,18 @@ const ObraWizard: React.FC = () => {
     selectedPartida,
     selectedSubPartida,
     selectedPlanilla,
-    showResumen,
     setSelectedPartida,
     setSelectedSubPartida,
     setSelectedPlanilla,
-    setShowResumen,
     addSubPartida,
     addPlanillasToPartida,
-    addPlanillasToSubPartida
+    addPlanillasToSubPartida,
+    calcularResumenObra
   } = useObraStore();
 
   // Estados para formularios
+  const [showResumen, setShowResumen] = useState(true);
+  const [showIncrementos, setShowIncrementos] = useState(false);
   const [showPartidaForm, setShowPartidaForm] = useState(false);
   const [showSubPartidaForm, setShowSubPartidaForm] = useState(false);
   const [editingPartida, setEditingPartida] = useState<any>(null);
@@ -42,6 +44,7 @@ const ObraWizard: React.FC = () => {
   const handleSelectPartida = (idPartida: number | null) => {
     setSelectedPartida(idPartida);
     setShowResumen(false);
+    setShowIncrementos(false);
     setShowPartidaForm(false);
     setShowSubPartidaForm(false);
     setSelectedSubPartida(null);
@@ -50,6 +53,18 @@ const ObraWizard: React.FC = () => {
     setShowPlanillaSelection(false);
     setPlanillaSelectionTarget(null);
     setSelectedPlanillas([]);
+  };
+
+  // Función para mostrar incrementos
+  const handleShowIncrementos = () => {
+    setShowIncrementos(true);
+    setShowResumen(false);
+  };
+
+  // Función para volver al resumen
+  const handleBackToResumen = () => {
+    setShowIncrementos(false);
+    setShowResumen(true);
   };
 
   // Función para manejar selección de planillas
@@ -167,6 +182,13 @@ const ObraWizard: React.FC = () => {
     }
   }, [showPartidaForm, showSubPartidaForm]);
 
+  // Calcular resumen inicial cuando se carga la obra
+  useEffect(() => {
+    if (obra) {
+      calcularResumenObra();
+    }
+  }, [obra, calcularResumenObra]);
+
   if (!obra) {
     return <ObraForm />;
   }
@@ -211,10 +233,12 @@ const ObraWizard: React.FC = () => {
 
       {/* Contenido Principal */}
       <div className="flex-1 overflow-auto">
-        {showResumen ? (
+        {showIncrementos ? (
+          <IncrementosView onBack={handleBackToResumen} />
+        ) : showResumen ? (
           <div>
             <ResumenView
-              obra={obra}
+              onShowIncrementos={handleShowIncrementos}
             />
             <div className="p-6">
               <ActionButtons

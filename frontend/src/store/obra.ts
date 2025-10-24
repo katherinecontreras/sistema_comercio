@@ -21,6 +21,16 @@ interface Obra {
   costos_partidas?: any;
 }
 
+interface ItemObra {
+  id: string;
+  id_obra: string;
+  descripcion_tarea: string;
+  id_especialidad: number;
+  id_unidad: number;
+  cantidad: number;
+  precio_unitario: number;
+}
+
 interface Partida {
   id_partida?: number;
   id_obra?: number;
@@ -32,7 +42,7 @@ interface Partida {
   id_tipo_tiempo?: number;
   tipo_de_tiempo?: {
     id: number;
-    nombre: string;
+  nombre: string;
     medida: string;
   };
   especialidad?: any[];
@@ -52,7 +62,7 @@ interface SubPartida {
   id_tipo_tiempo?: number;
   tipo_de_tiempo?: {
     id: number;
-    nombre: string;
+  nombre: string;
     medida: string;
   };
   costos?: SubPartidaCosto[];
@@ -72,7 +82,7 @@ interface SubPartidaCosto {
   tiempo_de_uso: number;
   recurso?: {
     id_recurso: number;
-    descripcion: string;
+  descripcion: string;
   unidad: string;
     costo_unitario_predeterminado: number;
   };
@@ -90,9 +100,55 @@ interface Incremento {
   monto_calculado: number;
 }
 
+interface ResumenObra {
+  // Incrementos
+  cantidad_incrementos: number;
+  cantidad_incrementos_por_partida: number;
+  cantidad_incrementos_por_subpartida: number;
+  cantidad_incrementos_por_oferta: number;
+  costo_total_incremento_por_partida: number;
+  costo_total_incremento_por_subpartida: number;
+  costo_total_incrementos: number;
+  
+  // Partidas y Subpartidas
+  cantidad_partidas: number;
+  cantidad_subpartidas: number;
+  
+  // Planillas
+  cantidad_planilla_por_partida: number;
+  cantidad_planilla_por_subpartida: number;
+  planillas_por_oferta: Array<{id: number, nombre: string}>;
+  cantidad_planillas_total: number;
+  
+  // Recursos
+  cantidad_recursos_por_planilla: number;
+  cantidad_recursos_por_partida: number;
+  cantidad_recursos_por_subpartida: number;
+  total_recursos_por_planilla: number;
+  total_recursos_por_partida: number;
+  total_recursos_por_subpartida: number;
+  
+  // Costos
+  costo_total_por_planilla: number;
+  costo_total_por_partida: number;
+  costo_total_por_subpartida: number;
+  costo_total_oferta_sin_incremento: number;
+  costo_total_oferta_con_incremento: number;
+  
+  // Duración
+  total_duracion_oferta: {
+    años: number;
+    meses: number;
+    dias: number;
+    horas: number;
+  };
+}
+
 interface ObraState {
   obra: Obra | null;
   partidas: Partida[];
+  incrementos: Incremento[];
+  resumen: ResumenObra;
   selectedPartida: number | null;
   selectedSubPartida: number | null;
   selectedPlanilla: number | null;
@@ -123,16 +179,72 @@ interface ObraActions {
   // Funciones para recursos de planillas
   saveRecursosToPlanilla: (idPartida: number, idSubPartida: number | null, idPlanilla: number, recursos: any[]) => void;
   getRecursosFromPlanilla: (idPartida: number, idSubPartida: number | null, idPlanilla: number) => any[];
+  // Funciones para incrementos
+  addIncremento: (incremento: Incremento) => void;
+  updateIncremento: (id: number, incremento: Partial<Incremento>) => void;
+  removeIncremento: (id: number) => void;
+  // Funciones para cálculos automáticos
+  calcularTotalesObra: () => any;
+  calcularResumenObra: () => void;
   // Funciones para guardado local
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
   clearLocalStorage: () => void;
+  // Funciones para sincronización con backend
+  syncIncrementosWithBackend: () => Promise<void>;
+  finalizarObra: () => Promise<void>;
 }
+
+export type { Obra, ItemObra, Partida, SubPartida, Incremento };
 
 export const useObraStore = create<ObraState & ObraActions>((set) => ({
   // State
   obra: null,
   partidas: [],
+  incrementos: [],
+  resumen: {
+    // Incrementos
+    cantidad_incrementos: 0,
+    cantidad_incrementos_por_partida: 0,
+    cantidad_incrementos_por_subpartida: 0,
+    cantidad_incrementos_por_oferta: 0,
+    costo_total_incremento_por_partida: 0,
+    costo_total_incremento_por_subpartida: 0,
+    costo_total_incrementos: 0,
+    
+    // Partidas y Subpartidas
+    cantidad_partidas: 0,
+    cantidad_subpartidas: 0,
+    
+    // Planillas
+    cantidad_planilla_por_partida: 0,
+    cantidad_planilla_por_subpartida: 0,
+    planillas_por_oferta: [],
+    cantidad_planillas_total: 0,
+    
+    // Recursos
+    cantidad_recursos_por_planilla: 0,
+    cantidad_recursos_por_partida: 0,
+    cantidad_recursos_por_subpartida: 0,
+    total_recursos_por_planilla: 0,
+    total_recursos_por_partida: 0,
+    total_recursos_por_subpartida: 0,
+    
+    // Costos
+    costo_total_por_planilla: 0,
+    costo_total_por_partida: 0,
+    costo_total_por_subpartida: 0,
+    costo_total_oferta_sin_incremento: 0,
+    costo_total_oferta_con_incremento: 0,
+    
+    // Duración
+    total_duracion_oferta: {
+      años: 0,
+      meses: 0,
+      dias: 0,
+      horas: 0,
+    },
+  },
   selectedPartida: null,
   selectedSubPartida: null,
   selectedPlanilla: null,
@@ -148,6 +260,11 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
     const newPartidas = [...state.partidas, partida];
     console.log('Store: Total partidas después de agregar:', newPartidas.length);
     return { partidas: newPartidas };
+  }, () => {
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
   }),
   
   updatePartida: (id, updates) => set((state) => ({
@@ -269,6 +386,10 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
       console.log('Store: Estado después de agregar planillas a partida:', newState);
       return newState;
     });
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
   },
 
   addPlanillasToSubPartida: (idPartida, idSubPartida, planillas) => {
@@ -291,6 +412,10 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
       console.log('Store: Estado después de agregar planillas a subpartida:', newState);
       return newState;
     });
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
   },
 
   // Funciones para manejar recursos de planillas
@@ -337,6 +462,10 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
       console.log('Store: Estado después de guardar recursos:', newState);
       return newState;
     });
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
   },
 
   getRecursosFromPlanilla: (idPartida: number, idSubPartida: number | null, idPlanilla: number): any[] => {
@@ -370,6 +499,8 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
     const dataToSave = {
       obra: state.obra,
       partidas: state.partidas,
+      incrementos: state.incrementos,
+      resumen: state.resumen,
       selectedPartida: state.selectedPartida,
       selectedSubPartida: state.selectedSubPartida,
       selectedPlanilla: state.selectedPlanilla,
@@ -386,11 +517,59 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
         set({
           obra: data.obra,
           partidas: data.partidas || [],
+          incrementos: data.incrementos || [],
+          resumen: data.resumen || {
+            // Incrementos
+            cantidad_incrementos: 0,
+            cantidad_incrementos_por_partida: 0,
+            cantidad_incrementos_por_subpartida: 0,
+            cantidad_incrementos_por_oferta: 0,
+            costo_total_incremento_por_partida: 0,
+            costo_total_incremento_por_subpartida: 0,
+            costo_total_incrementos: 0,
+            
+            // Partidas y Subpartidas
+            cantidad_partidas: 0,
+            cantidad_subpartidas: 0,
+            
+            // Planillas
+            cantidad_planilla_por_partida: 0,
+            cantidad_planilla_por_subpartida: 0,
+            planillas_por_oferta: [],
+            cantidad_planillas_total: 0,
+            
+            // Recursos
+            cantidad_recursos_por_planilla: 0,
+            cantidad_recursos_por_partida: 0,
+            cantidad_recursos_por_subpartida: 0,
+            total_recursos_por_planilla: 0,
+            total_recursos_por_partida: 0,
+            total_recursos_por_subpartida: 0,
+            
+            // Costos
+            costo_total_por_planilla: 0,
+            costo_total_por_partida: 0,
+            costo_total_por_subpartida: 0,
+            costo_total_oferta_sin_incremento: 0,
+            costo_total_oferta_con_incremento: 0,
+            
+            // Duración
+            total_duracion_oferta: {
+              años: 0,
+              meses: 0,
+              dias: 0,
+              horas: 0,
+            },
+          },
           selectedPartida: data.selectedPartida,
           selectedSubPartida: data.selectedSubPartida,
           selectedPlanilla: data.selectedPlanilla,
           showResumen: data.showResumen || false,
         });
+        // Recalcular resumen después de cargar datos
+        setTimeout(() => {
+          useObraStore.getState().calcularResumenObra();
+        }, 0);
       } catch (error) {
         console.error('Error loading from localStorage:', error);
       }
@@ -402,10 +581,538 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
     set({
       obra: null,
       partidas: [],
+      incrementos: [],
+      resumen: {
+        // Incrementos
+        cantidad_incrementos: 0,
+        cantidad_incrementos_por_partida: 0,
+        cantidad_incrementos_por_subpartida: 0,
+        cantidad_incrementos_por_oferta: 0,
+        costo_total_incremento_por_partida: 0,
+        costo_total_incremento_por_subpartida: 0,
+        costo_total_incrementos: 0,
+        
+        // Partidas y Subpartidas
+        cantidad_partidas: 0,
+        cantidad_subpartidas: 0,
+        
+        // Planillas
+        cantidad_planilla_por_partida: 0,
+        cantidad_planilla_por_subpartida: 0,
+        planillas_por_oferta: [],
+        cantidad_planillas_total: 0,
+        
+        // Recursos
+        cantidad_recursos_por_planilla: 0,
+        cantidad_recursos_por_partida: 0,
+        cantidad_recursos_por_subpartida: 0,
+        total_recursos_por_planilla: 0,
+        total_recursos_por_partida: 0,
+        total_recursos_por_subpartida: 0,
+        
+        // Costos
+        costo_total_por_planilla: 0,
+        costo_total_por_partida: 0,
+        costo_total_por_subpartida: 0,
+        costo_total_oferta_sin_incremento: 0,
+        costo_total_oferta_con_incremento: 0,
+        
+        // Duración
+        total_duracion_oferta: {
+          años: 0,
+          meses: 0,
+          dias: 0,
+          horas: 0,
+        },
+      },
       selectedPartida: null,
       selectedSubPartida: null,
       selectedPlanilla: null,
       showResumen: false,
     });
+  },
+
+  // Funciones para incrementos
+  addIncremento: (incremento) => {
+    console.log('Store: Agregando incremento:', incremento);
+    set((state) => ({
+      incrementos: [...state.incrementos, incremento]
+    }));
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
+  },
+
+  updateIncremento: (id, incremento) => {
+    console.log('Store: Actualizando incremento:', id, incremento);
+    set((state) => ({
+      incrementos: state.incrementos.map(inc => 
+        inc.id_incremento === id ? { ...inc, ...incremento } : inc
+      )
+    }));
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
+  },
+
+  removeIncremento: (id) => {
+    console.log('Store: Eliminando incremento:', id);
+    set((state) => ({
+      incrementos: state.incrementos.filter(inc => inc.id_incremento !== id)
+    }));
+    // Recalcular resumen automáticamente
+    setTimeout(() => {
+      useObraStore.getState().calcularResumenObra();
+    }, 0);
+  },
+
+
+  // Función para calcular todos los totales de la obra
+  calcularTotalesObra: () => {
+    const state = useObraStore.getState();
+    const { partidas, incrementos } = state;
+    
+    let totalPartidas = partidas.length;
+    let totalSubpartidas = 0;
+    let totalIncrementos = incrementos.length;
+    let totalCostoSinIncremento = 0;
+    let totalCostoConIncremento = 0;
+    let totalIncrementosMonto = 0;
+    let totalPlanillas = 0;
+    let totalRecursos = 0;
+    let totalDuracion = { horas: 0, dias: 0, meses: 0, años: 0 };
+    let planillasUnicas = new Set();
+    let incrementosPorPartida = new Map();
+    let incrementosPorSubpartida = new Map();
+    let costosPorPartida = new Map();
+    let costosPorSubpartida = new Map();
+
+    // Calcular subpartidas, costos, planillas y recursos
+    partidas.forEach(partida => {
+      let costoPartida = 0;
+      
+      if (partida.subpartidas) {
+        totalSubpartidas += partida.subpartidas.length;
+        
+        // Calcular costos de subpartidas
+        partida.subpartidas.forEach((subpartida: any) => {
+          let costoSubpartida = 0;
+          
+          if (subpartida.planillas) {
+            totalPlanillas += subpartida.planillas.length;
+            subpartida.planillas.forEach((planilla: any) => {
+              planillasUnicas.add(planilla.id);
+              if (planilla.recursos) {
+                totalRecursos += planilla.recursos.length;
+                planilla.recursos.forEach((recurso: any) => {
+                  const cantidad = parseFloat(recurso.cantidad) || 0;
+                  const costoUnitario = parseFloat(recurso.costo_unitario_predeterminado) || 0;
+                  const subtotal = cantidad * costoUnitario;
+                  costoSubpartida += subtotal;
+                });
+              }
+            });
+          }
+
+          // Calcular duración de subpartidas
+          if (subpartida.duracion && subpartida.tipo_de_tiempo) {
+            const duracion = subpartida.duracion;
+            const tipo = subpartida.tipo_de_tiempo.medida;
+            switch (tipo) {
+              case 'hrs':
+                totalDuracion.horas += duracion;
+                break;
+              case 'ds':
+                totalDuracion.dias += duracion;
+                break;
+              case 'ms':
+                totalDuracion.meses += duracion;
+                break;
+              case 'as':
+                totalDuracion.años += duracion;
+                break;
+            }
+          }
+          
+          costosPorSubpartida.set(subpartida.id_subpartida, costoSubpartida);
+          costoPartida += costoSubpartida;
+        });
+      } else {
+        // Calcular costos de partida directa
+        if (partida.planillas) {
+          totalPlanillas += partida.planillas.length;
+          partida.planillas.forEach((planilla: any) => {
+            planillasUnicas.add(planilla.id);
+            if (planilla.recursos) {
+              totalRecursos += planilla.recursos.length;
+              planilla.recursos.forEach((recurso: any) => {
+                const cantidad = parseFloat(recurso.cantidad) || 0;
+                const costoUnitario = parseFloat(recurso.costo_unitario_predeterminado) || 0;
+                const subtotal = cantidad * costoUnitario;
+                costoPartida += subtotal;
+              });
+            }
+          });
+        }
+
+        // Calcular duración de partida directa
+        if (partida.duracion && partida.tipo_de_tiempo) {
+          const duracion = partida.duracion;
+          const tipo = partida.tipo_de_tiempo.medida;
+          switch (tipo) {
+            case 'hrs':
+              totalDuracion.horas += duracion;
+              break;
+            case 'ds':
+              totalDuracion.dias += duracion;
+              break;
+            case 'ms':
+              totalDuracion.meses += duracion;
+              break;
+            case 'as':
+              totalDuracion.años += duracion;
+              break;
+          }
+        }
+      }
+      
+      costosPorPartida.set(partida.id_partida, costoPartida);
+      totalCostoSinIncremento += costoPartida;
+    });
+
+    // Calcular incrementos por partida y subpartida
+    incrementos.forEach(incremento => {
+      if (incremento.id_partida) {
+        const actual = incrementosPorPartida.get(incremento.id_partida) || 0;
+        incrementosPorPartida.set(incremento.id_partida, actual + 1);
+      } else if (incremento.id_subpartida) {
+        const actual = incrementosPorSubpartida.get(incremento.id_subpartida) || 0;
+        incrementosPorSubpartida.set(incremento.id_subpartida, actual + 1);
+      }
+    });
+
+    // Calcular total de incrementos
+    totalIncrementosMonto = incrementos.reduce((sum, inc) => sum + (inc.monto_calculado || 0), 0);
+    totalCostoConIncremento = totalCostoSinIncremento + totalIncrementosMonto;
+
+    return {
+      // Cantidades
+      totalPartidas,
+      totalSubpartidas,
+      totalIncrementos,
+      totalPlanillas,
+      totalRecursos,
+      totalPlanillasUnicas: planillasUnicas.size,
+      
+      // Costos
+      totalCostoSinIncremento,
+      totalCostoConIncremento,
+      totalIncrementosMonto,
+      
+      // Duración
+      totalDuracion,
+      
+      // Detalles por item
+      incrementosPorPartida: Object.fromEntries(incrementosPorPartida),
+      incrementosPorSubpartida: Object.fromEntries(incrementosPorSubpartida),
+      costosPorPartida: Object.fromEntries(costosPorPartida),
+      costosPorSubpartida: Object.fromEntries(costosPorSubpartida),
+      
+      // Planillas únicas
+      planillasUnicas: Array.from(planillasUnicas)
+    };
+  },
+
+  // Función para calcular el resumen completo de la obra
+  calcularResumenObra: () => {
+    const state = useObraStore.getState();
+    const { partidas, incrementos } = state;
+    
+    // Inicializar contadores
+    let cantidad_incrementos = incrementos.length;
+    let cantidad_incrementos_por_partida = 0;
+    let cantidad_incrementos_por_subpartida = 0;
+    let costo_total_incremento_por_partida = 0;
+    let costo_total_incremento_por_subpartida = 0;
+    
+    let cantidad_partidas = partidas.length;
+    let cantidad_subpartidas = 0;
+    
+    let cantidad_planilla_por_partida = 0;
+    let cantidad_planilla_por_subpartida = 0;
+    let planillas_por_oferta: Array<{id: number, nombre: string}> = [];
+    let planillasUnicas = new Set<number>();
+    
+    let cantidad_recursos_por_planilla = 0;
+    let cantidad_recursos_por_partida = 0;
+    let cantidad_recursos_por_subpartida = 0;
+    let total_recursos_por_planilla = 0;
+    let total_recursos_por_partida = 0;
+    let total_recursos_por_subpartida = 0;
+    
+    let costo_total_por_planilla = 0;
+    let costo_total_por_partida = 0;
+    let costo_total_por_subpartida = 0;
+    
+    let total_duracion_oferta = { años: 0, meses: 0, dias: 0, horas: 0 };
+    
+    // Calcular incrementos por partida y subpartida
+    incrementos.forEach(incremento => {
+      if (incremento.id_partida) {
+        cantidad_incrementos_por_partida++;
+        costo_total_incremento_por_partida += incremento.monto_calculado || 0;
+      } else if (incremento.id_subpartida) {
+        cantidad_incrementos_por_subpartida++;
+        costo_total_incremento_por_subpartida += incremento.monto_calculado || 0;
+      }
+    });
+    
+    let cantidad_incrementos_por_oferta = cantidad_incrementos_por_partida + cantidad_incrementos_por_subpartida;
+    let costo_total_incrementos = costo_total_incremento_por_partida + costo_total_incremento_por_subpartida;
+    
+    // Calcular partidas y subpartidas
+    partidas.forEach(partida => {
+      if (partida.subpartidas && partida.subpartidas.length > 0) {
+        cantidad_subpartidas += partida.subpartidas.length;
+        
+        // Calcular subpartidas
+        partida.subpartidas.forEach((subpartida: any) => {
+          let costoSubpartida = 0;
+          let recursosSubpartida = 0;
+          let totalRecursosSubpartida = 0;
+          
+          if (subpartida.planillas) {
+            cantidad_planilla_por_subpartida += subpartida.planillas.length;
+            
+            subpartida.planillas.forEach((planilla: any) => {
+              planillasUnicas.add(planilla.id);
+              planillas_por_oferta.push({ id: planilla.id, nombre: planilla.nombre });
+              
+              let costoPlanilla = 0;
+              let recursosPlanilla = 0;
+              let totalRecursosPlanilla = 0;
+              
+              if (planilla.recursos) {
+                recursosPlanilla = planilla.recursos.length;
+                cantidad_recursos_por_planilla += recursosPlanilla;
+                
+                planilla.recursos.forEach((recurso: any) => {
+                  const cantidad = parseFloat(recurso.cantidad) || 0;
+                  const costoUnitario = parseFloat(recurso.costo_unitario_predeterminado) || 0;
+                  const subtotal = cantidad * costoUnitario;
+                  
+                  totalRecursosPlanilla += cantidad;
+                  costoPlanilla += subtotal;
+                });
+              }
+              
+              total_recursos_por_planilla += totalRecursosPlanilla;
+              costo_total_por_planilla += costoPlanilla;
+              recursosSubpartida += recursosPlanilla;
+              totalRecursosSubpartida += totalRecursosPlanilla;
+              costoSubpartida += costoPlanilla;
+            });
+          }
+          
+          cantidad_recursos_por_subpartida += recursosSubpartida;
+          total_recursos_por_subpartida += totalRecursosSubpartida;
+          costo_total_por_subpartida += costoSubpartida;
+          
+          // Calcular duración de subpartida
+          if (subpartida.duracion && subpartida.tipo_de_tiempo) {
+            const duracion = subpartida.duracion;
+            const tipo = subpartida.tipo_de_tiempo.medida;
+            switch (tipo) {
+              case 'hrs':
+                total_duracion_oferta.horas += duracion;
+                break;
+              case 'ds':
+                total_duracion_oferta.dias += duracion;
+                break;
+              case 'ms':
+                total_duracion_oferta.meses += duracion;
+                break;
+              case 'as':
+                total_duracion_oferta.años += duracion;
+                break;
+            }
+          }
+        });
+      } else {
+        // Calcular partida directa
+        let costoPartida = 0;
+        let recursosPartida = 0;
+        let totalRecursosPartida = 0;
+        
+        if (partida.planillas) {
+          cantidad_planilla_por_partida += partida.planillas.length;
+          
+          partida.planillas.forEach((planilla: any) => {
+            planillasUnicas.add(planilla.id);
+            planillas_por_oferta.push({ id: planilla.id, nombre: planilla.nombre });
+            
+            let costoPlanilla = 0;
+            let recursosPlanilla = 0;
+            let totalRecursosPlanilla = 0;
+            
+            if (planilla.recursos) {
+              recursosPlanilla = planilla.recursos.length;
+              cantidad_recursos_por_planilla += recursosPlanilla;
+              
+              planilla.recursos.forEach((recurso: any) => {
+                const cantidad = parseFloat(recurso.cantidad) || 0;
+                const costoUnitario = parseFloat(recurso.costo_unitario_predeterminado) || 0;
+                const subtotal = cantidad * costoUnitario;
+                
+                totalRecursosPlanilla += cantidad;
+                costoPlanilla += subtotal;
+              });
+            }
+            
+            total_recursos_por_planilla += totalRecursosPlanilla;
+            costo_total_por_planilla += costoPlanilla;
+            recursosPartida += recursosPlanilla;
+            totalRecursosPartida += totalRecursosPlanilla;
+            costoPartida += costoPlanilla;
+          });
+        }
+        
+        cantidad_recursos_por_partida += recursosPartida;
+        total_recursos_por_partida += totalRecursosPartida;
+        costo_total_por_partida += costoPartida;
+        
+        // Calcular duración de partida directa
+        if (partida.duracion && partida.tipo_de_tiempo) {
+          const duracion = partida.duracion;
+          const tipo = partida.tipo_de_tiempo.medida;
+          switch (tipo) {
+            case 'hrs':
+              total_duracion_oferta.horas += duracion;
+              break;
+            case 'ds':
+              total_duracion_oferta.dias += duracion;
+              break;
+            case 'ms':
+              total_duracion_oferta.meses += duracion;
+              break;
+            case 'as':
+              total_duracion_oferta.años += duracion;
+              break;
+          }
+        }
+      }
+    });
+    
+    // Eliminar planillas duplicadas
+    const planillasUnicasArray = Array.from(planillasUnicas);
+    const planillasSinDuplicados = planillas_por_oferta.filter((planilla, index, self) => 
+      index === self.findIndex(p => p.id === planilla.id)
+    );
+    
+    let cantidad_planillas_total = cantidad_planilla_por_partida + cantidad_planilla_por_subpartida;
+    let costo_total_oferta_sin_incremento = costo_total_por_partida + costo_total_por_subpartida;
+    let costo_total_oferta_con_incremento = costo_total_oferta_sin_incremento + costo_total_incrementos;
+    
+    // Actualizar el estado del resumen
+    set((state) => ({
+      resumen: {
+        // Incrementos
+        cantidad_incrementos,
+        cantidad_incrementos_por_partida,
+        cantidad_incrementos_por_subpartida,
+        cantidad_incrementos_por_oferta,
+        costo_total_incremento_por_partida,
+        costo_total_incremento_por_subpartida,
+        costo_total_incrementos,
+        
+        // Partidas y Subpartidas
+        cantidad_partidas,
+        cantidad_subpartidas,
+        
+        // Planillas
+        cantidad_planilla_por_partida,
+        cantidad_planilla_por_subpartida,
+        planillas_por_oferta: planillasSinDuplicados,
+        cantidad_planillas_total,
+        
+        // Recursos
+        cantidad_recursos_por_planilla,
+        cantidad_recursos_por_partida,
+        cantidad_recursos_por_subpartida,
+        total_recursos_por_planilla,
+        total_recursos_por_partida,
+        total_recursos_por_subpartida,
+        
+        // Costos
+        costo_total_por_planilla,
+        costo_total_por_partida,
+        costo_total_por_subpartida,
+        costo_total_oferta_sin_incremento,
+        costo_total_oferta_con_incremento,
+        
+        // Duración
+        total_duracion_oferta,
+      }
+    }));
+  },
+
+  // Funciones para sincronización con backend
+  syncIncrementosWithBackend: async () => {
+    try {
+      const { createIncremento, updateIncremento, deleteIncremento } = await import('@/actions/obras');
+      const state = useObraStore.getState();
+      
+      // Sincronizar incrementos locales con el backend
+      for (const incremento of state.incrementos) {
+        if (incremento.id_incremento < 0) {
+          // Es un incremento nuevo (ID negativo = temporal)
+          const nuevoIncremento = await createIncremento(incremento);
+          // Actualizar el ID en el store
+          set((state) => ({
+            incrementos: state.incrementos.map(inc => 
+              inc.id_incremento === incremento.id_incremento 
+                ? { ...inc, id_incremento: nuevoIncremento.id_incremento }
+                : inc
+            )
+          }));
+        }
+      }
+      
+      console.log('Store: Incrementos sincronizados con backend');
+    } catch (error) {
+      console.error('Error sincronizando incrementos:', error);
+      throw error;
+    }
+  },
+
+  finalizarObra: async () => {
+    try {
+      const { finalizarObra } = await import('@/actions/obras');
+      const state = useObraStore.getState();
+      
+      if (!state.obra?.id_obra) {
+        throw new Error('No hay obra para finalizar');
+      }
+      
+      // Primero sincronizar incrementos
+      await state.syncIncrementosWithBackend();
+      
+      // Luego finalizar la obra
+      const obraFinalizada = await finalizarObra(state.obra.id_obra);
+      
+      // Actualizar el store con los datos finalizados
+      set({ obra: obraFinalizada });
+      
+      // Limpiar localStorage
+      state.clearLocalStorage();
+      
+      console.log('Store: Obra finalizada exitosamente');
+      return obraFinalizada;
+    } catch (error) {
+      console.error('Error finalizando obra:', error);
+      throw error;
+    }
   },
 }));

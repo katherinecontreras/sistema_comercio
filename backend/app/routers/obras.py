@@ -197,3 +197,157 @@ def crear_tipo_tiempo(payload: TipoTiempoCreate, db: Session = Depends(get_db), 
     db.commit()
     db.refresh(tipo)
     return tipo
+
+
+# Incrementos
+@router.get("/incrementos", response_model=List[IncrementoRead])
+def obtener_incrementos(db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+    incrementos = db.execute(select(Incremento)).scalars().all()
+    return list(incrementos)
+
+
+@router.get("/incrementos/{id_incremento}", response_model=IncrementoRead)
+def obtener_incremento(id_incremento: int, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+    incremento = db.get(Incremento, id_incremento)
+    if not incremento:
+        raise HTTPException(status_code=404, detail="Incremento no encontrado")
+    return incremento
+
+
+@router.post("/incrementos", response_model=IncrementoRead, status_code=status.HTTP_201_CREATED)
+def crear_incremento(payload: IncrementoCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+    incremento = Incremento(**payload.dict())
+    db.add(incremento)
+    db.commit()
+    db.refresh(incremento)
+    return incremento
+
+
+@router.put("/incrementos/{id_incremento}", response_model=IncrementoRead)
+def actualizar_incremento(id_incremento: int, payload: IncrementoCreate, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+    incremento = db.get(Incremento, id_incremento)
+    if not incremento:
+        raise HTTPException(status_code=404, detail="Incremento no encontrado")
+    
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(incremento, key, value)
+    
+    db.add(incremento)
+    db.commit()
+    db.refresh(incremento)
+    return incremento
+
+
+@router.delete("/incrementos/{id_incremento}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_incremento(id_incremento: int, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+    incremento = db.get(Incremento, id_incremento)
+    if not incremento:
+        raise HTTPException(status_code=404, detail="Incremento no encontrado")
+    
+    db.delete(incremento)
+    db.commit()
+    return None
+
+
+# Finalizar obra con cálculos
+@router.post("/{id_obra}/finalizar", response_model=ObraRead)
+def finalizar_obra(id_obra: int, db: Session = Depends(get_db), _: None = Depends(role_required(["Cotizador", "Administrador"]))):
+    obra = db.get(Obra, id_obra)
+    if not obra:
+        raise HTTPException(status_code=404, detail="Obra no encontrada")
+    
+    # Calcular totales
+    partidas = db.execute(select(Partida).where(Partida.id_obra == id_obra)).scalars().all()
+    
+    total_partidas = len(partidas)
+    total_subpartidas = 0
+    total_costo_sin_incremento = 0
+    total_incrementos = 0
+    total_duracion = 0
+    costos_partidas = []
+    
+    for partida in partidas:
+        # Contar subpartidas
+        if partida.subpartidas:
+            total_subpartidas += len(partida.subpartidas)
+        
+        # Calcular costos de partida
+        costo_partida = 0
+        subpartidas_data = []
+        
+        if partida.subpartidas:
+            # Calcular costos de subpartidas
+            for subpartida in partida.subpartidas:
+                costo_subpartida = 0
+                for costo in subpartida.costos:
+                    costo_subpartida += float(costo.total_linea or 0)
+                
+                # Calcular incrementos de subpartida
+                incrementos_subpartida = db.execute(
+                    select(Incremento).where(Incremento.id_subpartida == subpartida.id_subpartida)
+                ).scalars().all()
+                
+                total_incrementos_subpartida = sum(float(inc.monto_calculado or 0) for inc in incrementos_subpartida)
+                total_incrementos += total_incrementos_subpartida
+                
+                subpartidas_data.append({
+                    "idSubpartida": subpartida.id_subpartida,
+                    "total_costo_subpartida": costo_subpartida,
+                    "total_costo_incremento_subpartida": total_incrementos_subpartida,
+                    "total_costo_subpartida_sin_incremento": costo_subpartida
+                })
+                
+                costo_partida += costo_subpartida
+        else:
+            # Calcular costos de partida directa
+            for costo in partida.costos:
+                costo_partida += float(costo.total_linea or 0)
+        
+        # Calcular incrementos de partida
+        incrementos_partida = db.execute(
+            select(Incremento).where(Incremento.id_partida == partida.id_partida)
+        ).scalars().all()
+        
+        total_incrementos_partida = sum(float(inc.monto_calculado or 0) for inc in incrementos_partida)
+        total_incrementos += total_incrementos_partida
+        
+        costos_partidas.append({
+            "idPartida": partida.id_partida,
+            "total_costo_partida": costo_partida,
+            "total_costo_incremento_partida": total_incrementos_partida,
+            "total_costo_partida_sin_incremento": costo_partida,
+            "subpartidas": subpartidas_data
+        })
+        
+        total_costo_sin_incremento += costo_partida
+        
+        # Calcular duración
+        if partida.duracion and partida.tipo_tiempo:
+            duracion = float(partida.duracion)
+            medida = partida.tipo_tiempo.medida
+            
+            # Convertir a horas para sumar
+            if medida == "hrs":
+                total_duracion += duracion
+            elif medida == "ds":
+                total_duracion += duracion * 8  # 8 horas por día
+            elif medida == "ms":
+                total_duracion += duracion * 160  # 160 horas por mes (20 días * 8 horas)
+            elif medida == "as":
+                total_duracion += duracion * 1920  # 1920 horas por año (12 meses * 160 horas)
+    
+    # Actualizar obra con los cálculos
+    obra.total_partidas = total_partidas
+    obra.total_subpartidas = total_subpartidas
+    obra.total_costo_obra_sin_incremento = total_costo_sin_incremento
+    obra.total_costo_obra_con_incrementos = total_costo_sin_incremento + total_incrementos
+    obra.total_duracion_obra = total_duracion
+    obra.total_incrementos = total_incrementos
+    obra.costos_partidas = costos_partidas
+    obra.estado = "nueva oferta"
+    
+    db.add(obra)
+    db.commit()
+    db.refresh(obra)
+    
+    return obra

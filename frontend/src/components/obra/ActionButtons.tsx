@@ -11,7 +11,7 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ obra, onFinalizar }) => {
-  const { saveToLocalStorage, clearLocalStorage, partidas } = useObraStore();
+  const { saveToLocalStorage, clearLocalStorage, partidas, finalizarObra } = useObraStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [action, setAction] = useState<'finalizar' | 'guardar' | 'borrar' | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,49 +19,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ obra, onFinalizar }) => {
   const handleFinalizar = async () => {
     setLoading(true);
     try {
-      // Calcular campos de resumen
-      const totalPartidas = partidas.length;
-      const totalSubpartidas = partidas.reduce((sum: number, p: any) => sum + (p.subpartidas?.length || 0), 0);
-      const totalCostoSinIncremento = partidas.reduce((sum: number, p: any) => sum + (p.costos?.reduce((cSum: number, c: any) => cSum + c.total_linea, 0) || 0), 0);
-      const totalDuracion = partidas.reduce((sum: number, p: any) => sum + (p.duracion || 0), 0);
-      
-      // Crear objeto de resumen
-      const costosPartidas = partidas.map((p: any) => ({
-        idPartida: p.id_partida,
-        total_costo_partida: p.costos?.reduce((sum: number, c: any) => sum + c.total_linea, 0) || 0,
-        total_costo_incremento_partida: p.incrementos?.reduce((sum: number, i: any) => sum + i.monto_calculado, 0) || 0,
-        total_costo_partida_sin_incremento: p.costos?.reduce((sum: number, c: any) => sum + c.total_linea, 0) || 0,
-        subpartidas: p.subpartidas?.map((sp: any) => ({
-          idSubpartida: sp.id_subpartida,
-          total_costo_subpartida: sp.costos?.reduce((sum: number, c: any) => sum + c.total_linea, 0) || 0,
-          total_costo_incremento_subpartida: sp.incrementos?.reduce((sum: number, i: any) => sum + i.monto_calculado, 0) || 0,
-          total_costo_subpartida_sin_incremento: sp.costos?.reduce((sum: number, c: any) => sum + c.total_linea, 0) || 0
-        })) || []
-      }));
-
-      const obraData = {
-        ...obra,
-        estado: 'nueva oferta',
-        total_partidas: totalPartidas,
-        total_subpartidas: totalSubpartidas,
-        total_costo_obra_sin_incremento: totalCostoSinIncremento,
-        total_costo_obra_con_incrementos: totalCostoSinIncremento, // Se calculará con incrementos
-        total_duracion_obra: totalDuracion,
-        total_incrementos: 0, // Se calculará
-        costos_partidas: costosPartidas
-      };
-
-      if (obra.id_obra) {
-        await updateObra(obra.id_obra, obraData);
-      } else {
-        await createObra(obraData);
-      }
-
-      // Limpiar almacenamiento local
-      clearLocalStorage();
+      // Usar la función del store que maneja toda la lógica
+      await finalizarObra();
       onFinalizar();
     } catch (error) {
       console.error('Error finalizando obra:', error);
+      alert('Error al finalizar la obra. Intenta nuevamente.');
     } finally {
       setLoading(false);
     }

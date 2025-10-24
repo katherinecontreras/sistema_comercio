@@ -12,7 +12,7 @@ import { InfoDialog, Toast } from '@/components/notifications';
 import { ItemObra } from '@/store/obra';
 import { Especialidad } from '@/store/especialidad';
 import { Unidad } from '@/store/unidad';
-import ItemForm from '@/components/forms/wizard/ItemsForm';
+// import ItemForm from '@/components/forms/wizard/ItemsForm';
 
 const ItemsStep: React.FC = () => {
   const { wizard, setItems } = useAppStore();

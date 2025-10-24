@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Save, X, FileText, AlertCircle } from 'lucide-react';
 import { useAppStore } from '@/store/app';
-import { createObra, createPartida, createSubPartida, addCostoPartida, addCostoSubPartida, createIncremento } from '@/actions';
+import { createObra, createPartida, createSubPartida, createCostoPartida, createCostoSubPartida, createIncremento } from '@/actions';
 
 interface BorradorModalProps {
   isOpen: boolean;
@@ -42,13 +42,13 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
       // 2. Crear las partidas si existen
       if (wizard.obras.length > 0) {
         const partidasData = wizard.obras.map(obra => ({
-          nombre_partida: obra.nombre,
-          descripcion: obra.descripcion,
-          codigo: obra.codigo,
-          duracion: obra.duracion,
-          id_tipo_tiempo: obra.id_tipo_tiempo,
-          especialidad: obra.especialidad,
-          tiene_subpartidas: obra.tiene_subpartidas || false
+          nombre_partida: obra.nombre_proyecto,
+          descripcion: obra.descripcion_proyecto || '',
+          codigo: obra.codigo_proyecto || '',
+          duracion: 0, // Valor por defecto
+          id_tipo_tiempo: 1, // Valor por defecto
+          especialidad: [], // Array vacío por defecto
+          tiene_subpartidas: false
         }));
         
         // Crear partidas una por una
@@ -56,7 +56,7 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
         for (let i = 0; i < wizard.obras.length; i++) {
           const obra = wizard.obras[i];
           const partidaData = partidasData[i];
-          const partidaId = await createPartida(obraId, partidaData);
+          const partidaId = await createPartida(partidaData);
           partidaIdMap[obra.id] = partidaId;
         }
 
@@ -74,7 +74,7 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
               precio_unitario: item.precio_unitario
             };
             const partidaId = partidaIdMap[item.id_obra];
-            const subpartidaId = await createSubPartida(partidaId, subpartidaData);
+            const subpartidaId = await createSubPartida(subpartidaData);
             subpartidaIdMap[item.id] = subpartidaId;
           }
 

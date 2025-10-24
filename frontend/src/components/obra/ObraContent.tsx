@@ -94,11 +94,6 @@ const ObraContent: React.FC<ObraContentProps> = ({
     cargarPlanillasExistentes();
   }, [cargarPlanillasExistentes]);
 
-  // Debug logging
-  // console.log('ObraContent - selectedPartida:', selectedPartida);
-  // console.log('ObraContent - selectedSubPartida:', selectedSubPartida);
-  // console.log('ObraContent - selectedItemInfo:', selectedItemInfo);
-
   if (!selectedPartida && !selectedSubPartida) {
     return (
       <div className="p-6">

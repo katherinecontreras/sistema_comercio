@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Edit2, Check } from 'lucide-react';
 import { useAppStore } from '@/store/app';
 import { useNavigate } from 'react-router-dom';
-import FinalizeModal from '@/components/modals/FinalizeModal';
-import { FadeIn } from '@/components/animations';
+// import FinalizeModal from '@/components/modals/FinalizeModal';
+// import { FadeIn } from '@/components/animations';
 
 const VerificationStep: React.FC = () => {
   const { wizard } = useAppStore();
