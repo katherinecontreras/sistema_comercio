@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Package, FileSpreadsheet } from 'lucide-react';
 import { useObraStore } from '@/store/obra';
@@ -80,6 +80,20 @@ const ObraContent: React.FC<ObraContentProps> = ({
     return null;
   }, [selectedPartida, selectedSubPartida, partidas]);
 
+  // Función estable para cargar planillas existentes
+  const cargarPlanillasExistentes = useCallback(() => {
+    if (selectedItemInfo) {
+      const planillasExistentes = selectedItemInfo.item.planillas || [];
+      const idsPlanillas = planillasExistentes.map((p: any) => p.id);
+      setSelectedPlanillas(idsPlanillas);
+    }
+  }, [selectedItemInfo]);
+
+  // Cargar planillas existentes cuando cambia la selección
+  useEffect(() => {
+    cargarPlanillasExistentes();
+  }, [cargarPlanillasExistentes]);
+
   // Debug logging
   // console.log('ObraContent - selectedPartida:', selectedPartida);
   // console.log('ObraContent - selectedSubPartida:', selectedSubPartida);
@@ -109,21 +123,51 @@ const ObraContent: React.FC<ObraContentProps> = ({
               ? selectedItemInfo.item.planillas && selectedItemInfo.item.planillas.length > 0
               : selectedItemInfo?.item.planillas && selectedItemInfo.item.planillas.length > 0;
 
+            // Verificar si es una partida que ya tiene subpartidas
+            const partidaConSubpartidas = selectedItemInfo?.type === 'partida' && 
+              selectedItemInfo.item.tiene_subpartidas && 
+              selectedItemInfo.item.subpartidas && 
+              selectedItemInfo.item.subpartidas.length > 0;
+
             return (
               <div className="p-6">
                 {selectedPlanilla ? (
                   // Mostrar gestión de recursos si hay planilla seleccionada
                   <ResourceManagement
                     planillaId={selectedPlanilla}
-                    planillaNombre={`Planilla ${selectedPlanilla}`} // TODO: Obtener nombre real de la planilla
-                    partidaId={selectedItemInfo?.type === 'partida' ? selectedItemInfo.item.id_partida : undefined}
+                    planillaNombre={(() => {
+                      // Buscar el nombre real de la planilla
+                      if (selectedItemInfo?.type === 'subpartida') {
+                        const planilla = selectedItemInfo.item.planillas?.find((p: any) => p.id === selectedPlanilla);
+                        return planilla?.nombre || `Planilla ${selectedPlanilla}`;
+                      } else {
+                        const planilla = selectedItemInfo?.item.planillas?.find((p: any) => p.id === selectedPlanilla);
+                        return planilla?.nombre || `Planilla ${selectedPlanilla}`;
+                      }
+                    })()}
+                    partidaId={selectedItemInfo?.type === 'partida' ? selectedItemInfo.item.id_partida : selectedItemInfo?.parent?.id_partida}
                     subpartidaId={selectedItemInfo?.type === 'subpartida' ? selectedItemInfo.item.id_subpartida : undefined}
                     onClose={() => onSelectPlanilla(null)}
                     onSave={(recursos: any[]) => {
-                      console.log('Guardando recursos:', recursos);
-                      // TODO: Implementar guardado de recursos
+                      // Los recursos ya se guardaron en el store desde ResourceManagement
+                      console.log('Recursos guardados exitosamente:', recursos.length);
                     }}
                   />
+                ) : partidaConSubpartidas ? (
+                  // Si es una partida que ya tiene subpartidas, mostrar mensaje
+                  <div className="text-center py-8">
+                    <FileSpreadsheet className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-white mb-2">Partida con SubPartidas</h3>
+                    <p className="text-slate-400 mb-4">
+                      Esta partida ya tiene {selectedItemInfo?.item.subpartidas?.length || 0} subpartida(s).
+                    </p>
+                    <p className="text-slate-500 text-sm">
+                      Las planillas deben asignarse a las subpartidas individuales, no a la partida principal.
+                    </p>
+                    <p className="text-slate-500 text-sm mt-2">
+                      Selecciona una subpartida del sidebar para asignar planillas.
+                    </p>
+                  </div>
                 ) : hasPlanillas ? (
                   // Si ya tiene planillas, mostrar mensaje
                   <div className="text-center py-8">
@@ -186,8 +230,8 @@ const ObraContent: React.FC<ObraContentProps> = ({
       <div className="p-6">
         <SubPartidaForm
           partidaId={selectedPartida || 0}
-          onSave={(data: any) => {
-            console.log('Guardando subpartida:', data);
+          onSave={() => {
+            // console.log('Guardando subpartida:', data);
             onCloseSubPartidaForm?.();
           }}
           onCancel={onCloseSubPartidaForm || (() => {})}
@@ -201,10 +245,10 @@ const ObraContent: React.FC<ObraContentProps> = ({
       {/* Modales */}
       {showCostoForm && (
         <>
-          {console.log('Renderizando CostoForm...')}
+          {/* {console.log('Renderizando CostoForm...')} */}
           <CostoForm
             onClose={() => {
-              console.log('Cerrando modal de costo...');
+              // console.log('Cerrando modal de costo...');
               setShowCostoForm(false);
               setEditingCosto(null);
             }}

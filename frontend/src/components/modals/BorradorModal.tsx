@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Save, X, FileText, AlertCircle } from 'lucide-react';
 import { useAppStore } from '@/store/app';
-import { addCotizacion, addObras, addItems, addCostos, addIncrementos } from '@/actions';
+import { createObra, createPartida, createSubPartida, addCostoPartida, addCostoSubPartida, createIncremento } from '@/actions';
 
 interface BorradorModalProps {
   isOpen: boolean;
@@ -26,8 +26,8 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
     setError('');
 
     try {
-      // 1. Crear la cotización con estado borrador
-      const cotizacionId = await addCotizacion({
+      // 1. Crear la obra con estado borrador
+      const obraId = await createObra({
         id_cliente: client.selectedClientId,
         codigo_proyecto: wizard.quoteFormData?.codigo_proyecto,
         nombre_proyecto: wizard.quoteFormData?.nombre_proyecto || 'Borrador sin nombre',
@@ -39,65 +39,73 @@ const BorradorModal: React.FC<BorradorModalProps> = ({ isOpen, onClose, onSucces
         estado: 'borrador'
       });
 
-      // 2. Crear las obras si existen
+      // 2. Crear las partidas si existen
       if (wizard.obras.length > 0) {
-        const obrasData = wizard.obras.map(obra => ({
-          id_cotizacion: cotizacionId,
-          nombre_obra: obra.nombre,
+        const partidasData = wizard.obras.map(obra => ({
+          nombre_partida: obra.nombre,
           descripcion: obra.descripcion,
-          ubicacion: obra.ubicacion
+          codigo: obra.codigo,
+          duracion: obra.duracion,
+          id_tipo_tiempo: obra.id_tipo_tiempo,
+          especialidad: obra.especialidad,
+          tiene_subpartidas: obra.tiene_subpartidas || false
         }));
-        const idsObras = await addObras(obrasData);
         
-        // Mapear IDs temporales a IDs reales
-        const obraIdMap: { [tempId: string]: string } = {};
-        wizard.obras.forEach((obra, index) => {
-          obraIdMap[obra.id] = idsObras[index];
-        });
+        // Crear partidas una por una
+        const partidaIdMap: { [tempId: string]: string } = {};
+        for (let i = 0; i < wizard.obras.length; i++) {
+          const obra = wizard.obras[i];
+          const partidaData = partidasData[i];
+          const partidaId = await createPartida(obraId, partidaData);
+          partidaIdMap[obra.id] = partidaId;
+        }
 
-        // 3. Crear los items si existen
+        // 3. Crear las subpartidas si existen
         if (wizard.items.length > 0) {
-          const itemsData = wizard.items.map(item => ({
-            id_obra: obraIdMap[item.id_obra],
-            codigo: item.codigo,
-            descripcion_tarea: item.descripcion_tarea,
-            id_especialidad: item.id_especialidad,
-            id_unidad: item.id_unidad,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio_unitario
-          }));
-          const idsItems = await addItems(itemsData);
-          
-          // Mapear IDs temporales a IDs reales
-          const itemIdMap: { [tempId: string]: string } = {};
-          wizard.items.forEach((item, index) => {
-            itemIdMap[item.id] = idsItems[index];
-          });
+          // Crear subpartidas una por una
+          const subpartidaIdMap: { [tempId: string]: string } = {};
+          for (const item of wizard.items) {
+            const subpartidaData = {
+              codigo: item.codigo,
+              descripcion_tarea: item.descripcion_tarea,
+              id_especialidad: item.id_especialidad,
+              id_unidad: item.id_unidad,
+              cantidad: item.cantidad,
+              precio_unitario: item.precio_unitario
+            };
+            const partidaId = partidaIdMap[item.id_obra];
+            const subpartidaId = await createSubPartida(partidaId, subpartidaData);
+            subpartidaIdMap[item.id] = subpartidaId;
+          }
 
           // 4. Crear los costos si existen
           if (wizard.costos.length > 0) {
-            const costosData = wizard.costos.map(costo => ({
-              id_item_obra: itemIdMap[costo.id_item_obra],
-              id_recurso: costo.id_recurso,
-              cantidad: costo.cantidad,
-              precio_unitario_aplicado: costo.precio_unitario_aplicado,
-              total_linea: costo.total_linea
-            }));
-            await addCostos(costosData);
+            for (const costo of wizard.costos) {
+              const costoData = {
+                id_recurso: costo.id_recurso,
+                cantidad: costo.cantidad,
+                precio_unitario_aplicado: costo.precio_unitario_aplicado,
+                total_linea: costo.total_linea
+              };
+              const subpartidaId = subpartidaIdMap[costo.id_item_obra];
+              await addCostoSubPartida(subpartidaId, costoData);
+            }
           }
 
           // 5. Crear los incrementos si existen
           if (wizard.incrementos.length > 0) {
-            const incrementosData = wizard.incrementos.map(incremento => ({
-              id_item_obra: itemIdMap[incremento.id_item_obra],
-              concepto: incremento.concepto,
-              descripcion: incremento.descripcion,
-              tipo_incremento: incremento.tipo_incremento,
-              valor: incremento.valor,
-              porcentaje: incremento.porcentaje,
-              monto_calculado: incremento.monto_calculado
-            }));
-            await addIncrementos(incrementosData);
+            for (const incremento of wizard.incrementos) {
+              const incrementoData = {
+                id_subpartida: subpartidaIdMap[incremento.id_item_obra],
+                concepto: incremento.concepto,
+                descripcion: incremento.descripcion,
+                tipo_incremento: incremento.tipo_incremento,
+                valor: incremento.valor,
+                porcentaje: incremento.porcentaje,
+                monto_calculado: incremento.monto_calculado
+              };
+              await createIncremento(incrementoData);
+            }
           }
         }
       }

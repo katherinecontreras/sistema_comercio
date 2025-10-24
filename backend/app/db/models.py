@@ -88,6 +88,8 @@ class Recurso(Base):
     cantidad: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
     costo_unitario_predeterminado: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
     costo_total: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
+    id_proveedor_preferido: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    atributos: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     
     tipo_recurso = relationship("TipoRecurso", back_populates="recursos")
     unidad = relationship("Unidad")

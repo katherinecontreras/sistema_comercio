@@ -38,7 +38,7 @@ export const getRecursos = async () => {
 };
 
 export const getRecursosByTipo = async (idTipoRecurso: number) => {
-  const response = await api.get(`/catalogos/recursos?tipo=${idTipoRecurso}`);
+  const response = await api.get(`/catalogos/recursos/tipo/${idTipoRecurso}`);
   return response.data;
 };
 

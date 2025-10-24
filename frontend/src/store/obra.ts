@@ -30,9 +30,15 @@ interface Partida {
   tiene_subpartidas: boolean;
   duracion: number;
   id_tipo_tiempo?: number;
+  tipo_de_tiempo?: {
+    id: number;
+    nombre: string;
+    medida: string;
+  };
   especialidad?: any[];
   subpartidas?: SubPartida[];
-  planillas?: Array<{id: number, nombre: string}>; // Planillas seleccionadas con nombre
+  planillas?: Array<{id: number, nombre: string, recursos?: any[]}>; // Planillas con recursos
+  costos?: any[]; // Costos de la partida
   completa?: boolean;
 }
 
@@ -42,9 +48,16 @@ interface SubPartida {
   codigo?: string;
   descripcion_tarea: string;
   id_especialidad?: number;
+  duracion?: number;
+  id_tipo_tiempo?: number;
+  tipo_de_tiempo?: {
+    id: number;
+    nombre: string;
+    medida: string;
+  };
   costos?: SubPartidaCosto[];
   incrementos?: Incremento[];
-  planillas?: Array<{id: number, nombre: string}>; // Planillas seleccionadas con nombre
+  planillas?: Array<{id: number, nombre: string, recursos?: any[]}>; // Planillas con recursos
   completa?: boolean;
 }
 
@@ -107,6 +120,9 @@ interface ObraActions {
   // Funciones para planillas
   addPlanillasToPartida: (idPartida: number, planillas: Array<{id: number, nombre: string}>) => void;
   addPlanillasToSubPartida: (idPartida: number, idSubPartida: number, planillas: Array<{id: number, nombre: string}>) => void;
+  // Funciones para recursos de planillas
+  saveRecursosToPlanilla: (idPartida: number, idSubPartida: number | null, idPlanilla: number, recursos: any[]) => void;
+  getRecursosFromPlanilla: (idPartida: number, idSubPartida: number | null, idPlanilla: number) => any[];
   // Funciones para guardado local
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
@@ -275,6 +291,77 @@ export const useObraStore = create<ObraState & ObraActions>((set) => ({
       console.log('Store: Estado después de agregar planillas a subpartida:', newState);
       return newState;
     });
+  },
+
+  // Funciones para manejar recursos de planillas
+  saveRecursosToPlanilla: (idPartida, idSubPartida, idPlanilla, recursos) => {
+    console.log('Store: saveRecursosToPlanilla llamada con:', { idPartida, idSubPartida, idPlanilla, recursos: recursos.length });
+    set((state) => {
+      const newState = {
+        partidas: state.partidas.map(p => {
+          if (p.id_partida === idPartida) {
+            if (idSubPartida) {
+              // Es una subpartida
+              console.log('Store: Guardando recursos en subpartida:', idSubPartida, 'planilla:', idPlanilla);
+              return {
+                ...p,
+                subpartidas: p.subpartidas?.map(sp =>
+                  sp.id_subpartida === idSubPartida
+                    ? {
+                        ...sp,
+                        planillas: sp.planillas?.map(planilla =>
+                          planilla.id === idPlanilla
+                            ? { ...planilla, recursos: recursos }
+                            : planilla
+                        ) || []
+                      }
+                    : sp
+                ) || []
+              };
+            } else {
+              // Es una partida directa
+              console.log('Store: Guardando recursos en partida directa:', idPartida, 'planilla:', idPlanilla);
+              return {
+                ...p,
+                planillas: p.planillas?.map(planilla =>
+                  planilla.id === idPlanilla
+                    ? { ...planilla, recursos: recursos }
+                    : planilla
+                ) || []
+              };
+            }
+          }
+          return p;
+        })
+      };
+      console.log('Store: Estado después de guardar recursos:', newState);
+      return newState;
+    });
+  },
+
+  getRecursosFromPlanilla: (idPartida: number, idSubPartida: number | null, idPlanilla: number): any[] => {
+    const state = useObraStore.getState();
+    const partida = state.partidas.find((p: Partida) => p.id_partida === idPartida);
+    // console.log('Store: getRecursosFromPlanilla llamada con:', { idPartida, idSubPartida, idPlanilla });
+    // console.log('Store: Partida encontrada:', partida);
+    
+    if (idSubPartida) {
+      // Es una subpartida
+      const subpartida = partida?.subpartidas?.find((sp: SubPartida) => sp.id_subpartida === idSubPartida);
+      // console.log('Store: Subpartida encontrada:', subpartida);
+      const planilla = subpartida?.planillas?.find((p: any) => p.id === idPlanilla);
+      // console.log('Store: Planilla encontrada:', planilla);
+      const recursos = planilla?.recursos || [];
+      // console.log('Store: Recursos encontrados:', recursos.length);
+      return recursos;
+    } else {
+      // Es una partida directa
+      const planilla = partida?.planillas?.find((p: any) => p.id === idPlanilla);
+      // console.log('Store: Planilla directa encontrada:', planilla);
+      const recursos = planilla?.recursos || [];
+      // console.log('Store: Recursos directos encontrados:', recursos.length);
+      return recursos;
+    }
   },
   
   // Funciones para guardado local

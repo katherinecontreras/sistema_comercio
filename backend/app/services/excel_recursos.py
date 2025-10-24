@@ -153,17 +153,29 @@ def procesar_excel_recursos(
     wb = load_workbook(BytesIO(file_content), data_only=True)
     ws = wb.active
     
-    # Leer encabezados (fila 3)
+    # Buscar encabezados en diferentes filas (1, 2, 3)
     headers = []
-    for col_idx in range(1, ws.max_column + 1):
-        cell_value = ws.cell(row=3, column=col_idx).value
-        if cell_value:
-            headers.append(str(cell_value).strip())
-        else:
+    header_row = 0
+    
+    for row_candidate in [1, 2, 3]:
+        temp_headers = []
+        for col_idx in range(1, ws.max_column + 1):
+            cell_value = ws.cell(row=row_candidate, column=col_idx).value
+            if cell_value and str(cell_value).strip():
+                temp_headers.append(str(cell_value).strip())
+            else:
+                break
+        
+        # Si encontramos encabezados válidos, usarlos
+        if len(temp_headers) >= 2:  # Mínimo 2 columnas
+            headers = temp_headers
+            header_row = row_candidate
             break
     
     if len(headers) == 0:
-        return {'recursos': [], 'errores': ['No se encontraron encabezados en el archivo']}
+        return {'recursos': [], 'errores': ['No se encontraron encabezados válidos en el archivo']}
+    
+    print(f"DEBUG SERVICIO: Encabezados encontrados en fila {header_row}: {headers}")
     
     # Función auxiliar para normalizar texto (quitar tildes, espacios, minúsculas)
     def normalizar_texto(texto):
@@ -201,15 +213,16 @@ def procesar_excel_recursos(
                 'tipo': 'texto'
             }
     
-    # Procesar filas de datos (desde fila 4)
+    # Procesar filas de datos (desde la fila siguiente a los encabezados)
+    start_data_row = header_row + 1
     recursos = []
     errores = []
     
-    print(f"DEBUG SERVICIO: Iniciando procesamiento de filas desde fila 4 hasta {ws.max_row}")
+    print(f"DEBUG SERVICIO: Iniciando procesamiento de filas desde fila {start_data_row} hasta {ws.max_row}")
     print(f"DEBUG SERVICIO: Headers encontrados: {headers}")
     print(f"DEBUG SERVICIO: Mapeo de columnas: {columna_a_atributo}")
     
-    for row_idx in range(4, ws.max_row + 1):
+    for row_idx in range(start_data_row, ws.max_row + 1):
         # Leer datos de la fila
         row_data = {}
         fila_vacia = True

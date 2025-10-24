@@ -11,9 +11,10 @@ interface SubPartidaFormProps {
   partidaId: number;
   onSave: (data: any) => void;
   onCancel: () => void;
+  onSubPartidaCreated?: (partidaId: number, subpartidaId: number) => void; // Callback para redirección automática
 }
 
-const SubPartidaForm: React.FC<SubPartidaFormProps> = ({ partidaId, onSave, onCancel }) => {
+const SubPartidaForm: React.FC<SubPartidaFormProps> = ({ partidaId, onSave, onCancel, onSubPartidaCreated }) => {
   const [formData, setFormData] = useState({
     codigo: '',
     descripcion_tarea: '',
@@ -110,13 +111,20 @@ const SubPartidaForm: React.FC<SubPartidaFormProps> = ({ partidaId, onSave, onCa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const subpartidaId = Date.now();
     const subpartidaData = {
       ...formData,
       id_partida: partidaId,
+      id_subpartida: subpartidaId,
       id_especialidad: formData.id_especialidad ? 
         especialidades.find(esp => esp.nombre === formData.id_especialidad)?.id_especialidad : null
     };
     onSave(subpartidaData);
+    
+    // Llamar al callback para redireccionar a selección de planillas
+    if (onSubPartidaCreated) {
+      onSubPartidaCreated(partidaId, subpartidaId);
+    }
   };
 
   return (

@@ -41,17 +41,12 @@ export const createPartida = async (idObra: number, partidaData: {
   especialidad?: any[];
   tiene_subpartidas?: boolean;
 }) => {
-  console.log('=== LLAMANDO A API createPartida ===');
-  console.log('URL:', `/obras/${idObra}/partidas`);
-  console.log('Datos:', partidaData);
-  
   try {
     const response = await api.post(`/obras/${idObra}/partidas`, partidaData);
     console.log('✅ Respuesta del backend:', response.data);
     return response.data;
   } catch (error) {
     console.error('❌ Error en createPartida:', error);
-    console.error('Detalles del error:', error.response?.data);
     throw error;
   }
 };

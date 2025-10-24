@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useObraStore } from '@/store/obra';
+import { getTiposRecursos } from '@/actions/catalogos';
 import ObraForm from './ObraForm';
 import ObraSidebar from './ObraSidebar';
 import ObraContent from './ObraContent';
@@ -76,6 +77,10 @@ const ObraWizard: React.FC = () => {
     }
   };
 
+  const handleTriggerAutoExpand = useCallback((fn: (partidaId: number, subpartidaId: number) => void) => {
+    setTriggerAutoExpand(() => fn);
+  }, []);
+
   // Función para manejar agregar nueva planilla
   const handleAddPlanilla = (planilla: { id: number, nombre: string }) => {
     if (planillaSelectionTarget) {
@@ -93,8 +98,7 @@ const ObraWizard: React.FC = () => {
     if (planillaSelectionTarget) {
       // Obtener nombres reales de las planillas desde la API
       try {
-        const response = await fetch('/api/v1/catalogos/tipos_recurso');
-        const tiposRecursos = await response.json();
+        const tiposRecursos = await getTiposRecursos();
         
         const planillasConNombres = planillas.map(id => {
           const tipoRecurso = tiposRecursos.find((t: any) => t.id_tipo_recurso === id);
@@ -157,43 +161,12 @@ const ObraWizard: React.FC = () => {
     }
   };
 
-  // Cargar datos del localStorage al iniciar
-  // useEffect(() => {
-  //   loadFromLocalStorage();
-  // }, [loadFromLocalStorage]);
-
-  // Mostrar resumen por defecto cuando se crea una obra (solo una vez)
-  useEffect(() => {
-    if (obra && !showResumen && !selectedPartida && !selectedSubPartida && !showPartidaForm && !showSubPartidaForm) {
-      setShowResumen(true);
-    }
-  }, [obra, showResumen, selectedPartida, selectedSubPartida, showPartidaForm, showSubPartidaForm, setShowResumen]);
-
-  // Mostrar resumen por defecto cuando se crea una obra (solo una vez)
-  // useEffect(() => {
-  //   console.log('useEffect resumen - obra:', !!obra, 'showPartidaForm:', showPartidaForm, 'showSubPartidaForm:', showSubPartidaForm, 'showResumen:', showResumen, 'selectedPartida:', selectedPartida, 'selectedSubPartida:', selectedSubPartida);
-  //   // Solo activar resumen si no hay selección activa Y no hay formularios abiertos
-  //   if (obra && !showPartidaForm && !showSubPartidaForm && !showResumen && !selectedPartida && !selectedSubPartida) {
-  //     console.log('Activando resumen por defecto');
-  //     setShowResumen(true);
-  //   }
-  // }, [obra, showPartidaForm, showSubPartidaForm, showResumen, selectedPartida, selectedSubPartida, setShowResumen]);
-
-  // Resetear resumen cuando se abren formularios
   useEffect(() => {
     if (showPartidaForm || showSubPartidaForm) {
       setShowResumen(false);
     }
   }, [showPartidaForm, showSubPartidaForm]);
 
-  // Guardar automáticamente en localStorage cuando cambien los datos
-  // useEffect(() => {
-  //   if (obra && !showPartidaForm && !showSubPartidaForm) {
-  //     saveToLocalStorage();
-  //   }
-  // }, [obra, selectedPartida, selectedSubPartida, showPartidaForm, showSubPartidaForm, saveToLocalStorage]);
-
-  // Si no hay obra creada, mostrar formulario
   if (!obra) {
     return <ObraForm />;
   }
@@ -202,39 +175,38 @@ const ObraWizard: React.FC = () => {
     <div className="flex h-screen bg-slate-900">
       {/* Sidebar */}
       <div className="w-80 bg-slate-800 border-r border-slate-700">
-                    <ObraSidebar
-                      obra={obra}
-                      selectedPartida={selectedPartida}
-                      selectedSubPartida={selectedSubPartida}
-                      selectedPlanilla={selectedPlanilla}
-                      onSelectPartida={handleSelectPartida}
-                      onSelectSubPartida={(id) => {
-                        setSelectedSubPartida(id);
-                        // Limpiar selección de planillas cuando se cambia de item
-                        setShowPlanillaSelection(false);
-                        setPlanillaSelectionTarget(null);
-                        setSelectedPlanillas([]);
-                      }}
-                      onSelectPlanilla={setSelectedPlanilla}
-                      onEditPartida={handleEditPartida}
-                      onShowResumen={() => {
-                        setShowResumen(true);
-                        setShowPartidaForm(false);
-                        setEditingPartida(null);
-                      }}
-                      onShowPartidaForm={() => {
-                        setShowPartidaForm(true);
-                        setEditingPartida(null);
-                        setShowResumen(false);
-                      }}
-                      onShowSubPartidaForm={(idPartida: number) => {
-                        setShowSubPartidaForm(true);
-                        setSelectedPartida(idPartida);
-                        setShowResumen(false);
-                      }}
-                      onShowPlanillaSelection={handleShowPlanillaSelection}
-            onTriggerAutoExpand={(fn) => setTriggerAutoExpand(() => fn)}
-                    />
+        <ObraSidebar
+          obra={obra}
+          selectedPartida={selectedPartida}
+          selectedSubPartida={selectedSubPartida}
+          selectedPlanilla={selectedPlanilla}
+          onSelectPartida={handleSelectPartida}
+          onSelectSubPartida={(id) => {
+            setSelectedSubPartida(id);
+            setShowPlanillaSelection(false);
+            setPlanillaSelectionTarget(null);
+            setSelectedPlanillas([]);
+          }}
+          onSelectPlanilla={setSelectedPlanilla}
+          onEditPartida={handleEditPartida}
+          onShowResumen={() => {
+            setShowResumen(true);
+            setShowPartidaForm(false);
+            setEditingPartida(null);
+          }}
+          onShowPartidaForm={() => {
+            setShowPartidaForm(true);
+            setEditingPartida(null);
+            setShowResumen(false);
+          }}
+          onShowSubPartidaForm={(idPartida: number) => {
+            setShowSubPartidaForm(true);
+            setSelectedPartida(idPartida);
+            setShowResumen(false);
+          }}
+          onShowPlanillaSelection={handleShowPlanillaSelection}
+          onTriggerAutoExpand={handleTriggerAutoExpand}
+        />
       </div>
 
       {/* Contenido Principal */}
@@ -248,7 +220,6 @@ const ObraWizard: React.FC = () => {
               <ActionButtons
                 obra={obra}
                 onFinalizar={() => {
-                  // Redirigir a dashboard o mostrar mensaje de éxito
                   alert('Oferta finalizada exitosamente');
                   window.location.href = '/dashboard';
                 }}
@@ -264,6 +235,14 @@ const ObraWizard: React.FC = () => {
                 setShowResumen(true);
               }}
               partida={editingPartida}
+              onPartidaCreated={(partidaId: number) => {
+                // Redireccionar automáticamente a selección de planillas
+                setShowPartidaForm(false);
+                setEditingPartida(null);
+                setSelectedPartida(partidaId);
+                setShowPlanillaSelection(true);
+                setPlanillaSelectionTarget({ id: partidaId, type: 'partida' });
+              }}
             />
           </div>
         ) : showSubPartidaForm ? (
@@ -271,18 +250,19 @@ const ObraWizard: React.FC = () => {
             <SubPartidaForm
               partidaId={selectedPartida || 0}
               onSave={(data: any) => {
-                // Agregar subpartida al store
-                const subpartidaConId = {
-                  ...data,
-                  id_subpartida: Date.now(), // ID temporal único
-                };
-                addSubPartida(selectedPartida || 0, subpartidaConId);
+                addSubPartida(selectedPartida || 0, data);
                 setShowSubPartidaForm(false);
-                // No resetear a resumen, mantener la selección de la partida
               }}
               onCancel={() => {
                 setShowSubPartidaForm(false);
-                // No resetear a resumen, mantener la selección de la partida
+              }}
+              onSubPartidaCreated={(partidaId: number, subpartidaId: number) => {
+                // Redireccionar automáticamente a selección de planillas para la subpartida
+                setShowSubPartidaForm(false);
+                setSelectedPartida(partidaId);
+                setSelectedSubPartida(subpartidaId);
+                setShowPlanillaSelection(true);
+                setPlanillaSelectionTarget({ id: subpartidaId, type: 'subpartida' });
               }}
             />
           </div>

@@ -72,3 +72,6 @@ SELECT 'Costos con porcentaje:', COUNT(*) FROM partidas_costos WHERE porcentaje_
 
 
 
+
+
+

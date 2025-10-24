@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { 
-  getTypesOfRecursos, 
-  getRecursosFrom, 
+  getTiposRecursos, 
+  getRecursosByTipo, 
   getUnidades, 
   getEspecialidades,
   addUnidad as addUnidadAPI,
-  addRecursos as addRecursosAPI
+  createRecurso as createRecursoAPI
 } from '@/actions';
 
 export const useCatalogos = () => {
@@ -17,7 +17,7 @@ export const useCatalogos = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getTypesOfRecursos();
+      const data = await getTiposRecursos();
       return data;
     } catch (err: any) {
       setError(err.message || 'Error cargando tipos de recursos');
@@ -32,7 +32,7 @@ export const useCatalogos = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getRecursosFrom(idTipoRecurso);
+      const data = await getRecursosByTipo(idTipoRecurso);
       return data;
     } catch (err: any) {
       setError(err.message || 'Error cargando recursos');
@@ -92,7 +92,7 @@ export const useCatalogos = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await addRecursosAPI(recursoData);
+      const data = await createRecursoAPI(recursoData);
       return data;
     } catch (err: any) {
       setError(err.message || 'Error agregando recurso');

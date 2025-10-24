@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 // import { Card } from '@/components/ui/card';
 import { 
@@ -46,8 +46,42 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
   onShowPlanillaSelection,
   onTriggerAutoExpand
 }) => {
-  const { partidas } = useObraStore();
+  const { partidas, getRecursosFromPlanilla } = useObraStore();
   const [expandedPartidas, setExpandedPartidas] = useState<Set<number>>(new Set());
+
+  // Función para determinar si una planilla tiene recursos (sin memoizar para evitar bucles)
+  const planillaTieneRecursos = (idPartida: number, idSubPartida: number | null, idPlanilla: number): boolean => {
+    const recursos = getRecursosFromPlanilla(idPartida, idSubPartida, idPlanilla);
+    return recursos && recursos.length > 0;
+  };
+
+  // Función para determinar si una partida está completa (sin memoizar para evitar bucles)
+  const partidaEstaCompleta = (partida: any): boolean => {
+    if (!partida.planillas || partida.planillas.length === 0) return false;
+    
+    // Si tiene subpartidas, verificar que todas las subpartidas estén completas
+    if (partida.tiene_subpartidas && partida.subpartidas) {
+      return partida.subpartidas.every((subpartida: any) => {
+        if (!subpartida.planillas || subpartida.planillas.length === 0) return false;
+        return subpartida.planillas.every((planilla: any) => 
+          planillaTieneRecursos(partida.id_partida, subpartida.id_subpartida, planilla.id)
+        );
+      });
+    }
+    
+    // Si no tiene subpartidas, verificar que todas las planillas de la partida tengan recursos
+    return partida.planillas.every((planilla: any) => 
+      planillaTieneRecursos(partida.id_partida, null, planilla.id)
+    );
+  };
+
+  // Función para determinar si una subpartida está completa (sin memoizar para evitar bucles)
+  const subpartidaEstaCompleta = (partida: any, subpartida: any): boolean => {
+    if (!subpartida.planillas || subpartida.planillas.length === 0) return false;
+    return subpartida.planillas.every((planilla: any) => 
+      planillaTieneRecursos(partida.id_partida, subpartida.id_subpartida, planilla.id)
+    );
+  };
   const [autoExpand, setAutoExpand] = useState<{partidaId: number, subpartidaId: number} | null>(null);
 
 
@@ -73,22 +107,32 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
   // Efecto para expansión automática cuando se agregan planillas
   useEffect(() => {
     if (autoExpand) {
-      console.log('Expandiendo automáticamente:', autoExpand);
-      const newExpanded = new Set(expandedPartidas);
-      newExpanded.add(autoExpand.partidaId);
-      newExpanded.add(autoExpand.subpartidaId);
-      setExpandedPartidas(newExpanded);
+      // console.log('Expandiendo automáticamente:', autoExpand);
+      setExpandedPartidas(prev => {
+        const newExpanded = new Set(prev);
+        newExpanded.add(autoExpand.partidaId);
+        newExpanded.add(autoExpand.subpartidaId);
+        return newExpanded;
+      });
       setAutoExpand(null);
     }
-  }, [autoExpand, expandedPartidas]);
+  }, [autoExpand]);
+
+  // Función para activar expansión automática
+  const triggerAutoExpand = useCallback((partidaId: number, subpartidaId: number) => {
+    setAutoExpand({ partidaId, subpartidaId });
+  }, []);
+
+  // Usar useRef para evitar bucles infinitos
+  const onTriggerAutoExpandRef = useRef(onTriggerAutoExpand);
+  onTriggerAutoExpandRef.current = onTriggerAutoExpand;
 
   // Exponer la función triggerAutoExpand al componente padre
   useEffect(() => {
-    if (onTriggerAutoExpand) {
-      onTriggerAutoExpand(triggerAutoExpand);
+    if (onTriggerAutoExpandRef.current) {
+      onTriggerAutoExpandRef.current(triggerAutoExpand);
     }
-  }, [onTriggerAutoExpand]);
-
+  }, [triggerAutoExpand]);
 
   const togglePartida = (idPartida: number) => {
     const newExpanded = new Set(expandedPartidas);
@@ -98,11 +142,6 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
       newExpanded.add(idPartida);
     }
     setExpandedPartidas(newExpanded);
-  };
-
-  // Función para activar expansión automática
-  const triggerAutoExpand = (partidaId: number, subpartidaId: number) => {
-    setAutoExpand({ partidaId, subpartidaId });
   };
 
   const getPartidaStatus = (partida: any) => {
@@ -157,6 +196,8 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
             <div
               className={`p-3 cursor-pointer hover:bg-slate-700 ${
                 selectedPartida === partida.id_partida ? 'bg-slate-600' : ''
+              } ${
+                partidaEstaCompleta(partida) ? 'bg-green-900/20 border-l-4 border-green-500' : ''
               }`}
               onClick={() => {
                 if (partida.tiene_subpartidas || (partida.planillas && partida.planillas.length > 0)) {
@@ -232,14 +273,16 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                     <div
                       className={`p-3 pl-6 cursor-pointer hover:bg-slate-700 ${
                         selectedSubPartida === subpartida.id_subpartida ? 'bg-slate-600' : ''
+                      } ${
+                        subpartidaEstaCompleta(partida, subpartida) ? 'bg-green-900/20 border-l-4 border-green-500' : ''
                       }`}
                       onClick={() => {
-                        // Si la subpartida tiene planillas, expandir/colapsar
+                        // Siempre seleccionar la subpartida primero
+                        onSelectSubPartida(subpartida.id_subpartida!);
+                        
+                        // Si la subpartida tiene planillas, también expandir/colapsar
                         if (subpartida.planillas && subpartida.planillas.length > 0) {
                           togglePartida(subpartida.id_subpartida!);
-                        } else {
-                          // Si no tiene planillas, seleccionar directamente
-                          onSelectSubPartida(subpartida.id_subpartida!);
                         }
                       }}
                     >
@@ -277,11 +320,13 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                     {/* Planillas de la SubPartida */}
                     {subpartida.planillas && subpartida.planillas.length > 0 && expandedPartidas.has(subpartida.id_subpartida!) && (
                       <div className="bg-slate-800 border-l-2 border-slate-500">
-                        {subpartida.planillas.map((planillaId: {id: number, nombre: string}) => (
+                        {subpartida.planillas.map((planillaId: {id: number, nombre: string, recursos?: any[]}) => (
                           <div
                             key={`subpartida-${subpartida.id_subpartida}-planilla-${planillaId.id}`}
                             className={`p-2 pl-8 cursor-pointer hover:bg-slate-700 ${
                               selectedPlanilla === planillaId.id && selectedSubPartida === subpartida.id_subpartida ? 'bg-slate-500' : ''
+                            } ${
+                              partida.id_partida && subpartida.id_subpartida && planillaTieneRecursos(partida.id_partida, subpartida.id_subpartida, planillaId.id) ? 'bg-green-900/20 border-l-4 border-green-500' : ''
                             }`}
                             onClick={() => {
                               onSelectPlanilla(planillaId.id);
@@ -292,6 +337,9 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                               <span className="text-slate-300 text-xs truncate">
                                 {typeof planillaId === 'object' ? planillaId.nombre : `Planilla ${planillaId}`}
                               </span>
+                              {planillaId.recursos && planillaId.recursos.length > 0 && (
+                                <CheckCircle className="h-3 w-3 text-green-400" />
+                              )}
                             </div>
                           </div>
                         ))}
@@ -317,11 +365,13 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
             {/* Planillas de la Partida (solo si está expandida) */}
             {partida.planillas && partida.planillas.length > 0 && expandedPartidas.has(partida.id_partida!) && (
               <div className="bg-slate-800 border-l-2 border-slate-500">
-                        {partida.planillas.map((planillaId: {id: number, nombre: string}) => (
+                        {partida.planillas.map((planillaId: {id: number, nombre: string, recursos?: any[]}) => (
                           <div
                             key={`partida-${partida.id_partida}-planilla-${planillaId.id}`}
                     className={`p-2 pl-6 cursor-pointer hover:bg-slate-700 ${
                       selectedPlanilla === planillaId.id && selectedPartida === partida.id_partida ? 'bg-slate-500' : ''
+                    } ${
+                      partida.id_partida && planillaTieneRecursos(partida.id_partida, null, planillaId.id) ? 'bg-green-900/20 border-l-4 border-green-500' : ''
                     }`}
                     onClick={() => {
                       onSelectPlanilla(planillaId.id);
@@ -332,6 +382,9 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
                       <span className="text-slate-300 text-xs truncate">
                         {typeof planillaId === 'object' ? planillaId.nombre : `Planilla ${planillaId}`}
                       </span>
+                      {planillaId.recursos && planillaId.recursos.length > 0 && (
+                        <CheckCircle className="h-3 w-3 text-green-400" />
+                      )}
                     </div>
                   </div>
                 ))}

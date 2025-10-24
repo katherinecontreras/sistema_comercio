@@ -87,6 +87,34 @@ def list_recursos(tipo: int = None, db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/recursos/tipo/{tipo_id}")
+def get_recursos_by_tipo(tipo_id: int, db: Session = Depends(get_db)):
+    """Obtener recursos filtrados por tipo de recurso"""
+    query = select(Recurso).where(Recurso.id_tipo_recurso == tipo_id)
+    recursos = db.scalars(query).all()
+    
+    result = []
+    for recurso in recursos:
+        unidad_obj = db.get(Unidad, recurso.id_unidad) if recurso.id_unidad else None
+        result.append({
+            "id_recurso": recurso.id_recurso,
+            "id_tipo_recurso": recurso.id_tipo_recurso,
+            "descripcion": recurso.descripcion,
+            "id_unidad": recurso.id_unidad,
+            "cantidad": float(recurso.cantidad),
+            "costo_unitario_predeterminado": float(recurso.costo_unitario_predeterminado),
+            "costo_total": float(recurso.costo_total),
+            "id_proveedor_preferido": recurso.id_proveedor_preferido,
+            "atributos": recurso.atributos,
+            "unidad": {
+                "id_unidad": unidad_obj.id_unidad if unidad_obj else None,
+                "nombre": unidad_obj.nombre if unidad_obj else "",
+                "simbolo": unidad_obj.simbolo if unidad_obj else ""
+            }
+        })
+    return result
+
+
 @router.post("/recursos", status_code=status.HTTP_201_CREATED)
 def create_recurso(payload: RecursoCreate, db: Session = Depends(get_db)):
     # Crear el recurso en la base de datos
@@ -106,8 +134,6 @@ def create_recurso(payload: RecursoCreate, db: Session = Depends(get_db)):
         "cantidad": float(r.cantidad),
         "costo_unitario_predeterminado": float(r.costo_unitario_predeterminado),
         "costo_total": float(r.costo_total),
-        "id_proveedor_preferido": r.id_proveedor_preferido,
-        "atributos": r.atributos,
         "unidad": unidad_obj.nombre if unidad_obj else ""
     }
 
@@ -134,8 +160,6 @@ def update_recurso(id_recurso: int, payload: RecursoUpdate, db: Session = Depend
         "cantidad": float(r.cantidad),
         "costo_unitario_predeterminado": float(r.costo_unitario_predeterminado),
         "costo_total": float(r.costo_total),
-        "id_proveedor_preferido": r.id_proveedor_preferido,
-        "atributos": r.atributos,
         "unidad": unidad_obj.nombre if unidad_obj else ""
     }
 
@@ -264,25 +288,50 @@ def crear_unidad(
 # Excel - Generar plantilla para carga de recursos
 @router.post("/recursos/generar-plantilla-excel")
 def generar_plantilla(
-    atributos: List[Dict[str, str]] = Body(...),
-    nombre_planilla: str = Body(...),
+    request_data: dict = Body(...),
 ):
     """
     Genera un archivo Excel con una tabla formateada para carga de recursos.
     
     Body esperado:
     {
+        "id_tipo_recurso": 1,
         "atributos": [
-            {"nombre": "Descripción", "tipo": "texto"},
-            {"nombre": "Unidad", "tipo": "texto"},
-            {"nombre": "Cantidad", "tipo": "entero"},
-            {"nombre": "Costo Unitario", "tipo": "numerico"}
-        ],
-        "nombre_planilla": "Personal"
+            {"id": "descripcion", "nombre": "Descripción", "tipo": "texto", "requerido": true},
+            {"id": "unidad", "nombre": "Unidad", "tipo": "texto", "requerido": true},
+            {"id": "cantidad", "nombre": "Cantidad", "tipo": "entero", "requerido": true},
+            {"id": "costo_unitario", "nombre": "Costo Unitario", "tipo": "numerico", "requerido": true}
+        ]
     }
     """
     try:
-        excel_file = generar_plantilla_excel(atributos, nombre_planilla)
+        id_tipo_recurso = request_data.get("id_tipo_recurso")
+        atributos = request_data.get("atributos", [])
+        
+        if not id_tipo_recurso:
+            raise HTTPException(status_code=400, detail="id_tipo_recurso es requerido")
+        
+        if not atributos:
+            raise HTTPException(status_code=400, detail="atributos es requerido")
+        
+        # Obtener el nombre de la planilla desde la base de datos
+        db = next(get_db())
+        try:
+            tipo_recurso = db.get(TipoRecurso, id_tipo_recurso)
+            nombre_planilla = tipo_recurso.nombre if tipo_recurso else f"Planilla_{id_tipo_recurso}"
+        finally:
+            db.close()
+        
+        # Convertir atributos al formato esperado por la función
+        atributos_formateados = []
+        for attr in atributos:
+            atributos_formateados.append({
+                "nombre": attr.get("nombre", ""),
+                "tipo": attr.get("tipo", "texto"),
+                "requerido": attr.get("requerido", False)
+            })
+        
+        excel_file = generar_plantilla_excel(atributos_formateados, nombre_planilla)
         
         return StreamingResponse(
             excel_file,
@@ -321,6 +370,10 @@ async def cargar_recursos_excel(
         # Leer contenido del archivo
         file_content = await file.read()
         print(f"DEBUG RUTA: Archivo leído, tamaño: {len(file_content)} bytes")
+        
+        # Verificar que el archivo no esté vacío
+        if len(file_content) == 0:
+            raise HTTPException(status_code=400, detail="El archivo está vacío")
         
         # Procesar Excel
         resultado = procesar_excel_recursos(file_content, id_tipo_recurso, atributos_list)
@@ -436,17 +489,46 @@ async def cargar_recursos_excel(
                 'errores': todos_errores
             }
         
+        # Obtener los recursos cargados con toda su información para el frontend
+        recursos_cargados = []
+        for recurso_id in ids_recursos_procesados:
+            recurso = db.get(Recurso, recurso_id)
+            if recurso:
+                unidad_obj = db.get(Unidad, recurso.id_unidad) if recurso.id_unidad else None
+                recursos_cargados.append({
+                    "id_recurso": recurso.id_recurso,
+                    "id_tipo_recurso": recurso.id_tipo_recurso,
+                    "descripcion": recurso.descripcion,
+                    "id_unidad": recurso.id_unidad,
+                    "cantidad": float(recurso.cantidad),
+                    "costo_unitario_predeterminado": float(recurso.costo_unitario_predeterminado),
+                    "costo_total": float(recurso.costo_total),
+                    "id_proveedor_preferido": recurso.id_proveedor_preferido,
+                    "atributos": recurso.atributos,
+                    "unidad": {
+                        "id_unidad": unidad_obj.id_unidad if unidad_obj else None,
+                        "nombre": unidad_obj.nombre if unidad_obj else "",
+                        "simbolo": unidad_obj.simbolo if unidad_obj else ""
+                    }
+                })
+
         return {
             'success': True,
             'recursos_guardados': recursos_guardados,
             'recursos_actualizados': recursos_actualizados,
             'total_procesados': recursos_guardados + recursos_actualizados,
             'ids_recursos_procesados': ids_recursos_procesados,
+            'recursos_cargados': recursos_cargados,  # Para auto-selección en frontend
             'errores': todos_errores
         }
         
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Error al parsear atributos JSON: {str(e)}")
     except Exception as e:
         db.rollback()
+        print(f"DEBUG RUTA: Error completo: {str(e)}")
+        import traceback
+        print(f"DEBUG RUTA: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error procesando archivo: {str(e)}")
 
 

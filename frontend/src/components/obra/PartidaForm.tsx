@@ -12,9 +12,10 @@ import { Plus } from 'lucide-react';
 interface PartidaFormProps {
   onClose: () => void;
   partida?: any; // Para editar
+  onPartidaCreated?: (partidaId: number) => void; // Callback para cuando se crea una nueva partida
 }
 
-const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida }) => {
+const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida, onPartidaCreated }) => {
   const { addPartida, updatePartida } = useObraStore();
   const [loading, setLoading] = useState(false);
   const [tiposTiempo, setTiposTiempo] = useState<any[]>([]);
@@ -62,22 +63,14 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida }) => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log('Cargando tipos de tiempo y especialidades...');
-        console.log('Token de autenticación:', localStorage.getItem('access_token'));
-        
         // Cargar especialidades primero (no requiere autenticación)
         const especialidadesData = await getEspecialidades();
-        console.log('Especialidades cargadas:', especialidadesData);
         setEspecialidades(especialidadesData);
         
         // Cargar tipos de tiempo (requiere autenticación)
         const tipos = await getTiposTiempo();
-        console.log('Tipos de tiempo cargados:', tipos);
         setTiposTiempo(tipos);
       } catch (error) {
-        console.error('Error cargando datos:', error);
-        console.error('Error details:', (error as any).response?.data);
-        console.error('Error status:', (error as any).response?.status);
         
         // Si falla tipos de tiempo, intentar cargar solo especialidades
         try {
@@ -129,8 +122,12 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida }) => {
           id_tipo_tiempo: partidaData.id_tipo_tiempo,
           especialidad: partidaData.especialidad || []
         };
-        console.log('Agregando partida:', nuevaPartida);
         addPartida(nuevaPartida);
+        
+        // Llamar al callback para redireccionar a selección de planillas
+        if (onPartidaCreated) {
+          onPartidaCreated(nuevaPartida.id_partida);
+        }
       }
       
       // Limpiar campos y cerrar modal
