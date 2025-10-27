@@ -29,7 +29,7 @@ const iconOptions = [
   { name: 'Gauge', icon: LucideIcons.Gauge },
 ];
 
-export const AddPlanillaModal: React.FC<AddPlanillaModalProps> = ({
+const AddPlanillaModal: React.FC<AddPlanillaModalProps> = ({
   open,
   onClose,
   onAdd
@@ -138,3 +138,4 @@ export const AddPlanillaModal: React.FC<AddPlanillaModalProps> = ({
 };
 
 
+export default AddPlanillaModal;

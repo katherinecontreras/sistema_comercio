@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import AddClientModal from '@/components/modals/AddClientModal';
 import { useAppStore } from '@/store/app';
 import { getClientes } from '@/actions/catalogos';
+import { ModernTable } from '@/components/tables/ModernTable';
 
 interface Props {
   onGenerarCotizacion: () => void;
@@ -15,6 +16,14 @@ const ClientSelector: React.FC<Props> = ({ onGenerarCotizacion, onIngresarSistem
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
   const selectClient = useAppStore((s) => s.selectClient);
+
+  const headers = ["Razón Social", "CUIT"];
+
+  const data = rows.map((c) => ({
+    "Razón Social": c.razon_social,
+    CUIT: c.cuit,
+    id_cliente: c.id_cliente,
+  }));
 
   const load = async () => {
     const data = await getClientes();
@@ -33,43 +42,19 @@ const ClientSelector: React.FC<Props> = ({ onGenerarCotizacion, onIngresarSistem
           Agregar Nuevo Cliente
         </Button>
       </div>
-      <div className="border border-slate-600 rounded-lg overflow-hidden bg-slate-800">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-700">
-            <tr>
-              <th className="text-left p-3 text-white">Razón Social</th>
-              <th className="text-left p-3 text-white">CUIT</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => {
-              const active = selectedId === c.id_cliente;
-              return (
-                <tr
-                  key={c.id_cliente}
-                  className={`cursor-pointer transition-colors ${
-                    active ? 'bg-sky-900/50' : 'hover:bg-slate-700'
-                  }`}
-                  onClick={() => {
-                    setSelectedId(c.id_cliente);
-                    selectClient(c.id_cliente);
-                  }}
-                >
-                  <td className="p-3 text-white">{c.razon_social}</td>
-                  <td className="p-3 text-white">{c.cuit}</td>
-                </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td className="p-3 text-slate-400 text-center" colSpan={2}>
-                  Sin clientes cargados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <ModernTable
+        headers={headers}
+        data={data}
+        idKey="id_cliente"
+        selectedId={selectedId}
+        onRowClick={(id: any) => {
+          setSelectedId(id);
+          selectClient(id);
+        }}
+        onAddNew={() => setOpen(true)}
+        searchable={true}
+        className="mt-6"
+      />
       <div className="flex justify-end gap-3">
         <Button 
           variant="outline" 

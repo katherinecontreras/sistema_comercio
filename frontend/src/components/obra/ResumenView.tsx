@@ -3,14 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, DollarSign, FileText, Clock, Package, Eye, TrendingUp } from 'lucide-react';
 import { useObraStore } from '@/store/obra';
-import { AddIncrementModal } from '../modals';
+import AddIncrementModal from '@/components/modals/AddClientModal';
 
 interface ResumenViewProps {
   onShowIncrementos?: () => void;
 }
 
 const ResumenView: React.FC<ResumenViewProps> = ({ onShowIncrementos }) => {
-  const { obra, partidas, incrementos, resumen, addIncremento, updateIncremento, calcularTotalesObra } = useObraStore();
+  const { obra, partidas, incrementos, resumen, addIncremento, updateIncremento, calcularResumenObra } = useObraStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingIncrement, setEditingIncrement] = useState<any>(null);
 
@@ -104,7 +104,7 @@ const ResumenView: React.FC<ResumenViewProps> = ({ onShowIncrementos }) => {
               <TrendingUp className="h-8 w-8 text-green-400" />
               <div>
                 <p className="text-slate-400 text-sm">Incrementos</p>
-                <p className="text-white text-xl font-semibold">{totales.totalIncrementos}</p>
+                <p className="text-white text-xl font-semibold">{totales.cantidad_incrementos}</p>
               </div>
             </div>
           </CardContent>
@@ -228,7 +228,7 @@ const ResumenView: React.FC<ResumenViewProps> = ({ onShowIncrementos }) => {
               <div>
                 <p className="text-slate-400 text-sm">Costo Base</p>
                 <p className="text-white text-xl font-semibold">
-                  ${totales.costo_total_oferta_sin_incremento.toFixed(2)}
+                  ${totales.costo_total_oferta_sin_incremento}
                 </p>
               </div>
             </div>

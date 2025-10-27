@@ -13,7 +13,7 @@ interface CostoFormProps {
 }
 
 const CostoForm: React.FC<CostoFormProps> = ({ onClose, costo, idPartida, idSubPartida }) => {
-  const { addCostoPartida, addCostoSubPartida, updateCostoPartida, updateCostoSubPartida } = useObraStore();
+  const { addPartida, addSubPartida, updatePartida, updateSubPartida } = useObraStore();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     id_recurso: 0,
@@ -49,15 +49,15 @@ const CostoForm: React.FC<CostoFormProps> = ({ onClose, costo, idPartida, idSubP
 
       if (costo) {
         if (idPartida) {
-          updateCostoPartida(costo.id_costo, costoData);
+          updatePartida(costo.id_costo, costoData);
         } else if (idSubPartida) {
-          updateCostoSubPartida(costo.id_costo, costoData);
+          updateSubPartida(costo.id_costo, costoData);
         }
       } else {
         if (idPartida) {
-          addCostoPartida({ ...costoData, id_partida: idPartida });
+          addPartida({ ...costoData, id_partida: idPartida });
         } else if (idSubPartida) {
-          addCostoSubPartida({ ...costoData, id_subpartida: idSubPartida });
+          addSubPartida({ ...costoData, id_subpartida: idSubPartida });
         }
       }
       

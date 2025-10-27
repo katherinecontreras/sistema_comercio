@@ -5,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useObraStore } from '@/store/obra';
 import { useAppStore } from '@/store/app';
-import { createObra } from '@/actions/obras';
 
 const ObraForm: React.FC = () => {
   const { setObra } = useObraStore();
@@ -37,13 +36,11 @@ const ObraForm: React.FC = () => {
       if (!client.selectedClientId) {
         throw new Error('No hay cliente seleccionado');
       }
-      
-      const obra = await createObra({
+      setObra({
         ...formData,
         id_cliente: client.selectedClientId,
         estado: 'borrador'
       });
-      setObra(obra);
     } catch (error) {
       console.error('Error creando obra:', error);
     } finally {

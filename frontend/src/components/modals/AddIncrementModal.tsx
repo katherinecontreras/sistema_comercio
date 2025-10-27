@@ -89,8 +89,8 @@ const AddIncrementModal: React.FC<Props> = ({ open, onClose, onSave }) => {
             console.log('AddIncrementModal: Planilla:', planilla);
             if (planilla.recursos) {
               planilla.recursos.forEach(recurso => {
-                const cantidad = parseFloat(recurso.cantidad) || 0;
-                const costoUnitario = parseFloat(recurso.costo_unitario_predeterminado) || 0;
+                const cantidad = recurso.cantidad || 0;
+                const costoUnitario = recurso.costo_unitario_predeterminado || 0;
                 const subtotal = cantidad * costoUnitario;
                 console.log('AddIncrementModal: Recurso:', recurso.descripcion, 'Cantidad:', cantidad, 'Costo:', costoUnitario, 'Subtotal:', subtotal);
                 costoTotal += subtotal;
@@ -107,8 +107,8 @@ const AddIncrementModal: React.FC<Props> = ({ open, onClose, onSave }) => {
             console.log('AddIncrementModal: Planilla subpartida:', planilla);
             if (planilla.recursos) {
               planilla.recursos.forEach(recurso => {
-                const cantidad = parseFloat(recurso.cantidad) || 0;
-                const costoUnitario = parseFloat(recurso.costo_unitario_predeterminado) || 0;
+                const cantidad = recurso.cantidad || 0;
+                const costoUnitario = recurso.costo_unitario_predeterminado || 0;
                 const subtotal = cantidad * costoUnitario;
                 console.log('AddIncrementModal: Recurso subpartida:', recurso.descripcion, 'Cantidad:', cantidad, 'Costo:', costoUnitario, 'Subtotal:', subtotal);
                 costoTotal += subtotal;

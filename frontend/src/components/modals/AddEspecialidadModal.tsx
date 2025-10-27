@@ -18,7 +18,7 @@ interface AddEspecialidadModalProps {
   initialNombre?: string; // Para pre-llenar el nombre
 }
 
-export const AddEspecialidadModal: React.FC<AddEspecialidadModalProps> = ({
+const AddEspecialidadModal: React.FC<AddEspecialidadModalProps> = ({
   open,
   onClose,
   onAdd,
@@ -122,4 +122,4 @@ export const AddEspecialidadModal: React.FC<AddEspecialidadModalProps> = ({
     </Dialog>
   );
 };
-
+export default AddEspecialidadModal;

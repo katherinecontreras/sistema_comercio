@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useObraStore } from '@/store/obra';
 import { getTiposRecursos } from '@/actions/catalogos';
 import ObraForm from './ObraForm';
@@ -38,6 +38,9 @@ const ObraWizard: React.FC = () => {
   const [planillaSelectionTarget, setPlanillaSelectionTarget] = useState<{id: number, type: 'partida' | 'subpartida'} | null>(null);
   const [showAddPlanillaModal, setShowAddPlanillaModal] = useState(false);
   const [selectedPlanillas, setSelectedPlanillas] = useState<number[]>([]);
+  
+  // Ref para mantener el estado de manera más persistente
+  const planillaSelectionRef = useRef(false);
   const [triggerAutoExpand, setTriggerAutoExpand] = useState<((partidaId: number, subpartidaId: number) => void) | null>(null);
 
   // Función para manejar selección de partidas
@@ -256,7 +259,10 @@ const ObraWizard: React.FC = () => {
               onClose={() => {
                 setShowPartidaForm(false);
                 setEditingPartida(null);
-                setShowResumen(true);
+                // Solo mostrar resumen si no hay selección de planillas activa
+                if (!showPlanillaSelection) {
+                  setShowResumen(true);
+                }
               }}
               partida={editingPartida}
               onPartidaCreated={(partidaId: number) => {
@@ -266,6 +272,7 @@ const ObraWizard: React.FC = () => {
                 setSelectedPartida(partidaId);
                 setShowPlanillaSelection(true);
                 setPlanillaSelectionTarget({ id: partidaId, type: 'partida' });
+                planillaSelectionRef.current = true;
               }}
             />
           </div>
@@ -290,7 +297,7 @@ const ObraWizard: React.FC = () => {
               }}
             />
           </div>
-        ) : showPlanillaSelection && planillaSelectionTarget ? (
+        ) : (showPlanillaSelection || planillaSelectionRef.current) && planillaSelectionTarget ? (
           <div className="p-6">
             <PlanillaSelection
               selectedItem={{

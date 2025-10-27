@@ -124,58 +124,73 @@ def obtener_resumen_obra(
 @router.post("/{id}/finalizar", response_model=ObraRead)
 def finalizar_obra(
     id: int,
+    obra_data: dict,
     db: Session = Depends(get_db),
     _: None = Depends(role_required(["Cotizador", "Administrador"]))
 ):
-    """Finalizar una obra y calcular resúmenes finales"""
+    """Finalizar una obra con datos completos del frontend"""
     obra = db.scalar(select(Obra).where(Obra.id_obra == id))
     if not obra:
         raise HTTPException(status_code=404, detail="Obra no encontrada")
     
-    # Calcular resúmenes finales
-    partidas = db.scalars(select(Partida).where(Partida.id_obra == id)).all()
-    
-    total_partidas = len(partidas)
-    total_subpartidas = sum(len(p.subpartidas) for p in partidas)
-    
-    # Calcular costos totales
-    total_costo_sin_incremento = 0
-    costos_partidas = {}
-    
-    for partida in partidas:
-        costo_partida = sum(c.costo_total for c in partida.costos) if partida.costos else 0
-        total_costo_sin_incremento += costo_partida
+    # Usar datos del frontend si están disponibles
+    if obra_data:
+        # Actualizar obra con datos del frontend
+        for field, value in obra_data.items():
+            if hasattr(obra, field) and field not in ['id_obra', 'id_cliente']:
+                setattr(obra, field, value)
         
-        costos_partidas[partida.id_partida] = {
-            'nombre': partida.nombre_partida,
-            'costo_total': costo_partida,
-            'subpartidas': []
-        }
+        # Actualizar campos de resumen si vienen del frontend
+        if 'resumen' in obra_data:
+            resumen = obra_data['resumen']
+            obra.total_partidas = resumen.get('cantidad_partidas', 0)
+            obra.total_subpartidas = resumen.get('cantidad_subpartidas', 0)
+            obra.total_costo_obra_sin_incremento = resumen.get('costo_total_oferta_sin_incremento', 0)
+            obra.total_costo_obra_con_incrementos = resumen.get('costo_total_oferta_con_incremento', 0)
+            obra.total_incrementos = resumen.get('costo_total_incrementos', 0)
+            obra.costos_partidas = resumen.get('costos_detallados', [])
         
-        for subpartida in partida.subpartidas:
-            costo_subpartida = sum(c.costo_total for c in subpartida.costos) if subpartida.costos else 0
-            costos_partidas[partida.id_partida]['subpartidas'].append({
-                'id': subpartida.id_subpartida,
-                'nombre': subpartida.descripcion_tarea,
-                'costo_total': costo_subpartida
-            })
+        # Procesar partidas del frontend
+        if 'partidas' in obra_data:
+            partidas_data = obra_data['partidas']
+            for partida_data in partidas_data:
+                # Crear o actualizar partida
+                partida = db.scalar(select(Partida).where(Partida.id_partida == partida_data.get('id_partida')))
+                if not partida:
+                    partida = Partida(id_obra=id, **partida_data)
+                    db.add(partida)
+                else:
+                    for field, value in partida_data.items():
+                        if hasattr(partida, field):
+                            setattr(partida, field, value)
+                
+                # Procesar subpartidas
+                if 'subpartidas' in partida_data:
+                    for subpartida_data in partida_data['subpartidas']:
+                        subpartida = db.scalar(select(SubPartida).where(SubPartida.id_subpartida == subpartida_data.get('id_subpartida')))
+                        if not subpartida:
+                            subpartida = SubPartida(id_partida=partida.id_partida, **subpartida_data)
+                            db.add(subpartida)
+                        else:
+                            for field, value in subpartida_data.items():
+                                if hasattr(subpartida, field):
+                                    setattr(subpartida, field, value)
+        
+        # Procesar incrementos del frontend
+        if 'incrementos' in obra_data:
+            incrementos_data = obra_data['incrementos']
+            for incremento_data in incrementos_data:
+                incremento = db.scalar(select(Incremento).where(Incremento.id_incremento == incremento_data.get('id_incremento')))
+                if not incremento:
+                    incremento = Incremento(id_obra=id, **incremento_data)
+                    db.add(incremento)
+                else:
+                    for field, value in incremento_data.items():
+                        if hasattr(incremento, field):
+                            setattr(incremento, field, value)
     
-    # Calcular incrementos totales
-    incrementos = db.scalars(select(Incremento).where(Incremento.id_obra == id)).all()
-    total_incrementos = sum(i.monto_calculado for i in incrementos)
-    
-    # Calcular duración total
-    total_duracion = sum(p.duracion for p in partidas)
-    
-    # Actualizar obra
+    # Marcar como finalizada
     obra.estado = "finalizada"
-    obra.total_partidas = total_partidas
-    obra.total_subpartidas = total_subpartidas
-    obra.total_costo_obra_sin_incremento = total_costo_sin_incremento
-    obra.total_costo_obra_con_incrementos = total_costo_sin_incremento + total_incrementos
-    obra.total_duracion_obra = total_duracion
-    obra.total_incrementos = total_incrementos
-    obra.costos_partidas = costos_partidas
     
     db.commit()
     db.refresh(obra)

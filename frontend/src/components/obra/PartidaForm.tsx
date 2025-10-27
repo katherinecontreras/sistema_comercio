@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useObraStore } from '@/store/obra';
-import { getTiposTiempo } from '@/actions/obras';
+import { getTiposTiempo } from '@/actions/catalogos';
 import { getEspecialidades, addEspecialidad } from '@/actions/catalogos';
 import { Plus } from 'lucide-react';
 
@@ -16,7 +16,7 @@ interface PartidaFormProps {
 }
 
 const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida, onPartidaCreated }) => {
-  const { addPartida, updatePartida } = useObraStore();
+  const { addPartidaWithEffects, updatePartida } = useObraStore();
   const [loading, setLoading] = useState(false);
   const [tiposTiempo, setTiposTiempo] = useState<any[]>([]);
   const [especialidades, setEspecialidades] = useState<any[]>([]);
@@ -68,9 +68,12 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida, onPartidaCr
         setEspecialidades(especialidadesData);
         
         // Cargar tipos de tiempo (requiere autenticación)
+        console.log('Cargando tipos de tiempo...');
         const tipos = await getTiposTiempo();
+        console.log('Tipos de tiempo cargados:', tipos);
         setTiposTiempo(tipos);
       } catch (error) {
+        console.error('Error cargando datos:', error);
         
         // Si falla tipos de tiempo, intentar cargar solo especialidades
         try {
@@ -122,11 +125,14 @@ const PartidaForm: React.FC<PartidaFormProps> = ({ onClose, partida, onPartidaCr
           id_tipo_tiempo: partidaData.id_tipo_tiempo,
           especialidad: partidaData.especialidad || []
         };
-        addPartida(nuevaPartida);
+        addPartidaWithEffects(nuevaPartida);
         
         // Llamar al callback para redireccionar a selección de planillas
         if (onPartidaCreated) {
+          console.log('PartidaForm: Llamando callback onPartidaCreated con ID:', nuevaPartida.id_partida);
           onPartidaCreated(nuevaPartida.id_partida);
+          // No llamar onClose() aquí, el callback manejará la redirección
+          return;
         }
       }
       

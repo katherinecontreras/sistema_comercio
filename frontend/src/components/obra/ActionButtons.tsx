@@ -11,7 +11,7 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ obra, onFinalizar }) => {
-  const { saveToLocalStorage, clearLocalStorage, partidas, finalizarObra } = useObraStore();
+  const { saveToLocalStorage, clearLocalStorage, partidas , getIncremento, calcularResumenObra, ResumenObra} = useObraStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [action, setAction] = useState<'finalizar' | 'guardar' | 'borrar' | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,12 +19,49 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ obra, onFinalizar }) => {
   const handleFinalizar = async () => {
     setLoading(true);
     try {
-      // Usar la función del store que maneja toda la lógica
-      await finalizarObra();
+      // Calcular campos de resumen
+      const totalPartidas = ResumenObra.total_partidas;
+      const totalSubpartidas = ResumenObra.total_subpartidas;
+      const totalCostoSinIncremento = ResumenObra.total_costo_obra_sin_incremento;
+      const totalDuracion = ResumenObra.total_duracion;
+
+      // Crear objeto de resumen
+      const costosPartidas = partidas.map(p => ({
+        idPartida: p.id_partida,
+        total_costo_partida: p.costos || 0,
+        total_costo_incremento_partida: getIncremento(Number(p.id_partida))|| 0,
+        total_costo_partida_sin_incremento: p.costo_total || 0,
+        subpartidas: p.subpartidas?.map(sp => ({
+          idSubpartida: sp.id_subpartida,
+          total_costo_subpartida: sp.costo_total || 0,
+          total_costo_incremento_subpartida: sp.incrementos?.reduce((sum, i) => sum + i.monto_calculado, 0) || 0,
+          total_costo_subpartida_sin_incremento: sp.costo_total || 0
+        })) || []
+      }));
+
+      const obraData = {
+        ...obra,
+        estado: 'nueva oferta',
+        total_partidas: totalPartidas,
+        total_subpartidas: totalSubpartidas,
+        total_costo_obra_sin_incremento: totalCostoSinIncremento,
+        total_costo_obra_con_incrementos: totalCostoSinIncremento, // Se calculará con incrementos
+        total_duracion_obra: totalDuracion,
+        total_incrementos: 0, // Se calculará
+        costos_partidas: costosPartidas
+      };
+
+      if (obra.id_obra) {
+        await updateObra(obra.id_obra, obraData);
+      } else {
+        await createObra(obraData);
+      }
+
+      // Limpiar almacenamiento local
+      clearLocalStorage();
       onFinalizar();
     } catch (error) {
       console.error('Error finalizando obra:', error);
-      alert('Error al finalizar la obra. Intenta nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -129,7 +166,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ obra, onFinalizar }) => {
               {action === 'borrar' && 'Borrar y Salir'}
             </DialogTitle>
             <DialogDescription className="text-slate-400">
-              {action === 'finalizar' && '¿Estás seguro de que quieres finalizar esta oferta? Se guardará en la base de datos y no podrás editarla.'}
+              {action === 'finalizar' && '¿Estás seguro de que quieres finalizar esta oferta?'}
               {action === 'guardar' && '¿Guardar este borrador? Podrás continuar editándolo más tarde.'}
               {action === 'borrar' && '¿Estás seguro de que quieres eliminar todos los datos? Esta acción no se puede deshacer.'}
             </DialogDescription>

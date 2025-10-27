@@ -367,14 +367,14 @@ class ValidacionCosto(BaseModel):
 # ============================================================================
 
 class ExportacionObra(BaseModel):
-    formato: str = Field(..., pattern="^(excel|pdf|csv)$")
+    formato: str = Field(..., regex="^(excel|pdf|csv)$")
     incluir_recursos: bool = True
     incluir_incrementos: bool = True
     incluir_detalles: bool = True
 
 
 class ExportacionRecursos(BaseModel):
-    formato: str = Field(..., pattern="^(excel|csv)$")
+    formato: str = Field(..., regex="^(excel|csv)$")
     id_tipo_recurso: Optional[int] = None
     incluir_atributos: bool = True
     incluir_precios: bool = True

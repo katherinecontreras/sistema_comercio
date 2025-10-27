@@ -84,26 +84,6 @@ const ObraSidebar: React.FC<ObraSidebarProps> = ({
   };
   const [autoExpand, setAutoExpand] = useState<{partidaId: number, subpartidaId: number} | null>(null);
 
-
-
-  // useEffect(() => {
-  //   console.log('ObraSidebar: Partidas recibidas:', partidas);
-  //   console.log('ObraSidebar: Cantidad de partidas:', partidas.length);
-  //   partidas.forEach((partida, index) => {
-  //     console.log(`Partida ${index}:`, {
-  //       id: partida.id_partida,
-  //       nombre: partida.nombre_partida,
-  //       tiene_subpartidas: partida.tiene_subpartidas,
-  //       planillas: partida.planillas,
-  //       subpartidas: partida.subpartidas?.map(sp => ({
-  //         id: sp.id_subpartida,
-  //         descripcion: sp.descripcion_tarea,
-  //         planillas: sp.planillas
-  //       }))
-  //     });
-  //   });
-  // }, [partidas]);
-
   // Efecto para expansión automática cuando se agregan planillas
   useEffect(() => {
     if (autoExpand) {

@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, X, Package, Download, Upload, Plus } from 'lucide-react';
 import { useObraStore } from '@/store/obra';
 import { getRecursosByTipo } from '@/actions/catalogos';
-import AddRecursosManuallyImproved from './AddRecursosManuallyImproved';
-import AttributeSelectionModal from './AttributeSelectionModal';
+import ResourceTable from '../tables/ResourceTable';
 
 interface RecursoSeleccionado {
   id: string;
@@ -49,11 +48,11 @@ const ResourceManagement: React.FC<Props> = ({
   const [tipoTiempo, setTipoTiempo] = useState<string>('');
   const [tipoTiempoMedida, setTipoTiempoMedida] = useState<string>('');
   
-      // Estados para componentes inline
-      const [showExcelModal, setShowExcelModal] = useState(false);
-      const [showAddManually, setShowAddManually] = useState(false);
-      const [showToast, setShowToast] = useState(false);
-      const [toastMessage, setToastMessage] = useState('');
+  // Estados para modales y Excel
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [showAddManually, setShowAddManually] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Cargar recursos de la planilla
   useEffect(() => {
@@ -66,10 +65,8 @@ const ResourceManagement: React.FC<Props> = ({
         setRecursos(data);
         
         // Cargar recursos previamente guardados
-        // console.log('ResourceManagement: Cargando recursos guardados con:', { partidaId, subpartidaId, planillaId });
         if (partidaId) {
           const recursosGuardados = getRecursosFromPlanilla(partidaId, subpartidaId || null, planillaId);
-          // console.log('ResourceManagement: Recursos guardados encontrados:', recursosGuardados.length);
           if (recursosGuardados.length > 0) {
             setRecursosSeleccionados(recursosGuardados);
           }
@@ -83,13 +80,10 @@ const ResourceManagement: React.FC<Props> = ({
           }
         } else if (subpartidaId) {
           // Buscar subpartida en las partidas
-          // console.log('ResourceManagement: Buscando subpartida en partidas...');
           for (const partida of partidas) {
-            const subpartida = partida.subpartidas?.find(sp => sp.id_subpartida === subpartidaId);
+            const subpartida = partida.subpartidas?.find((sp: any) => sp.id_subpartida === subpartidaId);
             if (subpartida) {
-              // console.log('ResourceManagement: Subpartida encontrada en partida:', partida.id_partida);
               const recursosGuardados = getRecursosFromPlanilla(partida.id_partida!, subpartidaId, planillaId);
-              // console.log('ResourceManagement: Recursos guardados en subpartida:', recursosGuardados.length);
               if (recursosGuardados.length > 0) {
                 setRecursosSeleccionados(recursosGuardados);
               }
@@ -110,7 +104,7 @@ const ResourceManagement: React.FC<Props> = ({
     };
 
     cargarRecursos();
-  }, [planillaId, partidaId, subpartidaId, partidas]);
+  }, [planillaId, partidaId, subpartidaId, partidas, getRecursosFromPlanilla]);
 
   // Función para calcular porcentaje de uso basado en tiempo de uso
   const calcularPorcentajeUso = (tiempoUso: number): number => {
@@ -154,6 +148,49 @@ const ResourceManagement: React.FC<Props> = ({
     }
   };
 
+  // Actualizar campos recursos
+   const actualizarRecurso = (id: string, type: string, value: number) => {
+    setRecursosSeleccionados(prev =>
+      prev.map(r => {
+        if (r.id !== id) return r;
+
+        let cantidad = r.cantidad;
+        let costoUnitario = r.costo_unitario;
+        let porcentaje = r.porcentaje_de_uso;
+        let tiempo = r.tiempo_de_uso;
+
+        switch (type) {
+          case 'cantidad':
+            cantidad = value;
+            break;
+          case 'costo_unitario':
+          case 'precio_unitario': // compatibilidad con ResourceTable
+            costoUnitario = value;
+            break;
+          case 'porcentaje_de_uso':
+            porcentaje = Math.min(Math.max(value, 0), 100);
+            tiempo = calcularTiempoUso(porcentaje);
+            break;
+          case 'tiempo_de_uso':
+            tiempo = Math.min(Math.max(value, 0), duracion);
+            porcentaje = calcularPorcentajeUso(tiempo);
+            break;
+          default:
+            return r;
+        }
+
+        const costoTotal = calcularCostoTotal(cantidad, costoUnitario, porcentaje);
+        return {
+          ...r,
+          cantidad,
+          costo_unitario: costoUnitario,
+          porcentaje_de_uso: porcentaje,
+          tiempo_de_uso: tiempo,
+          costo_total: costoTotal,
+        };
+      })
+    );
+  };
   // Actualizar cantidad
   const actualizarCantidad = (id: string, cantidad: number) => {
     setRecursosSeleccionados(prev => prev.map(r => {
@@ -215,55 +252,6 @@ const ResourceManagement: React.FC<Props> = ({
   };
 
 
-  // Función para generar plantilla Excel
-  const handleGenerateExcelTemplate = async (atributos?: any[]) => {
-    if (!planillaId) {
-      setToastMessage('Error: No se ha seleccionado una planilla');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return;
-    }
-
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/catalogos/recursos/generar-plantilla-excel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({
-          id_tipo_recurso: planillaId,
-          atributos: atributos || []
-        })
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `plantilla_${planillaNombre.replace(/\s+/g, '_')}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        setToastMessage('Plantilla Excel generada exitosamente');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      } else {
-        setToastMessage('Error al generar plantilla Excel');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      }
-    } catch (error) {
-      console.error('Error generando plantilla:', error);
-      setToastMessage('Error al generar plantilla Excel');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    }
-  };
-
   // Función para cargar recursos desde Excel
   const handleUploadExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!planillaId || !partidaId) {
@@ -279,16 +267,6 @@ const ResourceManagement: React.FC<Props> = ({
     const formData = new FormData();
     formData.append('file', file);
     formData.append('id_tipo_recurso', planillaId.toString());
-    
-    // Agregar atributos por defecto (los básicos que siempre se necesitan)
-    const atributosPorDefecto = [
-      { id: 'descripcion', nombre: 'Descripción', tipo: 'texto', base: true, requerido: true },
-      { id: 'unidad', nombre: 'Unidad', tipo: 'texto', base: true, requerido: true },
-      { id: 'cantidad', nombre: 'Cantidad', tipo: 'entero', base: true, requerido: true },
-      { id: 'costo_unitario', nombre: 'Costo Unitario', tipo: 'numerico', base: true, requerido: true },
-      { id: 'costo_total', nombre: 'Costo Total', tipo: 'numerico', base: true, requerido: false }
-    ];
-    formData.append('atributos', JSON.stringify(atributosPorDefecto));
 
     try {
       const response = await fetch('http://localhost:8000/api/v1/catalogos/recursos/cargar-desde-excel', {
@@ -299,42 +277,16 @@ const ResourceManagement: React.FC<Props> = ({
         body: formData
       });
 
-          if (response.ok) {
-            const data = await response.json();
-            setToastMessage(`Excel cargado exitosamente: ${data.recursos_guardados} recursos agregados`);
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
-            
-            // Recargar recursos
-            const recursosData = await getRecursosByTipo(planillaId);
-            setRecursos(recursosData);
-            
-            // Auto-seleccionar los recursos cargados desde Excel
-            if (data.recursos_cargados && data.recursos_cargados.length > 0) {
-              const recursosParaSeleccionar = data.recursos_cargados.map((recurso: any) => ({
-                id: `recurso_${recurso.id_recurso}`,
-                id_recurso: recurso.id_recurso,
-                descripcion: recurso.descripcion,
-                cantidad: recurso.cantidad || 1,
-                costo_unitario: recurso.costo_unitario_predeterminado || 0,
-                porcentaje_de_uso: 100,
-                tiempo_de_uso: duracion,
-                costo_total: (recurso.cantidad || 1) * (recurso.costo_unitario_predeterminado || 0) * (duracion / 100)
-              }));
-              
-              setRecursosSeleccionados(prev => {
-                const nuevos = [...prev];
-                recursosParaSeleccionar.forEach((nuevoRecurso: any) => {
-                  if (!nuevos.some(r => r.id_recurso === nuevoRecurso.id_recurso)) {
-                    nuevos.push(nuevoRecurso);
-                  }
-                });
-                return nuevos;
-              });
-              
-              setToastMessage(`Excel cargado: ${data.recursos_guardados} recursos agregados y auto-seleccionados`);
-            }
-          } else {
+      if (response.ok) {
+        const data = await response.json();
+        setToastMessage(`Excel cargado exitosamente: ${data.recursos_agregados} recursos agregados`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        
+        // Recargar recursos
+        const recursosData = await getRecursosByTipo(planillaId);
+        setRecursos(recursosData);
+      } else {
         const error = await response.json();
         setToastMessage(`Error al cargar Excel: ${error.detail || 'Error desconocido'}`);
         setShowToast(true);
@@ -349,31 +301,6 @@ const ResourceManagement: React.FC<Props> = ({
 
     // Limpiar input
     event.target.value = '';
-  };
-
-  // Función para manejar el modal de Excel
-  const handleExcelModalConfirm = (atributos: any[]) => {
-    setShowExcelModal(false);
-    handleGenerateExcelTemplate(atributos);
-  };
-
-  // Función para manejar recursos agregados manualmente
-  const handleManualResourcesAdded = (recursosAgregados: any[]) => {
-    setShowAddManually(false);
-    setToastMessage(`${recursosAgregados.length} recursos agregados manualmente`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-    
-    // Recargar recursos
-    const recargarRecursos = async () => {
-      try {
-        const data = await getRecursosByTipo(planillaId);
-        setRecursos(data);
-      } catch (error) {
-        console.error('Error recargando recursos:', error);
-      }
-    };
-    recargarRecursos();
   };
 
   // Calcular totales
@@ -405,31 +332,6 @@ const ResourceManagement: React.FC<Props> = ({
       </div>
     );
   }
-
-      // Si se está mostrando un componente inline, renderizarlo
-      if (showAddManually) {
-        return (
-          <AddRecursosManuallyImproved
-            planillaNombre={planillaNombre}
-            planillaId={planillaId}
-            onCancel={() => setShowAddManually(false)}
-            onSave={handleManualResourcesAdded}
-          />
-        );
-      }
-
-      if (showExcelModal) {
-        return (
-          <AttributeSelectionModal
-            onClose={() => setShowExcelModal(false)}
-            onConfirm={handleExcelModalConfirm}
-            title="Seleccionar Atributos para Excel"
-            description="Selecciona los atributos que quieres incluir en la plantilla Excel"
-            confirmButtonText="Generar Excel"
-            confirmButtonIcon={<Download className="h-4 w-4 mr-2" />}
-          />
-        );
-      }
 
   return (
     <div className="space-y-6">
@@ -503,7 +405,6 @@ const ResourceManagement: React.FC<Props> = ({
               </Button>
             </div>
           </div>
-
           {recursos.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -676,12 +577,9 @@ const ResourceManagement: React.FC<Props> = ({
         </Button>
         <Button
           onClick={() => {
-            // console.log('ResourceManagement: Guardando recursos con:', { partidaId, subpartidaId, planillaId, recursos: recursosSeleccionados.length });
             // Guardar recursos en el store
             if (partidaId) {
               saveRecursosToPlanilla(partidaId, subpartidaId || null, planillaId, recursosSeleccionados);
-            } else {
-              console.error('ResourceManagement: No se puede guardar - partidaId es undefined');
             }
             // Llamar al callback del componente padre
             onSave(recursosSeleccionados);
@@ -693,7 +591,6 @@ const ResourceManagement: React.FC<Props> = ({
           Guardar Recursos ({recursosSeleccionados.length})
         </Button>
       </div>
-
 
       {/* Toast */}
       {showToast && (

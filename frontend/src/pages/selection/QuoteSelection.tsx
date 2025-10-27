@@ -1,14 +1,11 @@
 import React from 'react';
 import ClientSelector from '@/pages/selection/ClientSelector';
-import { useAppStore } from '@/store/app';
 import { useNavigate } from 'react-router-dom';
 
 const QuoteSelection: React.FC = () => {
-  const { setStep } = useAppStore();
   const navigate = useNavigate();
 
   const handleGenerarCotizacion = () => {
-    setStep('oferta');
     navigate('/obra');
   };
 

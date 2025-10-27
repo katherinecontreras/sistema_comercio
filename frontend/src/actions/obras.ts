@@ -1,16 +1,5 @@
 import api from '@/services/api';
 
-// Tipos de Tiempo
-export const getTiposTiempo = async () => {
-  const response = await api.get('/obras/tipos-tiempo');
-  return response.data;
-};
-
-export const createTipoTiempo = async (tipoData: { nombre: string; medida: string }) => {
-  const response = await api.post('/obras/tipos-tiempo', tipoData);
-  return response.data;
-};
-
 // Obras
 export const createObra = async (obraData: any) => {
   const response = await api.post('/obras', obraData);

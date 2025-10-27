@@ -269,4 +269,3 @@ const IncrementosView: React.FC<Props> = ({ onBack }) => {
 };
 
 export default IncrementosView;
-

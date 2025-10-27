@@ -18,7 +18,7 @@ interface AddUnidadModalProps {
   initialNombre?: string; // Para pre-llenar el nombre
 }
 
-export const AddUnidadModal: React.FC<AddUnidadModalProps> = ({
+const AddUnidadModal: React.FC<AddUnidadModalProps> = ({
   open,
   onClose,
   onAdd,
@@ -139,3 +139,4 @@ export const AddUnidadModal: React.FC<AddUnidadModalProps> = ({
 };
 
 
+export default AddUnidadModal;

@@ -1,5 +1,16 @@
 import api from '@/services/api';
 
+// Tipos de Tiempo
+export const getTiposTiempo = async () => {
+  const response = await api.get('/catalogos/tipos-tiempo');
+  return response.data;
+};
+
+export const createTipoTiempo = async (tipoData: { nombre: string; medida: string }) => {
+  const response = await api.post('/catalogos/tipos-tiempo', tipoData);
+  return response.data;
+};
+
 // Tipos de Recursos (Planillas)
 export const getTiposRecursos = async () => {
   const response = await api.get('/catalogos/tipos_recurso');
