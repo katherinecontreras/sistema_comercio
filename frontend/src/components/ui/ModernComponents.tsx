@@ -1,9 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Clock, DollarSign, Users, FileText } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ModernCardProps {
   title: string;
@@ -56,17 +55,17 @@ const ModernCard: React.FC<ModernCardProps> = ({
       className={`group ${className}`}
     >
       <Card 
-        className={`p-6 hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-gradient-to-br from-white to-gray-50 ${onClick ? 'hover:scale-105' : ''}`}
+        className={`p-6 hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-slate-800 ${onClick ? 'hover:scale-105' : ''}`}
         onClick={onClick}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+              <div className="p-2 bg-slate-700 rounded-lg text-blue-600">
                 {icon}
               </div>
             )}
-            <h3 className="text-sm font-medium text-gray-600">{title}</h3>
+            <h3 className="text-sm font-medium text-white">{title}</h3>
           </div>
           {trend && trendValue && (
             <Badge variant="secondary" className={`${getTrendColor()} border-0`}>
@@ -300,3 +299,6 @@ export {
   LoadingSpinner,
   EmptyState
 };
+
+
+

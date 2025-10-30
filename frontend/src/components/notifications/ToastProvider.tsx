@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
@@ -74,19 +73,6 @@ const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         return <AlertCircle className="h-5 w-5 text-yellow-600" />;
       case 'info':
         return <Info className="h-5 w-5 text-blue-600" />;
-    }
-  };
-
-  const getAlertVariant = (type: Toast['type']) => {
-    switch (type) {
-      case 'success':
-        return 'default';
-      case 'error':
-        return 'destructive';
-      case 'warning':
-        return 'default';
-      case 'info':
-        return 'default';
     }
   };
 

@@ -9,9 +9,8 @@ from app.routers.usuarios import router as usuarios_router
 from app.routers.catalogs import router as catalogs_router
 from app.routers.obras import router as obras_router
 from app.routers.configuracion import router as config_router
-from app.db.session import get_db
+from app.routers.personal import router as personal_router
 from app.services.startup import seed_admin
-from fastapi import Depends
 
 
 app = FastAPI(title=settings.APP_NAME)
@@ -31,6 +30,7 @@ app.include_router(usuarios_router, prefix=settings.API_V1_PREFIX)
 app.include_router(catalogs_router, prefix=settings.API_V1_PREFIX)
 app.include_router(obras_router, prefix=settings.API_V1_PREFIX)
 app.include_router(config_router, prefix=settings.API_V1_PREFIX)
+app.include_router(personal_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.on_event("startup")

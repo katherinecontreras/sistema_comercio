@@ -40,24 +40,7 @@ export const useAppStore = create<AppState>((set) => ({
       if (typeof localStorage !== 'undefined') localStorage.removeItem('access_token');
       return {
         user: { accessToken: null, dni: null },
-        client: { selectedClientId: null },
-        quote: { activeQuoteId: null },
-        wizard: { 
-          step: 'cliente', 
-          quoteFormData: { 
-            codigo_proyecto: '',
-            nombre_proyecto: '', 
-            descripcion_proyecto: '',
-            fecha_creacion: new Date().toISOString().split('T')[0],
-            fecha_entrega: '',
-            fecha_recepcion: '',
-            moneda: 'USD'
-          },
-          obras: [], 
-          items: [], 
-          costos: [], 
-          incrementos: [] 
-        },
+        client: { selectedClientId: null }
       };
     }),
 }));

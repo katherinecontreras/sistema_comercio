@@ -1,32 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, and_
-from typing import List, Optional
-import json
+from sqlalchemy import select
 
 from app.core.deps import role_required
 from app.db.session import get_db
-from app.db.models import (
-    Obra, Partida, SubPartida, PartidaCosto, SubPartidaCosto, 
-    Incremento, TipoTiempo, Recurso, TipoRecurso, Unidad
-)
-from app.schemas.obras import (
-    ObraCreate, ObraRead, ObraUpdate,
-    PartidaCreate, PartidaRead, PartidaUpdate,
-    SubPartidaCreate, SubPartidaRead, SubPartidaUpdate,
-    PartidaCostoCreate, PartidaCostoRead, PartidaCostoUpdate,
-    SubPartidaCostoCreate, SubPartidaCostoRead, SubPartidaCostoUpdate,
-    IncrementoCreate, IncrementoRead, IncrementoUpdate,
-    TipoTiempoCreate, TipoTiempoRead,
-    ObraResumenRead
-)
+from app.db.models import Obra
+from app.schemas.obras import ObraCreate, ObraRead, ObraUpdate
+
 
 router = APIRouter(prefix="/obras", tags=["obras"])
 
-
-# ============================================================================
-# ENDPOINTS DE OBRAS OPTIMIZADOS
-# ============================================================================
 
 @router.post("", response_model=ObraRead, status_code=status.HTTP_201_CREATED)
 def crear_obra(
@@ -36,16 +19,7 @@ def crear_obra(
 ):
     """Crear una nueva obra con campos de resumen inicializados"""
     obra_data = payload.dict()
-    obra_data.update({
-        'total_partidas': 0,
-        'total_subpartidas': 0,
-        'total_costo_obra_sin_incremento': 0,
-        'total_costo_obra_con_incrementos': 0,
-        'total_duracion_obra': 0,
-        'total_incrementos': 0,
-        'costos_partidas': {}
-    })
-    
+
     obra = Obra(**obra_data)
     db.add(obra)
     db.commit()
@@ -86,41 +60,6 @@ def actualizar_obra(
     return obra
 
 
-@router.get("/{id}/resumen", response_model=ObraResumenRead)
-def obtener_resumen_obra(
-    id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Obtener resumen detallado de una obra"""
-    obra = db.scalar(select(Obra).where(Obra.id_obra == id))
-    if not obra:
-        raise HTTPException(status_code=404, detail="Obra no encontrada")
-    
-    # Calcular estadísticas adicionales
-    partidas = db.scalars(select(Partida).where(Partida.id_obra == id)).all()
-    
-    # Contar recursos por planilla
-    recursos_por_planilla = {}
-    for partida in partidas:
-        if partida.costos:
-            for costo in partida.costos:
-                tipo_recurso_id = costo.id_tipo_recurso
-                if tipo_recurso_id not in recursos_por_planilla:
-                    recursos_por_planilla[tipo_recurso_id] = 0
-                recursos_por_planilla[tipo_recurso_id] += 1
-    
-    return {
-        **obra.__dict__,
-        'recursos_por_planilla': recursos_por_planilla,
-        'estadisticas_detalladas': {
-            'partidas_con_subpartidas': len([p for p in partidas if p.tiene_subpartidas]),
-            'partidas_sin_subpartidas': len([p for p in partidas if not p.tiene_subpartidas]),
-            'total_planillas': len(recursos_por_planilla)
-        }
-    }
-
-
 @router.post("/{id}/finalizar", response_model=ObraRead)
 def finalizar_obra(
     id: int,
@@ -131,298 +70,8 @@ def finalizar_obra(
     obra = db.scalar(select(Obra).where(Obra.id_obra == id))
     if not obra:
         raise HTTPException(status_code=404, detail="Obra no encontrada")
-    
-    # Calcular resúmenes finales
-    partidas = db.scalars(select(Partida).where(Partida.id_obra == id)).all()
-    
-    total_partidas = len(partidas)
-    total_subpartidas = sum(len(p.subpartidas) for p in partidas)
-    
-    # Calcular costos totales
-    total_costo_sin_incremento = 0
-    costos_partidas = {}
-    
-    for partida in partidas:
-        costo_partida = sum(c.costo_total for c in partida.costos) if partida.costos else 0
-        total_costo_sin_incremento += costo_partida
-        
-        costos_partidas[partida.id_partida] = {
-            'nombre': partida.nombre_partida,
-            'costo_total': costo_partida,
-            'subpartidas': []
-        }
-        
-        for subpartida in partida.subpartidas:
-            costo_subpartida = sum(c.costo_total for c in subpartida.costos) if subpartida.costos else 0
-            costos_partidas[partida.id_partida]['subpartidas'].append({
-                'id': subpartida.id_subpartida,
-                'nombre': subpartida.descripcion_tarea,
-                'costo_total': costo_subpartida
-            })
-    
-    # Calcular incrementos totales
-    incrementos = db.scalars(select(Incremento).where(Incremento.id_obra == id)).all()
-    total_incrementos = sum(i.monto_calculado for i in incrementos)
-    
-    # Calcular duración total
-    total_duracion = sum(p.duracion for p in partidas)
-    
-    # Actualizar obra
-    obra.estado = "finalizada"
-    obra.total_partidas = total_partidas
-    obra.total_subpartidas = total_subpartidas
-    obra.total_costo_obra_sin_incremento = total_costo_sin_incremento
-    obra.total_costo_obra_con_incrementos = total_costo_sin_incremento + total_incrementos
-    obra.total_duracion_obra = total_duracion
-    obra.total_incrementos = total_incrementos
-    obra.costos_partidas = costos_partidas
-    
+       
     db.commit()
     db.refresh(obra)
     return obra
 
-
-# ============================================================================
-# ENDPOINTS DE PARTIDAS OPTIMIZADOS
-# ============================================================================
-
-@router.post("/partidas", response_model=PartidaRead, status_code=status.HTTP_201_CREATED)
-def crear_partida(
-    payload: PartidaCreate,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Crear una nueva partida"""
-    partida_data = payload.dict()
-    
-    # Validar que la obra existe
-    obra = db.scalar(select(Obra).where(Obra.id_obra == partida_data['id_obra']))
-    if not obra:
-        raise HTTPException(status_code=404, detail="Obra no encontrada")
-    
-    # Validar tipo de tiempo si se proporciona
-    if partida_data.get('id_tipo_tiempo'):
-        tipo_tiempo = db.scalar(select(TipoTiempo).where(TipoTiempo.id_tipo_tiempo == partida_data['id_tipo_tiempo']))
-        if not tipo_tiempo:
-            raise HTTPException(status_code=404, detail="Tipo de tiempo no encontrado")
-    
-    partida = Partida(**partida_data)
-    db.add(partida)
-    db.commit()
-    db.refresh(partida)
-    
-    # Actualizar resumen de obra
-    actualizar_resumen_obra(db, partida.id_obra)
-    
-    return partida
-
-
-@router.get("/{id_obra}/partidas", response_model=List[PartidaRead])
-def listar_partidas(
-    id_obra: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Listar partidas de una obra con datos completos"""
-    partidas = db.scalars(
-        select(Partida)
-        .where(Partida.id_obra == id_obra)
-        .order_by(Partida.id_partida)
-    ).all()
-    return partidas
-
-
-@router.put("/partidas/{id}", response_model=PartidaRead)
-def actualizar_partida(
-    id: int,
-    payload: PartidaUpdate,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Actualizar una partida"""
-    partida = db.scalar(select(Partida).where(Partida.id_partida == id))
-    if not partida:
-        raise HTTPException(status_code=404, detail="Partida no encontrada")
-    
-    for field, value in payload.dict(exclude_unset=True).items():
-        setattr(partida, field, value)
-    
-    db.commit()
-    db.refresh(partida)
-    
-    # Actualizar resumen de obra
-    actualizar_resumen_obra(db, partida.id_obra)
-    
-    return partida
-
-
-@router.delete("/partidas/{id}")
-def eliminar_partida(
-    id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Eliminar una partida"""
-    partida = db.scalar(select(Partida).where(Partida.id_partida == id))
-    if not partida:
-        raise HTTPException(status_code=404, detail="Partida no encontrada")
-    
-    obra_id = partida.id_obra
-    db.delete(partida)
-    db.commit()
-    
-    # Actualizar resumen de obra
-    actualizar_resumen_obra(db, obra_id)
-    
-    return {"message": "Partida eliminada correctamente"}
-
-
-# ============================================================================
-# ENDPOINTS DE SUBPARTIDAS OPTIMIZADOS
-# ============================================================================
-
-@router.post("/subpartidas", response_model=SubPartidaRead, status_code=status.HTTP_201_CREATED)
-def crear_subpartida(
-    payload: SubPartidaCreate,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Crear una nueva subpartida"""
-    subpartida_data = payload.dict()
-    
-    # Validar que la partida existe
-    partida = db.scalar(select(Partida).where(Partida.id_partida == subpartida_data['id_partida']))
-    if not partida:
-        raise HTTPException(status_code=404, detail="Partida no encontrada")
-    
-    # Validar tipo de tiempo si se proporciona
-    if subpartida_data.get('id_tipo_tiempo'):
-        tipo_tiempo = db.scalar(select(TipoTiempo).where(TipoTiempo.id_tipo_tiempo == subpartida_data['id_tipo_tiempo']))
-        if not tipo_tiempo:
-            raise HTTPException(status_code=404, detail="Tipo de tiempo no encontrado")
-    
-    subpartida = SubPartida(**subpartida_data)
-    db.add(subpartida)
-    
-    # Actualizar flag de partida
-    partida.tiene_subpartidas = True
-    
-    db.commit()
-    db.refresh(subpartida)
-    
-    # Actualizar resumen de obra
-    actualizar_resumen_obra(db, partida.id_obra)
-    
-    return subpartida
-
-
-@router.get("/partidas/{id_partida}/subpartidas", response_model=List[SubPartidaRead])
-def listar_subpartidas(
-    id_partida: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Listar subpartidas de una partida"""
-    subpartidas = db.scalars(
-        select(SubPartida)
-        .where(SubPartida.id_partida == id_partida)
-        .order_by(SubPartida.id_subpartida)
-    ).all()
-    return subpartidas
-
-
-# ============================================================================
-# ENDPOINTS DE RECURSOS OPTIMIZADOS
-# ============================================================================
-
-@router.get("/recursos/tipo/{id_tipo_recurso}")
-def obtener_recursos_por_tipo(
-    id_tipo_recurso: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Obtener recursos por tipo con datos completos"""
-    recursos = db.scalars(
-        select(Recurso)
-        .where(Recurso.id_tipo_recurso == id_tipo_recurso)
-        .order_by(Recurso.descripcion)
-    ).all()
-    
-    # Incluir datos relacionados
-    recursos_con_relaciones = []
-    for recurso in recursos:
-        recurso_dict = recurso.__dict__.copy()
-        if recurso.unidad:
-            recurso_dict['unidad'] = {
-                'id_unidad': recurso.unidad.id_unidad,
-                'nombre': recurso.unidad.nombre,
-                'simbolo': recurso.unidad.simbolo
-            }
-        if recurso.tipo_recurso:
-            recurso_dict['tipo_recurso'] = {
-                'id_tipo_recurso': recurso.tipo_recurso.id_tipo_recurso,
-                'nombre': recurso.tipo_recurso.nombre,
-                'icono': recurso.tipo_recurso.icono
-            }
-        recursos_con_relaciones.append(recurso_dict)
-    
-    return recursos_con_relaciones
-
-
-# ============================================================================
-# FUNCIONES AUXILIARES
-# ============================================================================
-
-def actualizar_resumen_obra(db: Session, obra_id: int):
-    """Actualizar resumen de obra después de cambios"""
-    obra = db.scalar(select(Obra).where(Obra.id_obra == obra_id))
-    if not obra:
-        return
-    
-    # Contar partidas y subpartidas
-    total_partidas = db.scalar(
-        select(func.count(Partida.id_partida))
-        .where(Partida.id_obra == obra_id)
-    ) or 0
-    
-    total_subpartidas = db.scalar(
-        select(func.count(SubPartida.id_subpartida))
-        .join(Partida)
-        .where(Partida.id_obra == obra_id)
-    ) or 0
-    
-    # Calcular costos totales
-    total_costo_sin_incremento = db.scalar(
-        select(func.coalesce(func.sum(PartidaCosto.costo_total), 0))
-        .join(Partida)
-        .where(Partida.id_obra == obra_id)
-    ) or 0
-    
-    total_costo_sin_incremento += db.scalar(
-        select(func.coalesce(func.sum(SubPartidaCosto.costo_total), 0))
-        .join(SubPartida)
-        .join(Partida)
-        .where(Partida.id_obra == obra_id)
-    ) or 0
-    
-    # Calcular incrementos totales
-    total_incrementos = db.scalar(
-        select(func.coalesce(func.sum(Incremento.monto_calculado), 0))
-        .where(Incremento.id_obra == obra_id)
-    ) or 0
-    
-    # Calcular duración total
-    total_duracion = db.scalar(
-        select(func.coalesce(func.sum(Partida.duracion), 0))
-        .where(Partida.id_obra == obra_id)
-    ) or 0
-    
-    # Actualizar obra
-    obra.total_partidas = total_partidas
-    obra.total_subpartidas = total_subpartidas
-    obra.total_costo_obra_sin_incremento = total_costo_sin_incremento
-    obra.total_costo_obra_con_incrementos = total_costo_sin_incremento + total_incrementos
-    obra.total_duracion_obra = total_duracion
-    obra.total_incrementos = total_incrementos
-    
-    db.commit()

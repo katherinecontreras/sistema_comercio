@@ -1,25 +1,10 @@
-// Forms
-export { default as PartidaBasicInfo, SmartSelect } from '../forms/PartidaBasicInfo';
-
-// Tables
-export { default as ResourceTable, SummaryCard } from '../tables/ResourceTable';
-export { default as ModernTable } from '../tables/ModernTable';
-export { default as TableComponent } from '../tables/TableComponent';
 
 // Notifications
-export { ToastProvider, useToast, useToastHelpers } from '../notifications/ToastProvider';
+export { ToastProvider, useToast, useToastHelpers } from './notifications/ToastProvider';
+export { default as NotificationMessage } from './notifications/NotificationMessage';
 
 // Animations
-export { 
-  FadeIn, 
-  SlideIn, 
-  ScaleIn, 
-  StaggerContainer, 
-  StaggerItem, 
-  PageTransition, 
-  LoadingSpinner, 
-  Pulse 
-} from '../animations/MotionComponents';
+export { default as MotionComponents } from './animations/MotionComponents';
 
 // Modern UI Components
 export {
@@ -29,15 +14,30 @@ export {
   ProgressBar,
   LoadingSpinner as ModernLoadingSpinner,
   EmptyState
-} from '../ui/ModernComponents';
+} from './ui/ModernComponents';
 
-// Testing
-export { default as TestingDashboard } from '../testing/TestingDashboard';
+export { default as DataTable } from './tables/DataTable';
 
-// Modals
-export { default as AddClientModal } from './AddClientModal';
-export { default as AddEspecialidadModal } from './AddEspecialidadModal';
-export { default as AddIncrementModal } from './AddIncrementModal';
-export { default as AddPlanillaModal } from './AddPlanillaModal';
-export { default as AddUnidadModal } from './AddUnidadModal';
-export { default as ConfirmModal } from './ConfirmModal';
+export { default as LoadingState } from './ui/LoadingState';
+
+// Base UI Components
+export { default as BaseModal, ConfirmModal } from './modals/BaseModal';
+export { default as SmartSelect } from './ui/SmartSelect';
+export { 
+  FormField, 
+  TextareaField, 
+  NumberField, 
+  PasswordField, 
+  FormFieldWrapper 
+} from './forms/FormField';
+export { default as LoadingButton } from './ui/LoadingButton';
+export { default as ErrorBoundary } from './ui/ErrorBoundary';
+
+// Sidebars
+export { default as ObraSidebar } from './sidebars/ObraSidebar';
+export { default as Sidebar } from './sidebars/Sidebar';
+
+
+// Core Components
+export { default as Dashboard } from '../app/Home/Dashboard/page';
+export { default as ProtectedRoute } from './ProtectedRoute';
