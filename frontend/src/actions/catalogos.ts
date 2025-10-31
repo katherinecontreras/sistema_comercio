@@ -6,7 +6,7 @@ export const getClientes = async () => {
   return response.data;
 };
 
-export const addCliente = async (clienteData: { razon_social: string; cuit: string, direccion: string }) => {
+export const addCliente = async (clienteData: { razon_social: string; cuit: string, actividad: string }) => {
   const response = await api.post('/catalogos/clientes', clienteData);
   return response.data;
 };

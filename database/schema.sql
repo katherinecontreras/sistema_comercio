@@ -20,7 +20,7 @@ CREATE TABLE clientes (
   id_cliente SERIAL PRIMARY KEY,
   razon_social VARCHAR(250) NOT NULL,
   cuit VARCHAR(20) NOT NULL UNIQUE,
-  direccion TEXT
+  actividad TEXT
 );
 
 -- Obras
@@ -45,16 +45,33 @@ CREATE TABLE personal (
   descuentos DOUBLE PRECISION NOT NULL,
   porc_descuento DOUBLE PRECISION NOT NULL,
   sueldo_no_remunerado DOUBLE PRECISION NOT NULL,
-  neto_mensual_con_vianda_xdia DOUBLE PRECISION NOT NULL,
+  neto_bolsillo_mensual DOUBLE PRECISION NOT NULL,
   cargas_sociales DOUBLE PRECISION NOT NULL,
   porc_cargas_sociales_sobre_sueldo_bruto DOUBLE PRECISION NOT NULL,
   costo_total_mensual DOUBLE PRECISION NOT NULL,
   costo_mensual_sin_seguros DOUBLE PRECISION NOT NULL,
   seguros_art_mas_vo DOUBLE PRECISION NOT NULL,
-  examen_medico_y_capacitacion DOUBLE PRECISION NOT NULL,
+  examen_medico DOUBLE PRECISION NOT NULL,
   indumentaria_y_epp DOUBLE PRECISION NOT NULL,
   pernoctes_y_viajes DOUBLE PRECISION NOT NULL,
   costo_total_mensual_apertura DOUBLE PRECISION NOT NULL
+);
+
+-- Equipos
+CREATE TABLE equipos (
+    id_equipo SERIAL PRIMARY KEY, 
+    detalle VARCHAR(250) NOT NULL,
+    Amortizacion DOUBLE PRECISION NOT NULL,
+    Seguro DOUBLE PRECISION NOT NULL,
+    Patente DOUBLE PRECISION NOT NULL,
+    Transporte DOUBLE PRECISION NOT NULL,
+    Fee_alquiler DOUBLE PRECISION NOT NULL,
+    Combustible DOUBLE PRECISION NOT NULL,
+    Lubricantes DOUBLE PRECISION NOT NULL,
+    Neumaticos DOUBLE PRECISION NOT NULL,
+    Mantenim DOUBLE PRECISION NOT NULL,
+    Operador DOUBLE PRECISION NOT NULL,
+    Total_mes DOUBLE PRECISION NOT NULL
 );
 
 
@@ -66,5 +83,5 @@ INSERT INTO roles (nombre_rol, descripcion) VALUES
 INSERT INTO usuarios (nombre, dni, id_rol, password_hash) VALUES 
 ('Admin Sistema', '12345678', 1, '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/8KzK8K2');
 
-INSERT INTO clientes (razon_social, cuit, direccion) VALUES 
+INSERT INTO clientes (razon_social, cuit, actividad) VALUES 
 ('Constructora ABC S.A.', '20-12345678-9', 'Av. Principal 123, Buenos Aires');

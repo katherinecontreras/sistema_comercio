@@ -10,6 +10,7 @@ from app.routers.catalogs import router as catalogs_router
 from app.routers.obras import router as obras_router
 from app.routers.configuracion import router as config_router
 from app.routers.personal import router as personal_router
+from app.routers.equipos import router as equipos_router
 from app.services.startup import seed_admin
 
 
@@ -17,7 +18,12 @@ app = FastAPI(title=settings.APP_NAME)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://localhost",
+        "http://127.0.0.1",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +37,7 @@ app.include_router(catalogs_router, prefix=settings.API_V1_PREFIX)
 app.include_router(obras_router, prefix=settings.API_V1_PREFIX)
 app.include_router(config_router, prefix=settings.API_V1_PREFIX)
 app.include_router(personal_router, prefix=settings.API_V1_PREFIX)
+app.include_router(equipos_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.on_event("startup")

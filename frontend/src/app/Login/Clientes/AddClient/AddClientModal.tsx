@@ -13,7 +13,7 @@ interface Props {
 interface ClientFormData {
   razon_social: string;
   cuit: string;
-  direccion: string;
+  actividad: string;
 }
 
 const AddClientModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
@@ -27,7 +27,7 @@ const AddClientModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
     initialData: {
       razon_social: '',
       cuit: '',
-      direccion: ''
+      actividad: ''
     },
     validationRules: [
       { field: 'razon_social', validator: validators.required('Razón Social') },
@@ -92,7 +92,7 @@ const AddClientModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
         
         <FormField
           label="Dirección"
-          {...getFieldProps('direccion')}
+          {...getFieldProps('actividad')}
           placeholder="Ingrese la dirección (opcional)"
         />
         

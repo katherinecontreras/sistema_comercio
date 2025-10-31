@@ -1,19 +1,33 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
+import OfertaSidebar from '@/components/sidebars/OfertaSidebar';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { motion } from 'framer-motion';
 
-// Importamos nuestro componente de animación
-import MotionWrap from '@/components/animations/motion-wrap';
+const OfertaLayout: React.FC = () => {
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = React.useState(!isMobile);
 
-const Obra: React.FC = () => {
+  // Calcular el margen izquierdo para el contenido principal
+  const getMainMargin = () => {
+    if (isMobile) return '0rem';
+    return sidebarOpen ? '18rem' : '5rem';
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white">
-      <MotionWrap className="w-full max-w-sm">
-        <div className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-glow p-8 space-y-8">
-          oferta
-        </div>
-      </MotionWrap>
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
+      <OfertaSidebar onToggle={setSidebarOpen} />
+      <motion.main
+        animate={{
+          marginLeft: getMainMargin(),
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="flex-1 overflow-hidden w-full"
+      >
+        <Outlet />
+      </motion.main>
     </div>
   );
 };
 
-export default Obra;
+export default OfertaLayout;

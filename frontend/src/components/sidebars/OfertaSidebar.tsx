@@ -7,11 +7,11 @@ import { useObraBaseStore } from '@/store/obra/obraStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { NavLink } from './NavLink';
 
-interface ObraSidebarProps {
+interface OfertaSidebarProps {
   onToggle?: (isOpen: boolean) => void;
 }
 
-const ObraSidebar: React.FC<ObraSidebarProps> = React.memo(({ onToggle }) => {
+const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { obra } = useObraBaseStore();
@@ -36,10 +36,11 @@ const ObraSidebar: React.FC<ObraSidebarProps> = React.memo(({ onToggle }) => {
   }, [isMobile]);
 
   const navigation = [
-    { name: 'Información', href: '/obra/informacion', icon: FileText },
-    { name: 'Planilla', href: '/obra/planilla', icon: Calculator },
-    { name: 'Equipos', href: '/obra/equipos', icon: Package },
-    { name: 'Personal', href: '/obra/personal', icon: Users },
+    { name: 'Obra', href: '/oferta/obra', icon: FileText },
+    { name: 'Recursos', href: '/oferta/recursos', icon: Package },
+    { name: 'Planilla', href: '/oferta/planilla', icon: Calculator },
+    { name: 'Equipos', href: '/oferta/equipos', icon: Package },
+    { name: 'Personal', href: '/oferta/personal', icon: Users },
   ];
 
   const handleBack = () => {
@@ -78,7 +79,7 @@ const ObraSidebar: React.FC<ObraSidebarProps> = React.memo(({ onToggle }) => {
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
-                </div>
+          </div>
                 
           <div className="flex justify-start items-start">
             <AnimatePresence mode="wait">
@@ -108,7 +109,7 @@ const ObraSidebar: React.FC<ObraSidebarProps> = React.memo(({ onToggle }) => {
               )}
             </AnimatePresence>
           </div>
-      </div>
+        </div>
 
         {/* Navegación principal */}
         <nav className="flex-grow space-y-2">
@@ -138,12 +139,13 @@ const ObraSidebar: React.FC<ObraSidebarProps> = React.memo(({ onToggle }) => {
             <ArrowLeft className="w-5 h-5" />
             {isOpen && <span className="ml-3">Volver</span>}
           </button>
-    </div>
+        </div>
       </motion.aside>
     </>
   );
 });
 
-ObraSidebar.displayName = 'ObraSidebar';
+OfertaSidebar.displayName = 'OfertaSidebar';
 
-export default ObraSidebar;
+export default OfertaSidebar;
+

@@ -6,62 +6,64 @@ from openpyxl import load_workbook
 from io import BytesIO
 
 from app.db.session import get_db
-from app.db.models import Personal
-from app.schemas.personal import PersonalCreate, PersonalUpdate, PersonalRead
+from app.db.models import Equipo
+from app.schemas.equipos import EquipoCreate, EquipoUpdate, EquipoRead
 try:
-    # Algoritmo basado en pandas pedido por el cliente
-    from app.services.limpiar_y_convertir_datos_personal import limpiar_y_convertir_datos_personal, COLUMNAS_FINALES  # type: ignore
+    # Algoritmo basado en pandas para EQUIPOS
+    from app.services.limpiar_y_convertir_datos_equipos import (
+        limpiar_y_convertir_datos_equipos,
+        COLUMNAS_FINALES_EQUIPOS,
+    )  # type: ignore
     _PANDAS_AVAILABLE = True
-except Exception as e:
-    print(f"Error importando algoritmo de personal: {e}")
+except Exception:
     _PANDAS_AVAILABLE = False
 
 
-router = APIRouter(prefix="/personal", tags=["Personal"])
+router = APIRouter(prefix="/equipos", tags=["Equipo"])
 
 
-@router.get("/", response_model=List[PersonalRead])
-def listar_personal(db: Session = Depends(get_db)):
-    return db.scalars(select(Personal)).all()
+@router.get("/", response_model=List[EquipoRead])
+def listar_equipos(db: Session = Depends(get_db)):
+    return db.scalars(select(Equipo)).all()
 
 
-@router.get("/{id_personal}", response_model=PersonalRead)
-def obtener_personal(id_personal: int, db: Session = Depends(get_db)):
-    personal = db.get(Personal, id_personal)
-    if not personal:
-        raise HTTPException(status_code=404, detail="Personal no encontrado")
-    return personal
+@router.get("/{id_equipos}", response_model=EquipoRead)
+def obtener_equipos(id_equipos: int, db: Session = Depends(get_db)):
+    equipos = db.get(Equipo, id_equipos)
+    if not equipos:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    return equipos
 
 
-@router.post("/", response_model=PersonalRead, status_code=status.HTTP_201_CREATED)
-def crear_personal(payload: PersonalCreate, db: Session = Depends(get_db)):
-    # Evitar duplicados por funcion
-    existente = db.scalar(select(Personal).where(Personal.funcion == payload.funcion))
+@router.post("/", response_model=EquipoRead, status_code=status.HTTP_201_CREATED)
+def crear_equipos(payload: EquipoCreate, db: Session = Depends(get_db)):
+    # Evitar duplicados por detalle
+    existente = db.scalar(select(Equipo).where(Equipo.detalle == payload.detalle))
     if existente:
-        raise HTTPException(status_code=409, detail="Ya existe un registro con esa función")
+        raise HTTPException(status_code=409, detail="Ya existe un registro con ese detalle")
 
-    nuevo = Personal(**payload.model_dict())
+    nuevo = Equipo(**payload.model_dump())
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
     return nuevo
 
 
-@router.put("/{id_personal}", response_model=PersonalRead)
-def actualizar_personal(id_personal: int, payload: PersonalUpdate, db: Session = Depends(get_db)):
-    personal = db.get(Personal, id_personal)
-    if not personal:
-        raise HTTPException(status_code=404, detail="Personal no encontrado")
+@router.put("/{id_equipos}", response_model=EquipoRead)
+def actualizar_equipos(id_equipos: int, payload: EquipoUpdate, db: Session = Depends(get_db)):
+    equipos = db.get(Equipo, id_equipos)
+    if not equipos:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
 
     for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(personal, field, value)
+        setattr(equipos, field, value)
 
     db.commit()
-    db.refresh(personal)
-    return personal
+    db.refresh(equipos)
+    return equipos
 
 
-@router.post("/import-excel-original", summary="Importar Excel original de personal (limpieza + upsert - pandas)")
+@router.post("/import-excel-original", summary="Importar Excel original de equipos (limpieza + upsert - pandas)")
 async def importar_excel_original(
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -80,14 +82,14 @@ async def importar_excel_original(
     try:
         # Si viene binario (UploadFile), pasamos un BytesIO al limpiador
         stream_or_path = io.BytesIO(content)
-        csv_stream = limpiar_y_convertir_datos_personal(stream_or_path, formato_salida='csv')
+        csv_stream = limpiar_y_convertir_datos_equipos(stream_or_path, formato_salida='csv')
     except Exception as e:
         import traceback
         error_detail = f"Error transformando Excel con pandas: {str(e)}\n{traceback.format_exc()}"
         print(f"ERROR EN LIMPIEZA: {error_detail}")  # Log para debugging
         raise HTTPException(status_code=400, detail=error_detail)
 
-    # Parsear el CSV limpio resultante y upsert por funcion
+    # Parsear el CSV limpio resultante y upsert por 'detalle'
     csv_stream.seek(0)
     # El csv_stream es un StringIO, necesitamos leerlo como texto
     csv_text = csv_stream.read()
@@ -107,24 +109,24 @@ async def importar_excel_original(
     try:
         for row in reader:
             # Asegurar sólo las columnas finales esperadas
-            data = {k: row.get(k) for k in COLUMNAS_FINALES}
-            funcion = (data.get('funcion') or '').strip()
-            if not funcion or funcion.lower() in ['nan', 'none', '']:
+            data = {k: row.get(k) for k in COLUMNAS_FINALES_EQUIPOS}
+            detalle = (data.get('detalle') or '').strip()
+            if not detalle or detalle.lower() in ['nan', 'none', '']:
                 continue
 
             # Normalizar numéricos
-            for k in COLUMNAS_FINALES:
-                if k == 'funcion':
+            for k in COLUMNAS_FINALES_EQUIPOS:
+                if k == 'detalle':
                     continue
                 data[k] = to_float(data.get(k))
 
-            existente = db.scalar(select(Personal).where(Personal.funcion == funcion))
+            existente = db.scalar(select(Equipo).where(Equipo.detalle == detalle))
             if existente:
                 for field, value in data.items():
                     setattr(existente, field, value)
                 actualizados += 1
             else:
-                nuevo = Personal(**data)  # type: ignore[arg-type]
+                nuevo = Equipo(**data)  # type: ignore[arg-type]
                 db.add(nuevo)
                 insertados += 1
             procesados += 1
@@ -145,15 +147,15 @@ async def importar_excel_original(
     }
 
 
-@router.delete("/reset", summary="Borrar todos los registros de personal y reiniciar IDs")
-def reset_personal(db: Session = Depends(get_db)):
+@router.delete("/reset", summary="Borrar todos los registros de equipos y reiniciar IDs")
+def reset_equipos(db: Session = Depends(get_db)):
     try:
         # PostgreSQL: TRUNCATE + RESTART IDENTITY
-        db.execute(text("TRUNCATE TABLE personal RESTART IDENTITY CASCADE"))
+        db.execute(text("TRUNCATE TABLE equipos RESTART IDENTITY CASCADE"))
         db.commit()
-        return {"success": True, "message": "Tabla personal vaciada y secuencia reiniciada"}
+        return {"success": True, "message": "Tabla equipos vaciada y secuencia reiniciada"}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al reiniciar personal: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al reiniciar equipos: {str(e)}")
 
 

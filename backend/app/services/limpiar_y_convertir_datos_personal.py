@@ -10,13 +10,13 @@ COLUMNAS_FINALES = [
     'descuentos',
     'porc_descuento',
     'sueldo_no_remunerado',
-    'neto_mensual_con_vianda_xdia',
+    'neto_bolsillo_mensual',
     'cargas_sociales',
     'porc_cargas_sociales_sobre_sueldo_bruto',
     'costo_total_mensual',
     'costo_mensual_sin_seguros',
     'seguros_art_mas_vo',
-    'examen_medico_y_capacitacion',
+    'examen_medico',
     'indumentaria_y_epp',
     'pernoctes_y_viajes',
     'costo_total_mensual_apertura'
@@ -50,9 +50,19 @@ def limpiar_y_convertir_datos_personal(archivo_entrada, formato_salida='csv'):
     # El encabezado real está en la fila 3 (índice 2).
     
     # 1. Leer el archivo (asumiendo que puede ser Excel o el CSV resultante del Excel)
-    if isinstance(archivo_entrada, str) and archivo_entrada.lower().endswith('.xlsx'):
+    if isinstance(archivo_entrada, str) and archivo_entrada.lower().endswith(('.xlsx', '.xlsm', '.xls')):
         # Si es un Excel, pandas lo lee directamente.
         df = pd.read_excel(archivo_entrada, header=2) 
+    elif isinstance(archivo_entrada, io.BytesIO):
+        # Si es un BytesIO, intentar primero como Excel
+        try:
+            archivo_entrada.seek(0)  # Asegurar que esté al inicio
+            df = pd.read_excel(archivo_entrada, header=2, engine='openpyxl')
+        except Exception:
+            # Si no es Excel, intentar como CSV
+            archivo_entrada.seek(0)
+            df = pd.read_csv(archivo_entrada, header=2, encoding='latin1', 
+                           sep=',', decimal='.', thousands=None, skipinitialspace=True)
     else:
         # Si es un CSV (o un stream), lo leemos. Usamos 'latin1' como encoding de lectura
         # por si el archivo CSV generado desde Excel tiene caracteres especiales.
@@ -70,28 +80,36 @@ def limpiar_y_convertir_datos_personal(archivo_entrada, formato_salida='csv'):
 
     # 2. Definir los nombres originales de las columnas que queremos mantener
     # Basado en la estructura del Excel original:
-    # A3=Funcion, B3=Sueldo Bruto, ... hasta la Columna J3=Costo Total Mensual.
-    # K3=Costo Mensual sin Seguros, L3=Seguros, M3=Examen, N3=Indumentaria, O3=Pernoctes, P3=Costo Total Apertura.
+    # Fila 3 (header=2): Columna 0 (vacía), Columna 1 (Función), Columna 2 (Sueldo Bruto), ...
+    # Los datos empiezan en la columna índice 1 (Función)
+    
+    # Convertir nombres de columnas a string para evitar problemas
+    df.columns = [str(col).strip() for col in df.columns]
     
     # Renombrar usando los índices de columna (0-basado) del archivo después de saltar 2 filas
+    # IMPORTANTE: La primera columna (índice 0) está vacía, los datos empiezan en índice 1
+    
+    if len(df.columns) < 16:
+        raise ValueError(f"El archivo tiene menos columnas de las esperadas ({len(df.columns)}). Verifique el índice del encabezado.")
     
     column_mapping = {
         # Columna del Excel original -> Nombre de columna final deseado
-        df.columns[0]: 'funcion',
-        df.columns[1]: 'sueldo_bruto',
-        df.columns[2]: 'descuentos',
-        df.columns[3]: 'porc_descuento',
-        df.columns[4]: 'sueldo_no_remunerado',
-        df.columns[5]: 'neto_mensual_con_vianda_xdia',
-        df.columns[6]: 'cargas_sociales',
-        df.columns[7]: 'porc_cargas_sociales_sobre_sueldo_bruto',
-        df.columns[8]: 'costo_total_mensual',
-        df.columns[9]: 'costo_mensual_sin_seguros', # K3 en Excel original
-        df.columns[10]: 'seguros_art_mas_vo',      # L3 en Excel original
-        df.columns[11]: 'examen_medico_y_capacitacion', # M3 en Excel original
-        df.columns[12]: 'indumentaria_y_epp',    # N3 en Excel original
-        df.columns[13]: 'pernoctes_y_viajes',    # O3 en Excel original
-        df.columns[14]: 'costo_total_mensual_apertura' # P3 en Excel original
+        # La columna 0 está vacía, empezamos desde la columna 1 (Función)
+        df.columns[1]: 'funcion',      # Columna B (índice 1)
+        df.columns[2]: 'sueldo_bruto',  # Columna C (índice 2)
+        df.columns[3]: 'descuentos',    # Columna D (índice 3)
+        df.columns[4]: 'porc_descuento', # Columna E (índice 4)
+        df.columns[5]: 'sueldo_no_remunerado', # Columna F (índice 5)
+        df.columns[6]: 'neto_bolsillo_mensual', # Columna G (índice 6)
+        df.columns[7]: 'cargas_sociales', # Columna H (índice 7)
+        df.columns[8]: 'porc_cargas_sociales_sobre_sueldo_bruto', # Columna I (índice 8)
+        df.columns[9]: 'costo_total_mensual', # Columna J (índice 9)
+        df.columns[10]: 'costo_mensual_sin_seguros', # Columna K (índice 10)
+        df.columns[11]: 'seguros_art_mas_vo',      # Columna L (índice 11)
+        df.columns[12]: 'examen_medico', # Columna M (índice 12)
+        df.columns[13]: 'indumentaria_y_epp',    # Columna N (índice 13)
+        df.columns[14]: 'pernoctes_y_viajes',    # Columna O (índice 14)
+        df.columns[15]: 'costo_total_mensual_apertura' # Columna P (índice 15)
     }
     
     # 3. Renombrar las columnas para estandarizar
@@ -140,6 +158,9 @@ def limpiar_y_convertir_datos_personal(archivo_entrada, formato_salida='csv'):
     # Forzar la columna 'funcion' a ser string y limpiar espacios en blanco alrededor
     df_clean['funcion'] = df_clean['funcion'].astype(str).str.strip()
 
+    # Eliminamos filas donde 'funcion' es vacío o NaN, ya que son filas resumen o vacías
+    df_clean = df_clean[df_clean['funcion'].str.len() > 0].reset_index(drop=True)
+    df_clean = df_clean[df_clean['funcion'].str.lower() != 'nan'].reset_index(drop=True)
 
     # --- PASO 5: Conversión a CSV limpio (para manejar LATIN1 y comillas) ---
     
@@ -194,3 +215,4 @@ if __name__ == '__main__':
         print(f"ERROR: No se encontró el archivo {archivo_original}. Asegúrate de que la ruta es correcta.")
     except Exception as e:
         print(f"Ocurrió un error durante la limpieza: {e}")
+

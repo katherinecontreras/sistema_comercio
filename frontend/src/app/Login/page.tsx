@@ -1,8 +1,9 @@
 // src/components/Login.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { authService } from '@/services/auth';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useFormHandler, validators } from '@/hooks/useFormHandler';
 
 // Importamos los componentes de shadcn/ui y los iconos
 import { Button } from '@/components/ui/button';
@@ -15,29 +16,39 @@ import { Camera, User, Lock } from 'lucide-react';
 // Importamos nuestro componente de animación
 import MotionWrap from '@/components/animations/motion-wrap';
 
+interface LoginFormData {
+  dni: string;
+  password: string;
+}
+
 const Login: React.FC = () => {
-  const [dni, setDni] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await authService.login({ dni, password });
-      login(response.access_token, dni);
+  
+  const {
+    loading,
+    error,
+    handleSubmit,
+    getFieldProps
+  } = useFormHandler<LoginFormData>({
+    initialData: {
+      dni: '',
+      password: ''
+    },
+    validationRules: [
+      { field: 'dni', validator: validators.required('Usuario') },
+      { field: 'password', validator: validators.required('Contraseña') }
+    ],
+    onSubmit: async (data) => {
+      const response = await authService.login({ dni: data.dni, password: data.password });
+      login(response.access_token, data.dni);
       navigate('/seleccionar-cliente');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    showErrorToast: true,
+    errorMessage: 'Error al iniciar sesión',
+    showSuccessToast: false,
+    resetOnSuccess: false
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white">
@@ -59,8 +70,7 @@ const Login: React.FC = () => {
                 id="dni"
                 type="text"
                 placeholder="Username"
-                value={dni}
-                onChange={(e) => setDni(e.target.value)}
+                {...getFieldProps('dni')}
                 required
                 // Clases actualizadas para mejor consistencia con el tema oscuro
                 className="pl-11 h-12 bg-white/5 border-white/20 focus:border-sky-400 focus-visible:ring-sky-400"
@@ -73,8 +83,7 @@ const Login: React.FC = () => {
                 id="password"
                 type="password"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...getFieldProps('password')}
                 required
                 className="pl-11 h-12 bg-white/5 border-white/20 focus:border-sky-400 focus-visible:ring-sky-400"
               />

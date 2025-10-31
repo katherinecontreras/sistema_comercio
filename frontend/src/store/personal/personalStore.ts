@@ -7,13 +7,13 @@ export interface Personal {
   descuentos: number;
   porc_descuento: number;
   sueldo_no_remunerado: number;
-  neto_mensual_con_vianda_xdia: number;
+  neto_bolsillo_mensual: number;
   cargas_sociales: number;
   porc_cargas_sociales_sobre_sueldo_bruto: number;
   costo_total_mensual: number;
   costo_mensual_sin_seguros: number;
   seguros_art_mas_vo: number;
-  examen_medico_y_capacitacion: number;
+  examen_medico: number;
   indumentaria_y_epp: number;
   pernoctes_y_viajes: number;
   costo_total_mensual_apertura: number;

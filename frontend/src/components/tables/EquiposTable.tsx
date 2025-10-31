@@ -1,25 +1,25 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import type { Personal } from '@/store/personal/personalStore';
+import type { Equipo } from '@/store/equipo/equipoStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AnimatePresence, motion } from 'framer-motion';
-import {sectionConfligPersonal} from "@/components/tables/Columns"
+import { sectionConfigEquipos } from '@/components/tables/Columns';
 
-interface PersonalTableProps {
-  rows: Personal[];
+interface EquiposTableProps {
+  rows: Equipo[];
   loading?: boolean;
-  section?: 'sueldos' | 'costos' | 'descuentos' | 'cargas_sociales' | 'otros';
+  section?: 'propiedad' | 'operacion' | 'resumen';
   showSectionSelector?: boolean;
 }
 
-const PersonalTable: React.FC<PersonalTableProps> = ({ rows, loading = false, section, showSectionSelector = true }) => {
-  const [currentSection, setCurrentSection] = useState<'sueldos' | 'costos' | 'descuentos' | 'cargas_sociales' | 'otros'>(section || 'sueldos');
+const EquiposTable: React.FC<EquiposTableProps> = ({ rows, loading = false, section, showSectionSelector = true }) => {
+  const [currentSection, setCurrentSection] = useState<'propiedad' | 'operacion' | 'resumen'>(section || 'propiedad');
 
   useEffect(() => {
     if (section) setCurrentSection(section);
   }, [section]);
 
-  const columnsToRender = useMemo(() => sectionConfligPersonal[currentSection].columns, [currentSection]);
+  const columnsToRender = useMemo(() => sectionConfigEquipos[currentSection].columns, [currentSection]);
 
   return (
     <div className="space-y-3">
@@ -30,11 +30,9 @@ const PersonalTable: React.FC<PersonalTableProps> = ({ rows, loading = false, se
               <SelectValue placeholder="Seleccionar sección" />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 text-white border-slate-600">
-              <SelectItem value="sueldos">Sueldos</SelectItem>
-              <SelectItem value="costos">Costos</SelectItem>
-              <SelectItem value="descuentos">Descuentos</SelectItem>
-              <SelectItem value="cargas_sociales">Cargas Sociales</SelectItem>
-              <SelectItem value="otros">Otros</SelectItem>
+              <SelectItem value="propiedad">Costos de Propiedad</SelectItem>
+              <SelectItem value="operacion">Costos de Operación</SelectItem>
+              <SelectItem value="resumen">Resumen</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -45,9 +43,9 @@ const PersonalTable: React.FC<PersonalTableProps> = ({ rows, loading = false, se
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-700 sticky top-0 z-10">
-                <TableHead className="text-white">Función</TableHead>
+                <TableHead className="text-white">Detalle</TableHead>
                 {columnsToRender.map((c) => (
-                  <TableHead key={String(c.key)} className="text-right text-white whitespace-nowrap">{c.label}</TableHead>
+                  <TableHead key={String(c.key)} className="text-right text-white">{c.label}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -62,31 +60,31 @@ const PersonalTable: React.FC<PersonalTableProps> = ({ rows, loading = false, se
                 </TableRow>
               ) : (
                 <AnimatePresence mode="popLayout">
-                  {rows.map((p) => (
-                    <TableRow key={p.id_personal} className="hover:bg-slate-700/30">
+                  {rows.map((e) => (
+                    <TableRow key={e.id_equipo} className="hover:bg-slate-700/30">
                       <TableCell className="text-white">
                         <motion.div
-                          key={`funcion-${p.id_personal}-${currentSection}`}
+                          key={`detalle-${e.id_equipo}-${currentSection}`}
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
                           transition={{ duration: 0.18 }}
                         >
-                          {p.funcion}
+                          {e.detalle}
                         </motion.div>
                       </TableCell>
                       {columnsToRender.map((c, idx) => (
                         <TableCell key={String(c.key)} className="text-right text-slate-200">
                           <motion.div
-                            key={`${p.id_personal}-${String(c.key)}-${currentSection}`}
+                            key={`${e.id_equipo}-${String(c.key)}-${currentSection}`}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.18, delay: idx * 0.03 }}
                           >
-                            {typeof p[c.key] === 'number'
-                              ? (p[c.key] as unknown as number).toFixed(c.key.toString().startsWith('porc_') ? 4 : 2)
-                              : (p[c.key] as any)}
+                            {typeof e[c.key] === 'number'
+                              ? (e[c.key] as unknown as number).toFixed(2)
+                              : (e[c.key] as any)}
                           </motion.div>
                         </TableCell>
                       ))}
@@ -102,6 +100,5 @@ const PersonalTable: React.FC<PersonalTableProps> = ({ rows, loading = false, se
   );
 };
 
-export default PersonalTable;
-
+export default EquiposTable;
 

@@ -9,15 +9,17 @@ import Dashboard from '@/app/Home/Dashboard/page';
 import ClientSelector from '@/app/Login/Clientes/page';
 import Equipos from '@/app/Home/Equipos/page';
 import Personal from '@/app/Home/Personal/page';
+import OfertaLayout from './app/Oferta/page';
 import Obra from './app/Oferta/Obra/page';
+import Recursos from './app/Oferta/Recursos/page';
 
 // Componente para rutas protegidas
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return authService.isAuthenticated() ? (
-    <>{children}</>
-  ) : (
-    <Navigate to="/login" replace />
-  );
+  const isAuthenticated = authService.isAuthenticated();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
 };
 
 function App() {
@@ -37,8 +39,15 @@ function App() {
           <Route path="/equipos" element={<ProtectedRoute><Layout><Equipos/></Layout></ProtectedRoute>} />
           <Route path="/personal" element={<ProtectedRoute><Layout><Personal/></Layout></ProtectedRoute>} />
           
-          {/*oferta*/}
-          <Route path="/obra" element={<ProtectedRoute><Layout><Obra/></Layout></ProtectedRoute>}/>
+          {/*oferta - layout con sidebar*/}
+          <Route path="/oferta" element={<ProtectedRoute><OfertaLayout/></ProtectedRoute>}>
+            <Route index element={<Navigate to="/oferta/obra" replace />} />
+            <Route path="obra" element={<Obra />} />
+            <Route path="recursos" element={<Recursos />} />
+          </Route>
+          
+          {/* Redirección de /obra a /oferta/obra para mantener compatibilidad */}
+          <Route path="/obra" element={<Navigate to="/oferta/obra" replace />} />
         </Routes>
     </Router>
     </ToastProvider>

@@ -5,14 +5,8 @@ import { useAppStore } from '@/store/app';
 import { getClientes } from '@/actions/catalogos';
 import { DataTable } from '@/components';
 import { useNavigate } from 'react-router-dom';
-
-export interface Cliente {
-  id_cliente: number;
-  razon_social: string;
-  cuit: string;
-  direccion?: string;
-}
-
+import {columnsClient} from '@/components/tables/Columns';
+import { Cliente } from '@/components/tables/Columns';
 
 const ClientSelector: React.FC = () => {
   const [rows, setRows] = useState<Cliente[]>([]);
@@ -29,19 +23,6 @@ const ClientSelector: React.FC = () => {
   const handleIngresarSistema = () => {
     navigate('/dashboard');
   };
-
-  const columns = [
-    {
-      key: 'razon_social' as keyof Cliente,
-      header: 'Razón Social',
-      sortable: true
-    },
-    {
-      key: 'cuit' as keyof Cliente,
-      header: 'CUIT',
-      sortable: true
-    }
-  ];
 
   const load = async () => {
     const data = await getClientes();
@@ -62,7 +43,7 @@ const ClientSelector: React.FC = () => {
       </div>
       <DataTable
         data={rows}
-        columns={columns}
+        columns={columnsClient}
         searchable={true}
         searchPlaceholder="Buscar cliente..."
         selectedRow={rows.find(r => r.id_cliente === selectedId)}
