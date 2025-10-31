@@ -60,18 +60,3 @@ def actualizar_obra(
     return obra
 
 
-@router.post("/{id}/finalizar", response_model=ObraRead)
-def finalizar_obra(
-    id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(role_required(["Cotizador", "Administrador"]))
-):
-    """Finalizar una obra y calcular resúmenes finales"""
-    obra = db.scalar(select(Obra).where(Obra.id_obra == id))
-    if not obra:
-        raise HTTPException(status_code=404, detail="Obra no encontrada")
-       
-    db.commit()
-    db.refresh(obra)
-    return obra
-

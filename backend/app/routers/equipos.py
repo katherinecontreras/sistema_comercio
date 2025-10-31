@@ -2,18 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status,
 from sqlalchemy.orm import Session
 from sqlalchemy import select, text
 from typing import List
-from openpyxl import load_workbook
-from io import BytesIO
 
 from app.db.session import get_db
 from app.db.models import Equipo
 from app.schemas.equipos import EquipoCreate, EquipoUpdate, EquipoRead
 try:
-    # Algoritmo basado en pandas para EQUIPOS
     from app.services.limpiar_y_convertir_datos_equipos import (
         limpiar_y_convertir_datos_equipos,
         COLUMNAS_FINALES_EQUIPOS,
-    )  # type: ignore
+    )
     _PANDAS_AVAILABLE = True
 except Exception:
     _PANDAS_AVAILABLE = False
@@ -28,7 +25,7 @@ def listar_equipos(db: Session = Depends(get_db)):
 
 
 @router.get("/{id_equipos}", response_model=EquipoRead)
-def obtener_equipos(id_equipos: int, db: Session = Depends(get_db)):
+def obtener_equipo(id_equipos: int, db: Session = Depends(get_db)):
     equipos = db.get(Equipo, id_equipos)
     if not equipos:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")

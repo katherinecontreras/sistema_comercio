@@ -2,14 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status,
 from sqlalchemy.orm import Session
 from sqlalchemy import select, text
 from typing import List
-from openpyxl import load_workbook
-from io import BytesIO
 
 from app.db.session import get_db
 from app.db.models import Personal
 from app.schemas.personal import PersonalCreate, PersonalUpdate, PersonalRead
 try:
-    # Algoritmo basado en pandas pedido por el cliente
     from app.services.limpiar_y_convertir_datos_personal import limpiar_y_convertir_datos_personal, COLUMNAS_FINALES  # type: ignore
     _PANDAS_AVAILABLE = True
 except Exception as e:

@@ -56,6 +56,33 @@ class Obra(Base):
    
     cliente = relationship("Cliente", back_populates="obras")
 
+class ItemObra(Base):
+    __tablename__ = "itemsObra"
+
+    id_item_Obra: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
+    meses_operario: Mapped[float] = mapped_column(Float, nullable=False)
+    capataz: Mapped[float] = mapped_column(Float, nullable=False)
+
+    obra = relationship("Obra", back_populates="itemsObra")
+
+class Tipo_recurso(Base):
+    __tablename__ = "tiposRecurso"
+
+    id_tipo_recurso: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
+
+class Recurso(Base):
+    __tablename__ = "recursos"
+
+    id_recurso: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
+    unidad: Mapped[float] = mapped_column(Float, nullable=False)
+    cantidad: Mapped[float] = mapped_column(Float, nullable=False)
+    meses_operario: Mapped[float] = mapped_column(Float, nullable=False)
+
+    tipo_recurso = relationship("Tipo_recurso", back_populates="recursos")
+
 class Personal(Base):
     __tablename__ = "personal"
 
