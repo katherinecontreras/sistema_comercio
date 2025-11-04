@@ -1,6 +1,12 @@
 import api from '@/services/api';
 
 // Obras
+
+export const getObras = async () => {
+  const { data } = await api.get('/obras/');
+  return data;
+};
+
 export const createObra = async (obraData: any) => {
   const response = await api.post('/obras', obraData);
   return response.data;

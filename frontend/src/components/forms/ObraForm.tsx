@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useObraBaseStore } from '@/store/obra/obraStore';
 import { useAppStore } from '@/store/app';
 import { FormField, TextareaField, LoadingButton } from '@/components';
 import { Button } from '@/components/ui/button';
 import { useFormHandler, validators } from '@/hooks/useFormHandler';
+import { getObras } from '@/actions/obras';
 
 interface ObraFormData {
+  id_obra: number;
   codigo_proyecto: string;
   nombre_proyecto: string;
   descripcion_proyecto: string;
@@ -17,6 +18,7 @@ interface ObraFormData {
 }
 
 const initialFormData: ObraFormData = {
+  id_obra: 0,
   codigo_proyecto: '',
   nombre_proyecto: '',
   descripcion_proyecto: '',
@@ -27,9 +29,8 @@ const initialFormData: ObraFormData = {
 };
 
 const ObraForm: React.FC = () => {
-  const { obra, setObra } = useObraBaseStore();
+  const { obra, setObra, setEditObra } = useObraBaseStore();
   const { client } = useAppStore();
-  const navigate = useNavigate();
   
   const {
     loading,
@@ -48,18 +49,32 @@ const ObraForm: React.FC = () => {
       if (!client.selectedClientId) {
         throw new Error('No hay cliente seleccionado');
       }
-      
+      // Obtener último id de obras en DB para asignar uno provisional local si hace falta
+      let newId = obra?.id_obra;
+      try {
+        const obrasDB = await getObras();
+        const maxId = Array.isArray(obrasDB)
+          ? obrasDB.reduce((acc: number, o: any) => {
+              const v = Number(o?.id_obra) || 0;
+              return v > acc ? v : acc;
+            }, 0)
+          : 0;
+        if (!newId || newId <= 0) newId = maxId + 1;
+      } catch (_) {
+        // si falla, usar 1 o mantener existente
+        if (!newId || newId <= 0) newId = 1;
+      }
+
       // Guardar localmente en el store (NO en la base de datos)
+      const { id_obra: _formIdIgnored, ...restData } = data;
       setObra({
-        ...data,
+        id_obra: newId!,
+        ...restData,
         id_cliente: client.selectedClientId,
         estado: obra?.estado || 'borrador',
-        id_obra: obra?.id_obra // Mantener el ID si existe
       });
-    },
-    onSuccess: () => {
-      // Redirigir a recursos después de guardar exitosamente
-      navigate('/oferta/recursos');
+
+      setEditObra(false)
     },
     showSuccessToast: true,
     successMessage: 'Obra guardada exitosamente',
@@ -69,8 +84,10 @@ const ObraForm: React.FC = () => {
 
   // Cargar datos de la obra local si existe
   useEffect(() => {
+    
     if (obra) {
       setFormData({
+        id_obra: obra.id_obra || 0,
         codigo_proyecto: obra.codigo_proyecto || '',
         nombre_proyecto: obra.nombre_proyecto || '',
         descripcion_proyecto: obra.descripcion_proyecto || '',

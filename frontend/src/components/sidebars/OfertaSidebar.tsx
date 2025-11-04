@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Calculator, Package, Users, ArrowLeft, X, Menu } from 'lucide-react';
+import { FileText, Package, ArrowLeft, X, Menu, Inspect } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useObraBaseStore } from '@/store/obra/obraStore';
@@ -37,10 +37,8 @@ const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) =>
 
   const navigation = [
     { name: 'Obra', href: '/oferta/obra', icon: FileText },
+    { name: 'Items', href: '/oferta/Items', icon: Inspect },
     { name: 'Recursos', href: '/oferta/recursos', icon: Package },
-    { name: 'Planilla', href: '/oferta/planilla', icon: Calculator },
-    { name: 'Equipos', href: '/oferta/equipos', icon: Package },
-    { name: 'Personal', href: '/oferta/personal', icon: Users },
   ];
 
   const handleBack = () => {
@@ -148,4 +146,6 @@ const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) =>
 OfertaSidebar.displayName = 'OfertaSidebar';
 
 export default OfertaSidebar;
+
+
 

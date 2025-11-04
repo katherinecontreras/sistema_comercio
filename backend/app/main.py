@@ -12,6 +12,7 @@ from app.routers.configuracion import router as config_router
 from app.routers.personal import router as personal_router
 from app.routers.equipos import router as equipos_router
 from app.routers.itemsObra import router as itemsObra_router
+from app.routers.recursos import router as recursos_router
 from app.services.startup import seed_admin
 
 
@@ -40,6 +41,7 @@ app.include_router(config_router, prefix=settings.API_V1_PREFIX)
 app.include_router(personal_router, prefix=settings.API_V1_PREFIX)
 app.include_router(equipos_router, prefix=settings.API_V1_PREFIX)
 app.include_router(itemsObra_router, prefix=settings.API_V1_PREFIX)
+app.include_router(recursos_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.on_event("startup")

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import AddClientModal from '@/app/Login/Clientes/AddClient/AddClientModal';
+import AddClientModal from '@/components/modals/AddClientModal';
 import { useAppStore } from '@/store/app';
 import { getClientes } from '@/actions/catalogos';
 import { DataTable } from '@/components';

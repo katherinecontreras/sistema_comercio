@@ -17,6 +17,7 @@ export interface Obra {
 // STORE DE OBRA BASE
 interface ObraBaseState {
   obra: Obra | null;
+  editObra: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -29,6 +30,7 @@ interface ObraBaseActions {
   
   // Estado de carga
   setLoading: (loading: boolean) => void;
+  setEditObra: (editObra: boolean) => void
   setError: (error: string | null) => void;
   clearError: () => void;
   
@@ -40,6 +42,7 @@ interface ObraBaseActions {
 export const useObraBaseStore = create<ObraBaseState & ObraBaseActions>((set, get) => ({
   // ESTADO INICIAL
   obra: null,
+  editObra: false,
   loading: false,
   error: null,
 
@@ -54,6 +57,7 @@ export const useObraBaseStore = create<ObraBaseState & ObraBaseActions>((set, ge
 
   // ESTADO DE CARGA
   setLoading: (loading) => set({ loading }),
+  setEditObra: (editObra) => set({ editObra }),
   setError: (error) => set({ error, loading: false }),
   clearError: () => set({ error: null }),
 
@@ -78,5 +82,6 @@ export const useObraBaseStore = create<ObraBaseState & ObraBaseActions>((set, ge
 }));
 
 export default useObraBaseStore;
+
 
 

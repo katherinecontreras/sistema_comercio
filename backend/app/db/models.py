@@ -55,11 +55,14 @@ class Obra(Base):
     estado: Mapped[str] = mapped_column(String(50), default="borrador")
    
     cliente = relationship("Cliente", back_populates="obras")
+    # Relación 1:N con ItemObra (no agrega columnas en la DB)
+    itemsObra = relationship("ItemObra", back_populates="obra", cascade="all, delete-orphan")
 
 class ItemObra(Base):
     __tablename__ = "itemsObra"
 
     id_item_Obra: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id_obra: Mapped[int] = mapped_column(Integer, ForeignKey("obras.id_obra"), nullable=False)
     descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
     meses_operario: Mapped[float] = mapped_column(Float, nullable=False)
     capataz: Mapped[float] = mapped_column(Float, nullable=False)
@@ -71,13 +74,16 @@ class Tipo_recurso(Base):
 
     id_tipo_recurso: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
+    # Relación 1:N con Recurso (no agrega columnas en la DB)
+    recursos = relationship("Recurso", back_populates="tipo_recurso")
 
 class Recurso(Base):
     __tablename__ = "recursos"
 
     id_recurso: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
-    unidad: Mapped[float] = mapped_column(Float, nullable=False)
+    id_tipo_recurso: Mapped[int] = mapped_column(Integer, ForeignKey("tiposRecurso.id_tipo_recurso"), nullable=False)
+    unidad: Mapped[str] = mapped_column(String(20), nullable=False)
     cantidad: Mapped[float] = mapped_column(Float, nullable=False)
     meses_operario: Mapped[float] = mapped_column(Float, nullable=False)
 

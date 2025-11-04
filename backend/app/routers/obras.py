@@ -10,6 +10,10 @@ from app.schemas.obras import ObraCreate, ObraRead, ObraUpdate
 
 router = APIRouter(prefix="/obras", tags=["obras"])
 
+@router.get("/", response_model=list[ObraRead])
+def listar_Obras(db: Session = Depends(get_db)):
+    return db.scalars(select(Obra)).all()
+
 
 @router.post("", response_model=ObraRead, status_code=status.HTTP_201_CREATED)
 def crear_obra(

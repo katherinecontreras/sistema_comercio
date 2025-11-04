@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class TipoRecursoBase(BaseModel):
     descripcion: str
 
@@ -22,20 +23,19 @@ class TipoRecursoRead(BaseModel):
 
 class RecursoBase(BaseModel):
     descripcion: str
+    id_tipo_recurso: int
     unidad: str
     cantidad: float
     meses_operario: float
 
 
 class RecursoCreate(RecursoBase):
-    descripcion: str
-    unidad: str
-    cantidad: float
-    meses_operario: float
+    pass
 
 
 class RecursoUpdate(BaseModel):
     descripcion: str | None = None
+    id_tipo_recurso: int | None = None
     unidad: str | None = None
     cantidad: float | None = None
     meses_operario: float | None = None
@@ -43,13 +43,11 @@ class RecursoUpdate(BaseModel):
 
 class RecursoRead(BaseModel):
     id_recurso: int
-    id_tipo_recurso: int
     descripcion: str
+    id_tipo_recurso: int
     unidad: str
     cantidad: float
     meses_operario: float
 
     class Config:
         from_attributes = True
-
-

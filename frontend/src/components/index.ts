@@ -35,7 +35,6 @@ export { Switch } from './ui/switch'
 export { HoverCard } from './ui/hover-card'
 
 // Sidebars
-export { default as ObraSidebar } from './sidebars/ObraSidebar';
 export { default as OfertaSidebar } from './sidebars/OfertaSidebar';
 export { default as Sidebar } from './sidebars/Sidebar';
 

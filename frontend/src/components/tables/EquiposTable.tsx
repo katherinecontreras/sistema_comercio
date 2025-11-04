@@ -102,3 +102,4 @@ const EquiposTable: React.FC<EquiposTableProps> = ({ rows, loading = false, sect
 
 export default EquiposTable;
 
+
