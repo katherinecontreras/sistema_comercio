@@ -57,6 +57,26 @@ CREATE TABLE personal (
   costo_total_mensual_apertura DOUBLE PRECISION NOT NULL
 );
 
+--Meses_resumen
+CREATE TABLE mesesResumen (
+  id_mes SERIAL PRIMARY KEY,
+  total_horas_normales DOUBLE PRECISION NOT NULL,
+  total_horas_50porc DOUBLE PRECISION NOT NULL,
+  total_horas_100porc DOUBLE PRECISION NOT NULL,
+  total_horas_fisicas DOUBLE PRECISION NOT NULL,
+  total_dias_trabajados DOUBLE PRECISION NOT NULL,
+  horas_viaje DOUBLE PRECISION NOT NULL,
+);
+--Dias_mes
+CREATE TABLE diasMes (
+  id_dia SERIAL PRIMARY KEY,
+  dia VARCHAR(8) NOT NULL UNIQUE,
+  hs_normales DOUBLE PRECISION NOT NULL,
+  hs_50porc DOUBLE PRECISION NOT NULL,
+  hs_100porc DOUBLE PRECISION NOT NULL,
+  total_horas DOUBLE PRECISION NOT NULL,
+);
+
 -- Equipos
 CREATE TABLE equipos (
     id_equipo SERIAL PRIMARY KEY, 

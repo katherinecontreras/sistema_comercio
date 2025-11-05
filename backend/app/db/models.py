@@ -125,3 +125,24 @@ class Equipo(Base):
     Mantenim: Mapped[float] = mapped_column("mantenim", Float, nullable=False)
     Operador: Mapped[float] = mapped_column("operador", Float, nullable=False)
     Total_mes: Mapped[float] = mapped_column("total_mes", Float, nullable=False)
+
+class MesResumen(Base):
+    __tablename__ = "mesesResumen"
+
+    id_mes: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    total_horas_normales: Mapped[float] = mapped_column(Float, nullable=False)
+    total_horas_50porc: Mapped[float] = mapped_column(Float, nullable=False)
+    total_horas_100porc: Mapped[float] = mapped_column(Float, nullable=False)
+    total_horas_fisicas: Mapped[float] = mapped_column(Float, nullable=False)
+    total_dias_trabajados: Mapped[int] = mapped_column(Float, nullable=False)
+    horas_viaje: Mapped[float] = mapped_column(Float, nullable=False)
+
+class DiaMes(Base):
+    __tablename__ = "diasMes"
+
+    id_dia: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dia: Mapped[str] = mapped_column(String(8), nullable=False)
+    hs_normales: Mapped[float] = mapped_column(Float, nullable=False)
+    hs_50porc: Mapped[float] = mapped_column(Float, nullable=False)
+    hs_100porc: Mapped[float] = mapped_column(Float, nullable=False)
+    total_horas: Mapped[float] = mapped_column(Float, nullable=False)
