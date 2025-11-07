@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
@@ -6,6 +6,7 @@ from app.core.deps import role_required
 from app.db.session import get_db
 from app.db.models import Cliente
 from app.schemas.catalogs import ClienteCreate, ClienteRead
+from app.services.meses_jornada import crear_mes_resumen_para_cliente
 
 
 router = APIRouter(prefix="/catalogos", tags=["catalogos"]) 
@@ -22,4 +23,20 @@ def create_cliente(payload: ClienteCreate, db: Session = Depends(get_db), _: Non
     db.add(c)
     db.commit()
     db.refresh(c)
+    
+    # Crear automáticamente el mesResumen con sus 31 días
+    try:
+        crear_mes_resumen_para_cliente(c.id_cliente, db)
+    except HTTPException as e:
+        # Si ya existe un mesResumen, no es un error crítico
+        if e.status_code == 400:
+            pass  # Ya existe, no hacer nada
+        else:
+            raise  # Re-lanzar otros errores HTTP
+    except Exception as e:
+        # Si hay un error al crear el mesResumen, no fallar la creación del cliente
+        # pero registrar el error (en producción usar logging)
+        print(f"Error al crear mesResumen para cliente {c.id_cliente}: {str(e)}")
+        pass
+    
     return c

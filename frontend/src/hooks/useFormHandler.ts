@@ -210,7 +210,7 @@ export const useFormHandler = <T extends Record<string, any>>(
 
   // Obtener props para un campo (útil para inputs)
   const getFieldProps = useCallback((field: keyof T) => ({
-    value: formData[field] || '',
+    value: formData[field] ?? '',
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       updateField(field, e.target.value);
     },

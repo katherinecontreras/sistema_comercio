@@ -1,12 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getPersonal, importPersonalOriginal, resetPersonalTable } from '@/actions/personal';
 import { usePersonalBaseStore } from '@/store/personal/personalStore';
 import PersonalTable from '@/components/tables/PersonalTable';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Upload, Calendar } from 'lucide-react';
 import { useAsyncOperation } from '@/hooks/useAsyncOperation';
+import MesesJornadaPage from './MesesJornada/page';
 
 const PersonalPage = () => {
+  const [showMesesJornada, setShowMesesJornada] = useState(false);
   const { personales, setPersonales, loading, setLoading, setError } = usePersonalBaseStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { execute: executeLoad, loading: loadingLoad } = useAsyncOperation();
@@ -98,27 +100,47 @@ const PersonalPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          {!showMesesJornada && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <Button
+                onClick={handleCargarPersonalClick}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Cargar Personal</span>
+                <span className="sm:hidden">Cargar</span>
+              </Button>
+            </>
+          )}
           <Button
-            onClick={handleCargarPersonalClick}
-            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
+            onClick={() => setShowMesesJornada(!showMesesJornada)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Cargar Personal</span>
-            <span className="sm:hidden">Cargar</span>
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">
+              {showMesesJornada ? 'Volver a Personal' : 'Ajustar Meses Jornada'}
+            </span>
+            <span className="sm:hidden">
+              {showMesesJornada ? 'Personal' : 'Meses'}
+            </span>
           </Button>
         </div>
       </div>
-      {/* Tu tabla debajo */}
-      <div>
-        <PersonalTable rows={personales} loading={loading || loadingLoad || loadingImport} />
-      </div>
+      {/* Contenido: Personal o MesesJornada */}
+      {showMesesJornada ? (
+        <MesesJornadaPage />
+      ) : (
+        <div>
+          <PersonalTable rows={personales} loading={loading || loadingLoad || loadingImport} />
+        </div>
+      )}
     </div>
   );
 };

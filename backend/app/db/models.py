@@ -1,6 +1,9 @@
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from sqlalchemy import Integer, String, Boolean, ForeignKey, Text, Date, Float
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 from datetime import date
+from typing import Optional, Any
 
 
 class Base(DeclarativeBase):
@@ -39,6 +42,7 @@ class Cliente(Base):
     actividad: Mapped[str | None] = mapped_column(Text)
     
     obras = relationship("Obra", back_populates="cliente")
+    mes_resumen = relationship("MesResumen", back_populates="cliente", uselist=False)
 
 class Obra(Base):
     __tablename__ = "obras"
@@ -126,23 +130,69 @@ class Equipo(Base):
     Operador: Mapped[float] = mapped_column("operador", Float, nullable=False)
     Total_mes: Mapped[float] = mapped_column("total_mes", Float, nullable=False)
 
+
+class TipoCosto(Base):
+    __tablename__ = "tiposCosto"
+
+    id_tipo_costo: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tipo: Mapped[str] = mapped_column(String(10), nullable=False)
+    costo_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    items: Mapped[list[dict[str, Any]]] = mapped_column(
+        MutableList.as_mutable(JSONB), default=list
+    )
+
+    costos = relationship("Costo", back_populates="tipo_costo", cascade="all, delete-orphan")
+
+
+class Costo(Base):
+    __tablename__ = "costos"
+
+    id_costo: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id_tipo_costo: Mapped[int] = mapped_column(Integer, ForeignKey("tiposCosto.id_tipo_costo"), nullable=False)
+    detalle: Mapped[str] = mapped_column(String(255), nullable=False)
+    values: Mapped[list[dict[str, Any]]] = mapped_column(
+        "values",
+        MutableList.as_mutable(JSONB), default=list
+    )
+    afectacion: Mapped[dict[str, Any] | None] = mapped_column(
+        MutableDict.as_mutable(JSONB), nullable=True
+    )
+    unidad: Mapped[str] = mapped_column(String(20), nullable=False, default="mes")
+    costo_unitario: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    cantidad: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    costo_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    itemsObra: Mapped[list[dict[str, Any]]] = mapped_column(
+        MutableList.as_mutable(JSONB), default=list
+    )
+
+    tipo_costo = relationship("TipoCosto", back_populates="costos")
+
 class MesResumen(Base):
     __tablename__ = "mesesResumen"
 
     id_mes: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    total_horas_normales: Mapped[float] = mapped_column(Float, nullable=False)
-    total_horas_50porc: Mapped[float] = mapped_column(Float, nullable=False)
-    total_horas_100porc: Mapped[float] = mapped_column(Float, nullable=False)
-    total_horas_fisicas: Mapped[float] = mapped_column(Float, nullable=False)
-    total_dias_trabajados: Mapped[int] = mapped_column(Float, nullable=False)
-    horas_viaje: Mapped[float] = mapped_column(Float, nullable=False)
+    id_cliente: Mapped[int] = mapped_column(Integer, ForeignKey("clientes.id_cliente"), nullable=False, unique=True)
+    total_horas_normales: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_horas_50porc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_horas_100porc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_horas_fisicas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_dias_trabajados: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    valor_mult_horas_viaje: Mapped[float] = mapped_column(Float, nullable=False, default=2.5)
+    horas_viaje: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    
+    cliente = relationship("Cliente", back_populates="mes_resumen")
+    dias_mes = relationship("DiaMes", back_populates="mes_resumen", cascade="all, delete-orphan")
 
 class DiaMes(Base):
     __tablename__ = "diasMes"
 
     id_dia: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    dia: Mapped[str] = mapped_column(String(8), nullable=False)
-    hs_normales: Mapped[float] = mapped_column(Float, nullable=False)
-    hs_50porc: Mapped[float] = mapped_column(Float, nullable=False)
-    hs_100porc: Mapped[float] = mapped_column(Float, nullable=False)
-    total_horas: Mapped[float] = mapped_column(Float, nullable=False)
+    id_mes: Mapped[int] = mapped_column(Integer, ForeignKey("mesesResumen.id_mes"), nullable=False)
+    fecha: Mapped[int] = mapped_column(Integer, nullable=False)
+    dia: Mapped[str] = mapped_column(String(9), nullable=False)
+    hs_normales: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hs_50porc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hs_100porc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_horas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    
+    mes_resumen = relationship("MesResumen", back_populates="dias_mes")

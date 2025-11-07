@@ -22,6 +22,7 @@ export { default as LoadingState } from './ui/LoadingState';
 // Base UI Components
 export { default as BaseModal, ConfirmModal } from './modals/BaseModal';
 export { default as SmartSelect } from './ui/SmartSelect';
+export { default as HeaderOferta } from './headers/HeaderOferta';
 export { 
   FormField, 
   TextareaField, 

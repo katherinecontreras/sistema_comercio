@@ -148,9 +148,34 @@ def limpiar_y_convertir_datos_personal(archivo_entrada, formato_salida='csv'):
     cols_numericas = [c for c in COLUMNAS_FINALES if c != 'funcion']
     for col in cols_numericas:
         if col in df_clean.columns:
-            # Limpiar posibles puntos/comas de miles que pueden causar problemas
-            df_clean[col] = df_clean[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
-            df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce')
+            # Convertir a string para procesar
+            df_clean[col] = df_clean[col].astype(str)
+            
+            # Procesar cada valor: buscar coma y reemplazarla por punto
+            # Si tiene coma, es un decimal con formato latino (ej: "123,45" o "1.234,56")
+            # Si no tiene coma, puede ser entero o ya tiene punto decimal
+            def convertir_decimal(valor):
+                if pd.isna(valor) or valor == 'nan' or valor == '':
+                    return None
+                valor_str = str(valor).strip()
+                # Si tiene coma, es un decimal con formato latino
+                if ',' in valor_str:
+                    # Si también tiene puntos, son separadores de miles (ej: "1.234,56")
+                    if '.' in valor_str:
+                        # Quitar puntos de miles, luego convertir coma a punto
+                        valor_str = valor_str.replace('.', '').replace(',', '.')
+                    else:
+                        # Solo tiene coma, convertir a punto
+                        valor_str = valor_str.replace(',', '.')
+                # Si no tiene coma pero tiene punto, puede ser formato inglés (ej: "123.45")
+                # o puede ser un entero sin decimales - en este caso, dejamos el valor como está
+                # Convertir a numérico
+                try:
+                    return pd.to_numeric(valor_str, errors='coerce')
+                except:
+                    return None
+            
+            df_clean[col] = df_clean[col].apply(convertir_decimal)
 
     # Rellenar valores nulos (si los hay) con 0 para evitar errores de tipo en PostgreSQL
     df_clean[cols_numericas] = df_clean[cols_numericas].fillna(0)
@@ -165,11 +190,32 @@ def limpiar_y_convertir_datos_personal(archivo_entrada, formato_salida='csv'):
     # --- PASO 5: Conversión a CSV limpio (para manejar LATIN1 y comillas) ---
     
     if formato_salida == 'csv':
+        # Formatear valores numéricos para evitar .00 innecesarios
+        # Si un valor es entero (sin decimales), escribirlo sin .0
+        # Si tiene decimales, mantenerlos
+        def formatear_valor(valor):
+            if pd.isna(valor):
+                return ''
+            # Si es un número entero (sin parte decimal), devolver como entero
+            if isinstance(valor, (int, float)):
+                if valor == int(valor):
+                    return str(int(valor))
+                else:
+                    # Si tiene decimales, mantenerlos pero sin ceros innecesarios
+                    return str(valor).rstrip('0').rstrip('.')
+            return str(valor)
+        
+        # Aplicar formato a columnas numéricas antes de escribir
+        df_formateado = df_clean.copy()
+        for col in cols_numericas:
+            if col in df_formateado.columns:
+                df_formateado[col] = df_formateado[col].apply(formatear_valor)
+        
         # Usamos StringIO para manejar el archivo en memoria
         output_buffer = io.StringIO()
         
         # Escribir el CSV final con las opciones que funcionan en PostgreSQL
-        df_clean.to_csv(
+        df_formateado.to_csv(
             output_buffer, 
             sep=',',              # Delimitador: Coma (necesario para el COPY)
             index=False,          # No incluir el índice de pandas

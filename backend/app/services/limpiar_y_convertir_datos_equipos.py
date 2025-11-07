@@ -167,15 +167,35 @@ def limpiar_y_convertir_datos_equipos(archivo_entrada, formato_salida='csv'):
             # Seleccionamos solo la serie (asegurando no tener un DataFrame con una sola columna)
             series = df_clean[col]
             
-            # Forzar a string y limpiar
-            series = series.astype(str).str.strip()
-            # 1. Quitar puntos de miles (asumiendo formato LATAM, ej: 1.234.567,89)
-            series = series.str.replace(r'\.', '', regex=True)
-            # 2. Normalizar coma decimal a punto decimal
-            series = series.str.replace(',', '.', regex=False)
+            # Función para convertir valores con coma decimal a punto decimal
+            def convertir_decimal(valor):
+                if pd.isna(valor) or valor == 'nan' or valor == '':
+                    return 0.0
+                valor_str = str(valor).strip()
+                
+                # Si tiene coma, es un decimal con formato latino (ej: "123,45")
+                if ',' in valor_str:
+                    # Si también tiene puntos, son separadores de miles (ej: "1.234,56")
+                    if '.' in valor_str:
+                        # Quitar puntos de miles, luego convertir coma a punto
+                        valor_str = valor_str.replace('.', '').replace(',', '.')
+                    else:
+                        # Solo tiene coma, convertir a punto
+                        valor_str = valor_str.replace(',', '.')
+                # Si no tiene coma pero tiene punto, puede ser formato inglés (ej: "123.45")
+                # o puede ser un entero sin decimales
+                # En este caso, dejamos el valor como está
+                
+                # Convertir a numérico
+                try:
+                    return pd.to_numeric(valor_str, errors='coerce')
+                except:
+                    return 0.0
             
-            # 3. Convertir a float y rellenar NaN con 0
-            series = pd.to_numeric(series, errors='coerce').fillna(0)
+            # Aplicar la conversión
+            series = series.apply(convertir_decimal)
+            # Rellenar NaN con 0
+            series = series.fillna(0.0)
 
             df_clean[col] = series
 
@@ -188,10 +208,31 @@ def limpiar_y_convertir_datos_equipos(archivo_entrada, formato_salida='csv'):
     # --- PASO 5: Conversión a CSV limpio ---
     
     if formato_salida == 'csv':
+        # Formatear valores numéricos para evitar .00 innecesarios
+        # Si un valor es entero (sin decimales), escribirlo sin .0
+        # Si tiene decimales, mantenerlos
+        def formatear_valor(valor):
+            if pd.isna(valor):
+                return ''
+            # Si es un número entero (sin parte decimal), devolver como entero
+            if isinstance(valor, (int, float)):
+                if valor == int(valor):
+                    return str(int(valor))
+                else:
+                    # Si tiene decimales, mantenerlos pero sin ceros innecesarios
+                    return str(valor).rstrip('0').rstrip('.')
+            return str(valor)
+        
+        # Aplicar formato a columnas numéricas antes de escribir
+        df_formateado = df_clean.copy()
+        for col in cols_numericas:
+            if col in df_formateado.columns:
+                df_formateado[col] = df_formateado[col].apply(formatear_valor)
+        
         output_buffer = io.StringIO()
         
         # Escribir el CSV final con las opciones que funcionan en PostgreSQL
-        df_clean.to_csv(
+        df_formateado.to_csv(
             output_buffer, 
             sep=',',              # Delimitador: Coma
             index=False,          # No incluir el índice de pandas

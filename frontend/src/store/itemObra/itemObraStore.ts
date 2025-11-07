@@ -20,6 +20,7 @@ export interface ItemObra {
     descripcion: string;
     meses_operario?: number;
     capataz?: number;
+    costo_total?: number;
     manoObra?: PersonalItemObra[]; // Array de personal (mano de obra)
     equipos?: EquipoItemObra[]; // Array de equipos
 }

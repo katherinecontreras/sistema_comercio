@@ -94,6 +94,26 @@ CREATE TABLE equipos (
     Total_mes DOUBLE PRECISION NOT NULL
 );
 
+CREATE TABLE "tiposCosto" (
+  id_tipo_costo SERIAL PRIMARY KEY,
+  tipo VARCHAR(10) NOT NULL,
+  costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE costos (
+  id_costo SERIAL PRIMARY KEY,
+  id_tipo_costo INTEGER NOT NULL REFERENCES "tiposCosto"(id_tipo_costo) ON DELETE CASCADE,
+  detalle VARCHAR(255) NOT NULL,
+  "values" JSONB NOT NULL DEFAULT '[]'::jsonb,
+  afectacion JSONB,
+  unidad VARCHAR(20) NOT NULL DEFAULT 'mes',
+  costo_unitario DOUBLE PRECISION NOT NULL DEFAULT 0,
+  cantidad DOUBLE PRECISION NOT NULL DEFAULT 0,
+  costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "itemsObra" JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
 CREATE TABLE itemsObra (
   id_item_Obra SERIAL PRIMARY KEY,
   id_obra INTEGER REFERENCES obras(id_obra) ON DELETE RESTRICT,

@@ -397,9 +397,9 @@ export const useRecursoBaseStore = create<RecursoBaseState & RecursoBaseActions>
   
   getTipoRecursoSelected: () => get().tipoRecurso,
   
-  setRecursoSelected: (recurso) => set({ recurso, error: null }),
+  setRecursoSelected: (recurso: Recurso | null) => set({ recurso, error: null }),
   
-  setTipoRecursoSelected: (tipoRecurso) => set({ tipoRecurso, error: null }),
+  setTipoRecursoSelected: (tipoRecurso: TipoRecurso | null) => set({ tipoRecurso, error: null }),
 
   // ===== LIMPIEZA =====
   
@@ -431,8 +431,8 @@ export const useRecursoBaseStore = create<RecursoBaseState & RecursoBaseActions>
 
   // ===== ESTADO DE CARGA =====
   
-  setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error, loading: false }),
+  setLoading: (loading: boolean) => set({ loading }),
+  setError: (error: string | null) => set({ error, loading: false }),
   clearError: () => set({ error: null }),
 
   // ===== UTILIDADES =====
@@ -449,6 +449,144 @@ export const useRecursoBaseStore = create<RecursoBaseState & RecursoBaseActions>
   areAllRecursosCompleteByItem: (idItemObra: number) => {
     const recursos = get().getAllRecursosByItemObra(idItemObra);
     return recursos.every(r => get().isRecursoComplete(r));
+  },
+
+  // ===== PERSONAL POR RECURSO =====
+  
+  addPersonalToRecurso: (idTipoRecurso: number, idRecurso: number, personal: PersonalRecurso) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    
+    if (!recurso) return;
+    
+    const personalArray = recurso.personal || [];
+    const exists = personalArray.some(p => p.id_personal === personal.id_personal);
+    if (exists) return;
+    
+    const updatedRecurso: Recurso = {
+      ...recurso,
+      personal: [...personalArray, personal],
+    };
+    
+    get().updateRecursoInTipoRecurso(idTipoRecurso, updatedRecurso);
+  },
+  
+  removePersonalFromRecurso: (idTipoRecurso: number, idRecurso: number, idPersonal: number) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    
+    if (!recurso) return;
+    
+    const personalArray = recurso.personal || [];
+    const filtered = personalArray.filter(p => p.id_personal !== idPersonal);
+    
+    const updatedRecurso: Recurso = {
+      ...recurso,
+      personal: filtered,
+    };
+    
+    get().updateRecursoInTipoRecurso(idTipoRecurso, updatedRecurso);
+  },
+  
+  updatePersonalMesesOperario: (idTipoRecurso: number, idRecurso: number, idPersonal: number, mesesOperario: number) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    
+    if (!recurso) return;
+    
+    const personalArray = recurso.personal || [];
+    const updated = personalArray.map(p => 
+      p.id_personal === idPersonal 
+        ? { ...p, meses_operario: mesesOperario }
+        : p
+    );
+    
+    const updatedRecurso: Recurso = {
+      ...recurso,
+      personal: updated,
+    };
+    
+    get().updateRecursoInTipoRecurso(idTipoRecurso, updatedRecurso);
+  },
+  
+  getPersonalFromRecurso: (idTipoRecurso: number, idRecurso: number) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    return recurso?.personal || [];
+  },
+  
+  hasPersonalInRecurso: (idTipoRecurso: number, idRecurso: number, idPersonal: number) => {
+    const personal = get().getPersonalFromRecurso(idTipoRecurso, idRecurso);
+    return personal.some(p => p.id_personal === idPersonal);
+  },
+
+  // ===== EQUIPOS POR RECURSO =====
+  
+  addEquipoToRecurso: (idTipoRecurso: number, idRecurso: number, equipo: EquipoRecurso) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    
+    if (!recurso) return;
+    
+    const equiposArray = recurso.equipos || [];
+    const exists = equiposArray.some(e => e.id_equipo === equipo.id_equipo);
+    if (exists) return;
+    
+    const updatedRecurso: Recurso = {
+      ...recurso,
+      equipos: [...equiposArray, equipo],
+    };
+    
+    get().updateRecursoInTipoRecurso(idTipoRecurso, updatedRecurso);
+  },
+  
+  removeEquipoFromRecurso: (idTipoRecurso: number, idRecurso: number, idEquipo: number) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    
+    if (!recurso) return;
+    
+    const equiposArray = recurso.equipos || [];
+    const filtered = equiposArray.filter(e => e.id_equipo !== idEquipo);
+    
+    const updatedRecurso: Recurso = {
+      ...recurso,
+      equipos: filtered,
+    };
+    
+    get().updateRecursoInTipoRecurso(idTipoRecurso, updatedRecurso);
+  },
+  
+  updateEquipoMesesOperario: (idTipoRecurso: number, idRecurso: number, idEquipo: number, mesesOperario: number) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    
+    if (!recurso) return;
+    
+    const equiposArray = recurso.equipos || [];
+    const updated = equiposArray.map(e => 
+      e.id_equipo === idEquipo 
+        ? { ...e, meses_operario: mesesOperario }
+        : e
+    );
+    
+    const updatedRecurso: Recurso = {
+      ...recurso,
+      equipos: updated,
+    };
+    
+    get().updateRecursoInTipoRecurso(idTipoRecurso, updatedRecurso);
+  },
+  
+  getEquiposFromRecurso: (idTipoRecurso: number, idRecurso: number) => {
+    const recursos = get().recursosByTipoRecurso[idTipoRecurso] || [];
+    const recurso = recursos.find(r => r.id_recurso === idRecurso);
+    return recurso?.equipos || [];
+  },
+  
+  hasEquipoInRecurso: (idTipoRecurso: number, idRecurso: number, idEquipo: number) => {
+    const equipos = get().getEquiposFromRecurso(idTipoRecurso, idRecurso);
+    return equipos.some(e => e.id_equipo === idEquipo);
   },
 }));
 

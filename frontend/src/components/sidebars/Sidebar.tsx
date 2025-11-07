@@ -209,7 +209,7 @@ const Sidebar: React.FC = React.memo(() => {
                       </SelectItem>
                     ))}
                     {clientes.length === 0 && (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="no-clientes" disabled>
                         No hay clientes disponibles
                       </SelectItem>
                     )}

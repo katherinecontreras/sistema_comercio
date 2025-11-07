@@ -13,6 +13,7 @@ import OfertaLayout from './app/Oferta/page';
 import Obra from './app/Oferta/Obra/page';
 import Recursos from './app/Oferta/Recursos/page';
 import Items from './app/Oferta/Items/page';
+import Costos from './app/Oferta/Costos/page';
 
 // Componente para rutas protegidas
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,6 +47,7 @@ function App() {
             <Route path="obra" element={<Obra />} />
             <Route path="items" element={<Items />} />
             <Route path="recursos" element={<Recursos />} />
+            <Route path="costos" element={<Costos />} />
           </Route>
           
           {/* Redirección de /obra a /oferta/obra para mantener compatibilidad */}

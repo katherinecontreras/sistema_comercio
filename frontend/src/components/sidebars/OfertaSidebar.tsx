@@ -1,11 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Package, ArrowLeft, X, Menu, Inspect } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { FileText, Package, ArrowLeft, X, Menu, Inspect, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useObraBaseStore } from '@/store/obra/obraStore';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { NavLink } from './NavLink';
+import useCostoStore from '@/store/costo/costoStore';
 
 interface OfertaSidebarProps {
   onToggle?: (isOpen: boolean) => void;
@@ -15,6 +17,7 @@ const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) =>
   const location = useLocation();
   const navigate = useNavigate();
   const { obra } = useObraBaseStore();
+  const costosReady = useCostoStore((state) => state.ready);
   
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = React.useState(!isMobile);
@@ -35,10 +38,25 @@ const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) =>
     prevIsMobileRef.current = isMobile;
   }, [isMobile]);
 
-  const navigation = [
+  type NavigationItem = {
+    name: string;
+    href: string;
+    icon: LucideIcon;
+    requiresReady?: boolean;
+    disabledReason?: string;
+  };
+
+  const navigation: NavigationItem[] = [
     { name: 'Obra', href: '/oferta/obra', icon: FileText },
     { name: 'Items', href: '/oferta/Items', icon: Inspect },
     { name: 'Recursos', href: '/oferta/recursos', icon: Package },
+    {
+      name: 'Costos',
+      href: '/oferta/costos',
+      icon: Coins,
+      requiresReady: true,
+      disabledReason: 'Finaliza los items con recursos para calcular los costos',
+    },
   ];
 
   const handleBack = () => {
@@ -113,6 +131,7 @@ const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) =>
         <nav className="flex-grow space-y-2">
           {navigation.map((link, index) => {
             const isActive = location.pathname === link.href;
+            const disabled = Boolean(link.requiresReady && !costosReady);
             return (
               <NavLink
                 key={`${link.name}-${index}`}
@@ -121,6 +140,8 @@ const OfertaSidebar: React.FC<OfertaSidebarProps> = React.memo(({ onToggle }) =>
                 text={link.name}
                 isOpen={isOpen}
                 isActive={isActive}
+                disabled={disabled}
+                disabledReason={disabled ? link.disabledReason : undefined}
               />
             );
           })}
