@@ -101,25 +101,6 @@ const ObraForm: React.FC = () => {
 
   return (
     <div className="p-4">
-      {/* Header */}
-      <div className="relative flex items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-600 text-white shadow-lg shadow-sky-900/40">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">
-              Información de la Obra
-            </h1>
-            <p className="mt-1 text-sm text-slate-400">
-              Completa los datos de la obra para comenzar la cotización
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Formulario */}
       <div className="px-6">

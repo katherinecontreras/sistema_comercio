@@ -43,7 +43,7 @@ const CostosTable: React.FC<CostosTableProps> = ({
   tiposCosto,
 }) => {
   const [selectedTipoId, setSelectedTipoId] = useState<number>(() => {
-    const tipoPersonal = tiposCosto.find((tipo) => tipo.tipo.toLowerCase() === 'personal');
+    const tipoPersonal = tiposCosto.find((tipo) => tipo.tipo === 'personal');
     return tipoPersonal?.id_tipo_costo ?? tiposCosto[0]?.id_tipo_costo ?? 0;
   });
   const [showValues, setShowValues] = useState(false);
@@ -51,7 +51,7 @@ const CostosTable: React.FC<CostosTableProps> = ({
 
   useEffect(() => {
     if (!tiposCosto.some((tipo) => tipo.id_tipo_costo === selectedTipoId)) {
-      const tipoPersonal = tiposCosto.find((tipo) => tipo.tipo.toLowerCase() === 'personal');
+      const tipoPersonal = tiposCosto.find((tipo) => tipo.tipo === 'personal');
       setSelectedTipoId(tipoPersonal?.id_tipo_costo ?? tiposCosto[0]?.id_tipo_costo ?? 0);
     }
   }, [tiposCosto, selectedTipoId]);
@@ -105,13 +105,15 @@ const CostosTable: React.FC<CostosTableProps> = ({
                 value={selectedTipoId ? String(selectedTipoId) : undefined}
                 onValueChange={(value) => setSelectedTipoId(Number(value))}
               >
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100">
-                  <SelectValue placeholder="Selecciona tipo de costo" />
-                </SelectTrigger>
+            <SelectTrigger className="bg-slate-800 border-slate-700 text-slate-100">
+              <SelectValue placeholder="Selecciona tipo de costo">
+                {selectedTipo ? (selectedTipo.descripcion) : undefined}
+              </SelectValue>
+            </SelectTrigger>
                 <SelectContent className="bg-slate-800 text-slate-100 border border-slate-700">
                   {tiposCosto.map((tipo) => (
                     <SelectItem key={tipo.id_tipo_costo} value={String(tipo.id_tipo_costo)}>
-                      {tipo.tipo}
+                      {tipo.descripcion}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -180,16 +182,16 @@ const CostosTable: React.FC<CostosTableProps> = ({
             <div className="bg-slate-900 -top-13 right-0 rounded-t-xl absolute w-[450px] border-t border-slate-700 px-6 py-4 text-sm text-center text-slate-200/80 uppercase font-bold">
               {selectedItemInfo.descripcion}
             </div>
-          ) : (
-            <div className="flex items-center justify-between bg-slate-900/80 rounded-t-xl border-b border-slate-700 px-6 py-4 text-sm text-slate-200">
-              <span>
-                Costos de {selectedTipo?.tipo ?? '—'}
-              </span>
-              <span className="font-semibold text-emerald-300">
-                Total costo {selectedTipo?.tipo ?? '—'}: ${formatNumber(selectedTipo?.costo_total ?? 0)}
-              </span>
-            </div>
-          )}
+           ) : (
+             <div className="flex items-center justify-between bg-slate-900/80 rounded-t-xl border-b border-slate-700 px-6 py-4 text-sm text-slate-200">
+               <span>
+                 Costos de {selectedTipo ? (selectedTipo.descripcion ?? selectedTipo.tipo) : '—'}
+               </span>
+               <span className="font-semibold text-emerald-300">
+                 Total costo {selectedTipo ? (selectedTipo.descripcion ?? selectedTipo.tipo) : '—'}: ${formatNumber(selectedTipo?.costo_total ?? 0)}
+               </span>
+             </div>
+           )}
 
           <div className="overflow-x-auto">
             <Table className="min-w-full text-slate-200">
@@ -227,11 +229,11 @@ const CostosTable: React.FC<CostosTableProps> = ({
                   <TableRow>
                     <TableCell
                       colSpan={
-                        selectedItemInfo
-                          ? 6
-                          : showValues
-                          ? 1 + valueColumns.length
-                          : 5
+                         selectedItemInfo
+                           ? 6
+                           : showValues
+                           ? 1 + valueColumns.length
+                           : 5
                       }
                       className="py-10 text-center text-slate-400"
                     >

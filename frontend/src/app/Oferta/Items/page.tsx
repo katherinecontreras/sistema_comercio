@@ -4,7 +4,6 @@ import { ClipboardList } from 'lucide-react';
 
 import useItemObraBaseStore from '@/store/itemObra/itemObraStore';
 import useObraBaseStore from '@/store/obra/obraStore';
-import useRecursoBaseStore from '@/store/recurso/recursoStore';
 import useEquipoBaseStore from '@/store/equipo/equipoStore';
 import usePersonalBaseStore from '@/store/personal/personalStore';
 import useCostoStore, { ITEMS_COSTOS_STORAGE_KEY } from '@/store/costo/costoStore';
@@ -26,7 +25,6 @@ const ItemsPage: React.FC = () => {
 
   const { obra } = useObraBaseStore();
   const { itemCreate,  setItemCreate, itemsObra, setItemSelected, setItemsObra, accumulatePersonalAndEquiposFromRecursos,} = useItemObraBaseStore();
-  const { getAllRecursosByItemObra, areAllRecursosCompleteByItem } = useRecursoBaseStore();
   const { equipos, setEquipos } = useEquipoBaseStore();
   const { personales, setPersonales } = usePersonalBaseStore();
   const { setCostData, markReady } = useCostoStore();
@@ -41,21 +39,15 @@ const ItemsPage: React.FC = () => {
 
   const canFinalize = useMemo(() => {
     if (!itemsDeObra.length) return false;
-
-    return itemsDeObra.every((item) => {
+    let result= true
+    itemsDeObra.every((item) => {
       const meses = item.meses_operario ?? 0;
       if (meses <= 0) {
-        return false;
+        result = false;
       }
-
-      const recursos = getAllRecursosByItemObra(item.id_item_Obra);
-      if (!recursos || recursos.length === 0) {
-        return false;
-      }
-
-      return areAllRecursosCompleteByItem(item.id_item_Obra);
     });
-  }, [itemsDeObra, getAllRecursosByItemObra, areAllRecursosCompleteByItem]);
+    return result
+  }, [itemsDeObra]);
 
   // Modal de creación
   const closeModal = () => setItemCreate(false);

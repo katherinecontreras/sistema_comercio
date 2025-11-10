@@ -12,6 +12,7 @@ class TipoCostoItem(BaseModel):
 
 class TipoCostoBase(BaseModel):
     tipo: str = Field(..., max_length=10)
+    descripcion: Optional[str] = Field(default=None, max_length=255)
     costo_total: float = 0.0
     items: List[TipoCostoItem] = Field(default_factory=list)
 
@@ -22,6 +23,7 @@ class TipoCostoCreate(TipoCostoBase):
 
 class TipoCostoUpdate(BaseModel):
     tipo: Optional[str] = Field(default=None, max_length=10)
+    descripcion: Optional[str] = Field(default=None, max_length=255)
     costo_total: Optional[float] = None
     items: Optional[List[TipoCostoItem]] = None
 
@@ -49,7 +51,6 @@ class CostoBase(BaseModel):
     id_tipo_costo: int
     detalle: str
     values: List[CostoValue] = Field(default_factory=list)
-    afectacion: Optional[dict] = None
     unidad: str = "mes"
     costo_unitario: float = 0.0
     cantidad: float = 0.0
@@ -65,7 +66,6 @@ class CostoUpdate(BaseModel):
     id_tipo_costo: Optional[int] = None
     detalle: Optional[str] = None
     values: Optional[List[CostoValue]] = None
-    afectacion: Optional[dict] = None
     unidad: Optional[str] = None
     costo_unitario: Optional[float] = None
     cantidad: Optional[float] = None

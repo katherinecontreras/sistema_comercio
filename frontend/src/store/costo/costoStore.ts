@@ -15,6 +15,7 @@ export interface TipoCostoItem {
 export interface TipoCosto {
   id_tipo_costo: number;
   tipo: string;
+  descripcion?: string;
   costo_total: number;
   items: TipoCostoItem[];
 }
@@ -36,7 +37,6 @@ export interface Costo {
   id_tipo_costo: number;
   detalle: string;
   values: CostoValue[];
-  afectacion: Record<string, number | string | null> | null;
   unidad: string;
   costo_unitario: number;
   cantidad: number;

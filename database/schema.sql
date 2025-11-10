@@ -1,3 +1,9 @@
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+
 -- Roles
 CREATE TABLE roles (
   id_rol SERIAL PRIMARY KEY,
@@ -65,7 +71,7 @@ CREATE TABLE mesesResumen (
   total_horas_100porc DOUBLE PRECISION NOT NULL,
   total_horas_fisicas DOUBLE PRECISION NOT NULL,
   total_dias_trabajados DOUBLE PRECISION NOT NULL,
-  horas_viaje DOUBLE PRECISION NOT NULL,
+  horas_viaje DOUBLE PRECISION NOT NULL
 );
 --Dias_mes
 CREATE TABLE diasMes (
@@ -74,7 +80,7 @@ CREATE TABLE diasMes (
   hs_normales DOUBLE PRECISION NOT NULL,
   hs_50porc DOUBLE PRECISION NOT NULL,
   hs_100porc DOUBLE PRECISION NOT NULL,
-  total_horas DOUBLE PRECISION NOT NULL,
+  total_horas DOUBLE PRECISION NOT NULL
 );
 
 -- Equipos
@@ -97,6 +103,7 @@ CREATE TABLE equipos (
 CREATE TABLE "tiposCosto" (
   id_tipo_costo SERIAL PRIMARY KEY,
   tipo VARCHAR(10) NOT NULL,
+  descripcion VARCHAR(255),
   costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
   items JSONB NOT NULL DEFAULT '[]'::jsonb
 );
@@ -106,7 +113,6 @@ CREATE TABLE costos (
   id_tipo_costo INTEGER NOT NULL REFERENCES "tiposCosto"(id_tipo_costo) ON DELETE CASCADE,
   detalle VARCHAR(255) NOT NULL,
   "values" JSONB NOT NULL DEFAULT '[]'::jsonb,
-  afectacion JSONB,
   unidad VARCHAR(20) NOT NULL DEFAULT 'mes',
   costo_unitario DOUBLE PRECISION NOT NULL DEFAULT 0,
   cantidad DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -123,7 +129,7 @@ CREATE TABLE itemsObra (
 );
 
 -- Tipos de recurso
-CREATE TABLE tiposRecurso (
+CREATE TABLE "tiposRecurso" (
   id_tipo_recurso SERIAL PRIMARY KEY,
   descripcion VARCHAR(250) NOT NULL UNIQUE
 );
@@ -132,7 +138,7 @@ CREATE TABLE tiposRecurso (
 CREATE TABLE recursos (
   id_recurso SERIAL PRIMARY KEY,
   descripcion VARCHAR(250) NOT NULL,
-  id_tipo_recurso INTEGER NOT NULL REFERENCES tiposRecurso(id_tipo_recurso) ON DELETE RESTRICT,
+  id_tipo_recurso INTEGER NOT NULL REFERENCES "tiposRecurso"(id_tipo_recurso) ON DELETE RESTRICT,
   unidad VARCHAR(20) NOT NULL,
   cantidad DOUBLE PRECISION NOT NULL DEFAULT 0,
   meses_operario DOUBLE PRECISION NOT NULL DEFAULT 0
@@ -142,18 +148,23 @@ CREATE TABLE recursos (
 -- Datos básicos
 --el insert de equipos y personal se hacer a traves de la carga de excel
 
-INSERT INTO roles (nombre_rol, descripcion) VALUES 
+INSERT INTO roles (nombre, descripcion) VALUES 
 ('Administrador', 'Acceso completo al sistema'),
 ('Cotizador', 'Puede crear y gestionar cotizaciones');
 
 INSERT INTO usuarios (nombre, dni, id_rol, password_hash) VALUES 
-('Admin Sistema', '12345678', 1, '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/8KzK8K2');
+('Admin Sistema', '12345678', 1, '$2b$10$7pU5GqLkWhUseWJp5aDkYOdaLJPsaI6yAARwppcD5v6h3WJ6S8aJS');
 
-INSERT INTO clientes (razon_social, cuit, actividad) VALUES 
-('Constructora ABC S.A.', '20-12345678-9', 'Av. Principal 123, Buenos Aires');
+INSERT INTO clientes (razon_social, cuit, actividad) VALUES
+('YPF SA', '30-54668997-9', 'OPERADORA GAS Y PETROLEO'),
+('TRANSPORTADORA DE GAS DEL SUR SA', '30-65786206-8', 'OPERADORA DE DUCTOS'),
+('TECPETROL SA', '30-59266547-2', 'OPERADORA GAS Y PETROLEO'),
+('YAC LINDERO ATRAVESADO', '30-63679858-0', 'OPERADORA GAS Y PETROLEO'),
+('PAMPA ENERGIA SA CHIUIDOS', '30-63714786-9', 'OPERADORA GAS Y PETROLEO'),
+('UTE LOS TOLDOS (TECPETROL)', '30-71217040-5', 'OPERADORA GAS Y PETROLEO');
 
 -- Carga inicial de tipos de recurso
-INSERT INTO tiposRecurso (descripcion) VALUES
+INSERT INTO "tiposRecurso" (descripcion) VALUES
 ('Replanteos ,estudios e ingenieria de detalle'),
 ('Gestion de compras y abastecimiento de materiales'),
 ('Movilizacion y demovilizacion de  personal , obrador y equipos , y cursos'),

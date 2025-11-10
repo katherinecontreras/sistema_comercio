@@ -1,7 +1,7 @@
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from sqlalchemy import Integer, String, Boolean, ForeignKey, Text, Date, Float
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.ext.mutable import MutableList
 from datetime import date
 from typing import Optional, Any
 
@@ -136,6 +136,7 @@ class TipoCosto(Base):
 
     id_tipo_costo: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tipo: Mapped[str] = mapped_column(String(10), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(255))
     costo_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     items: Mapped[list[dict[str, Any]]] = mapped_column(
         MutableList.as_mutable(JSONB), default=list
@@ -153,9 +154,6 @@ class Costo(Base):
     values: Mapped[list[dict[str, Any]]] = mapped_column(
         "values",
         MutableList.as_mutable(JSONB), default=list
-    )
-    afectacion: Mapped[dict[str, Any] | None] = mapped_column(
-        MutableDict.as_mutable(JSONB), nullable=True
     )
     unidad: Mapped[str] = mapped_column(String(20), nullable=False, default="mes")
     costo_unitario: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)

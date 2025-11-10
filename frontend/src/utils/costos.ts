@@ -23,9 +23,15 @@ interface GenerateCostOutput {
 
 const roundToTwo = (value: number) => Number(value.toFixed(2));
 
-const createTipoCostoBase = (id: number, tipo: string, items: ItemObra[]): TipoCosto => ({
+const createTipoCostoBase = (
+  id: number,
+  tipo: string,
+  descripcion: string,
+  items: ItemObra[]
+): TipoCosto => ({
   id_tipo_costo: id,
   tipo,
+  descripcion,
   costo_total: 0,
   items: items.map<TipoCostoItem>((item) => ({
     id: item.id_item_Obra,
@@ -65,8 +71,30 @@ export const generateCostStructures = ({
   equipos,
   personal,
 }: GenerateCostInput): GenerateCostOutput => {
-  const tipoCostoEquipo = createTipoCostoBase(1, 'equipo', items);
-  const tipoCostoPersonal = createTipoCostoBase(2, 'personal', items);
+  const tipoCostoEquipo = createTipoCostoBase(
+    1,
+    'equipo',
+    'Inmuebles , rodados y equipos',
+    items
+  );
+  const tipoCostoCombustibles = createTipoCostoBase(
+    3,
+    'equipo',
+    'Combustibles  y Lubricantes',
+    items
+  );
+  const tipoCostoNeumaticos = createTipoCostoBase(
+    4,
+    'equipo',
+    'Neumaticos y Mantenimiento',
+    items
+  );
+  const tipoCostoPersonal = createTipoCostoBase(
+    2,
+    'personal',
+    'Detalle de personal',
+    items
+  );
 
   const equipoMap = new Map(equipos.map((eq) => [eq.id_equipo, eq]));
   const personalMap = new Map(personal.map((per) => [per.id_personal, per]));
@@ -100,7 +128,7 @@ export const generateCostStructures = ({
     const cantidadTotal = Array.from(usoPorItem.values()).reduce((sum, meses) => sum + meses, 0);
     if (cantidadTotal <= 0) return;
 
-    const values: CostoValue[] = [
+    const valuesBase: CostoValue[] = [
       { name: 'Amortizacion', value: roundToTwo(equipo.Amortizacion) },
       { name: 'Seguro', value: roundToTwo(equipo.Seguro) },
       { name: 'Patente', value: roundToTwo(equipo.Patente) },
@@ -108,8 +136,13 @@ export const generateCostStructures = ({
       { name: 'Fee Alquiler ', value: roundToTwo(equipo.Fee_alquiler) },
     ];
 
-    const costoUnitario = roundToTwo(values.reduce((sum, item) => sum + item.value, 0));
+    const costoUnitario = roundToTwo(valuesBase.reduce((sum, item) => sum + item.value, 0));
     const costoTotal = roundToTwo(costoUnitario * cantidadTotal);
+    const promedioValue: CostoValue = {
+      name: 'Promedio',
+      value: roundToTwo(equipo.Amortizacion * 100),
+    };
+    const values: CostoValue[] = [...valuesBase, promedioValue];
     const itemsObra = buildItemsObraEntries(
       items,
       Object.fromEntries(usoPorItem.entries()),
@@ -122,11 +155,6 @@ export const generateCostStructures = ({
       id_tipo_costo: 1,
       detalle: equipo.detalle,
       values,
-      afectacion: {
-        Amortizacion: roundToTwo(equipo.Amortizacion),
-        mult: 100,
-        total: roundToTwo(equipo.Amortizacion * 100),
-      },
       unidad: 'mes',
       costo_unitario: costoUnitario,
       cantidad: roundToTwo(cantidadTotal),
@@ -142,6 +170,62 @@ export const generateCostStructures = ({
         acumulaTotalItem(entry.idItem, entry.total);
         updateTipoCostoItemTotal(tipoCostoEquipo, entry.idItem, entry.total);
       }
+    });
+
+    const categoriaEquipoAdicionales: Array<{
+      tipoCosto: TipoCosto;
+      id_tipo_costo: number;
+      values: CostoValue[];
+    }> = [
+      {
+        tipoCosto: tipoCostoCombustibles,
+        id_tipo_costo: 3,
+        values: [
+          { name: 'Combustible', value: roundToTwo(equipo.Combustible) },
+          { name: 'Lubricante', value: roundToTwo(equipo.Lubricantes) },
+        ],
+      },
+      {
+        tipoCosto: tipoCostoNeumaticos,
+        id_tipo_costo: 4,
+        values: [
+          { name: 'Neumaticos', value: roundToTwo(equipo.Neumaticos) },
+          { name: 'Mantenimiento', value: roundToTwo(equipo.Mantenim) },
+        ],
+      },
+    ];
+
+    categoriaEquipoAdicionales.forEach(({ tipoCosto, id_tipo_costo, values }) => {
+      const costoUnitarioCategoria = roundToTwo(values.reduce((sum, item) => sum + item.value, 0));
+      const costoTotalCategoria = roundToTwo(costoUnitarioCategoria * cantidadTotal);
+      const itemsObraCategoria = buildItemsObraEntries(
+        items,
+        Object.fromEntries(usoPorItem.entries()),
+        costoUnitarioCategoria,
+        costoTotalCategoria,
+      );
+
+      const costoCategoria: Costo = {
+        id_costo: idCostoCounter++,
+        id_tipo_costo,
+        detalle: equipo.detalle,
+        values,
+        unidad: 'mes',
+        costo_unitario: costoUnitarioCategoria,
+        cantidad: roundToTwo(cantidadTotal),
+        costo_total: costoTotalCategoria,
+        itemsObra: itemsObraCategoria,
+      };
+
+      costos.push(costoCategoria);
+      tipoCosto.costo_total = roundToTwo(tipoCosto.costo_total + costoTotalCategoria);
+
+      itemsObraCategoria.forEach((entry) => {
+        if (entry.total > 0) {
+          acumulaTotalItem(entry.idItem, entry.total);
+          updateTipoCostoItemTotal(tipoCosto, entry.idItem, entry.total);
+        }
+      });
     });
   });
 
@@ -188,7 +272,6 @@ export const generateCostStructures = ({
       id_tipo_costo: 2,
       detalle: persona.funcion,
       values,
-      afectacion: null,
       unidad: 'mes',
       costo_unitario: costoUnitario,
       cantidad: roundToTwo(cantidadTotal),
@@ -213,10 +296,11 @@ export const generateCostStructures = ({
   }));
 
   return {
-    tiposCosto: [tipoCostoEquipo, tipoCostoPersonal],
+    tiposCosto: [tipoCostoEquipo, tipoCostoCombustibles, tipoCostoNeumaticos, tipoCostoPersonal],
     costos,
     itemsActualizados,
   };
 };
+
 
 
