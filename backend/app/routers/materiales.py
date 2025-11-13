@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import io
+import re
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Material, TipoMaterial
 from app.db.session import get_db
-from app.schemas.materiales import Calculo, HeaderAtributoCreate, MaterialCreate, MaterialRead, MaterialUpdate, TipoMaterialCreate, TipoMaterialRead
+from app.schemas.materiales import (
+    Calculo,
+    HeaderAtributoCreate,
+    MaterialCreate,
+    MaterialRead,
+    MaterialUpdate,
+    TipoMaterialCreate,
+    TipoMaterialRead,
+)
+from app.services.materiales_excel import build_excel_for_tipo_material
 
 
 router = APIRouter(prefix="/materiales", tags=["Materiales"])
@@ -23,6 +35,7 @@ BASE_TITLE_FIELD_MAP = {
 }
 
 NUMERIC_BASE_TITLES = {"cantidad", "$unitario", "$total"}
+NUMERIC_BASE_IDS = {2, 4, 5}
 BASE_HEADERS_DEFINITION = [
     (1, "Detalle"),
     (2, "Cantidad"),
@@ -31,6 +44,12 @@ BASE_HEADERS_DEFINITION = [
     (5, "$Total"),
 ]
 REQUIRED_BASE_HEADERS = {1, 4, 5}
+
+
+def _slugify_filename(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_-]+", "_", value.strip())
+    normalized = re.sub(r"_+", "_", normalized).strip("_")
+    return normalized or "tipo_material"
 
 
 def _to_float(value: Any, field: str, allow_blank: bool = False) -> float:
@@ -252,8 +271,9 @@ def _initialize_total_cantidad(
     for header in headers_base:
         if not header.get("active", True):
             continue
-        titulo = header["titulo"].strip().lower()
-        if titulo in NUMERIC_BASE_TITLES:
+        header_id = int(header.get("id_header_base", 0))
+        titulo = (header.get("titulo") or "").strip().lower()
+        if header_id in NUMERIC_BASE_IDS or titulo in NUMERIC_BASE_TITLES:
             total_cantidad.append(
                 {"typeOfHeader": "base", "idHeader": header["id_header_base"], "total": 0.0}
             )
@@ -604,6 +624,29 @@ def obtener_tipo_material(id_tipo_material: int, db: Session = Depends(get_db)):
     if not tipo:
         raise HTTPException(status_code=404, detail="Tipo de material no encontrado")
     return tipo
+
+
+@router.get("/tipos/{id_tipo_material}/excel")
+def descargar_excel_tipo_material(id_tipo_material: int, db: Session = Depends(get_db)):
+    tipo = db.get(TipoMaterial, id_tipo_material)
+    if not tipo:
+        raise HTTPException(status_code=404, detail="Tipo de material no encontrado")
+
+    stmt = (
+        select(Material)
+        .where(Material.id_tipo_material == id_tipo_material)
+        .order_by(Material.id_material)
+    )
+    materiales = db.scalars(stmt).all()
+
+    excel_bytes = build_excel_for_tipo_material(tipo, materiales)
+    filename = f"{_slugify_filename(tipo.titulo)}.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/", response_model=MaterialRead, status_code=status.HTTP_201_CREATED)

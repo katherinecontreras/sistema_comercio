@@ -43,6 +43,16 @@ export const getMaterialesPorTipo = async (id_tipo_material: number) => {
   return data;
 };
 
+export const downloadExcelTipoMaterial = async (id_tipo_material: number) => {
+  const response = await api.get(`/materiales/tipos/${id_tipo_material}/excel`, {
+    responseType: 'blob',
+    headers: {
+      Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    },
+  });
+  return response.data as Blob;
+};
+
 export const createMaterial = async (payload: any) => {
   const { data } = await api.post('/materiales', payload);
   return data;

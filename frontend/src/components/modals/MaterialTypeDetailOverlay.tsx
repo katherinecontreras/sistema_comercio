@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { downloadExcelTipoMaterial } from '@/actions/materiales';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TipoMaterial } from '@/store/material/materialStore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { OPERATOR_LABEL_MAP, OPERATOR_SYMBOL_MAP } from '@/utils/materiales';
+import { useToastHelpers } from '@/components/notifications/ToastProvider';
 
 interface MaterialTypeDetailOverlayProps {
   tipo: TipoMaterial | null;
@@ -23,6 +25,14 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 2,
   });
 
+const slugify = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'tipo-material';
+
 const MaterialTypeDetailOverlay: React.FC<MaterialTypeDetailOverlayProps> = ({
   tipo,
   onClose,
@@ -31,6 +41,8 @@ const MaterialTypeDetailOverlay: React.FC<MaterialTypeDetailOverlayProps> = ({
 }) => {
   const isActive = Boolean(isOpen && tipo);
   const navigate = useNavigate();
+  const { showError, showSuccess } = useToastHelpers();
+  const [downloading, setDownloading] = useState(false);
 
   const atributos = useMemo(() => tipo?.headers_atributes ?? [], [tipo]);
 
@@ -227,6 +239,29 @@ const MaterialTypeDetailOverlay: React.FC<MaterialTypeDetailOverlayProps> = ({
     );
   };
 
+  const handleDownloadExcel = async () => {
+    if (!tipo || downloading) return;
+    setDownloading(true);
+    try {
+      const blob = await downloadExcelTipoMaterial(tipo.id_tipo_material);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const filename = `materiales-${slugify(tipo.titulo || 'tabla')}.xlsx`;
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showSuccess('Descarga completada', `El Excel de ${tipo.titulo} está listo.`);
+    } catch (error) {
+      console.error('Error descargando Excel de materiales', error);
+      showError('No se pudo descargar el Excel', 'Por favor, vuelve a intentarlo.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isActive) return;
 
@@ -305,11 +340,12 @@ const MaterialTypeDetailOverlay: React.FC<MaterialTypeDetailOverlayProps> = ({
                       <div className="mt-2 flex flex-wrap gap-3">
                         <Button
                           type="button"
-                          onClick={() => {}}
+                          onClick={handleDownloadExcel}
                           variant="outline"
                           className="border-emerald-500/50 bg-emerald-600/10 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 hover:text-emerald-100"
+                          disabled={downloading}
                         >
-                          Descargar Excel
+                          {downloading ? 'Descargando...' : 'Descargar Excel'}
                         </Button>
                         <Button
                           type="button"
