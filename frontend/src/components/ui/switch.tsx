@@ -19,13 +19,15 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
       <button
         type="button"
         role="switch"
-        aria-checked={checked} 
+        aria-checked={checked}
         ref={ref}
         onClick={handleClick}
         disabled={disabled}
         className={cn(
-          "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "bg-slate-600" : "bg-slate-700",
+          "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50",
+          checked
+            ? "bg-emerald-500 hover:bg-emerald-600 focus-visible:ring-emerald-400"
+            : "bg-slate-600 hover:bg-slate-500 focus-visible:ring-slate-400",
           className
         )}
         {...props}

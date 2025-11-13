@@ -120,6 +120,27 @@ CREATE TABLE costos (
   "itemsObra" JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
+CREATE TABLE "tiposMaterial" (
+  id_tipo_material SERIAL PRIMARY KEY,
+  titulo VARCHAR(255) NOT NULL UNIQUE,
+  total_costo_unitario DOUBLE PRECISION NOT NULL DEFAULT 0,
+  total_costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
+  total_cantidad JSONB NOT NULL DEFAULT '[]'::jsonb,
+  headers_base JSONB NOT NULL DEFAULT '[]'::jsonb,
+  headers_atributes JSONB
+);
+
+CREATE TABLE materiales (
+  id_material SERIAL PRIMARY KEY,
+  id_tipo_material INTEGER NOT NULL REFERENCES "tiposMaterial"(id_tipo_material) ON DELETE CASCADE,
+  detalle VARCHAR(255) NOT NULL,
+  unidad VARCHAR(50),
+  cantidad VARCHAR(50),
+  costo_unitario DOUBLE PRECISION NOT NULL DEFAULT 0,
+  costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
+  atributos JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
 CREATE TABLE itemsObra (
   id_item_Obra SERIAL PRIMARY KEY,
   id_obra INTEGER REFERENCES obras(id_obra) ON DELETE RESTRICT,

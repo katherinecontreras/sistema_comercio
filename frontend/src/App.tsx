@@ -9,6 +9,8 @@ import Dashboard from '@/app/Home/Dashboard/page';
 import ClientSelector from '@/app/Login/Clientes/page';
 import Equipos from '@/app/Home/Equipos/page';
 import Personal from '@/app/Home/Personal/page';
+import Materiales from '@/app/Home/Materiales/page';
+import TipoMaterial from '@/app/Home/Materiales/tipoMaterial/page';
 import OfertaLayout from './app/Oferta/page';
 import Obra from './app/Oferta/Obra/page';
 import Recursos from './app/Oferta/Recursos/page';
@@ -40,6 +42,8 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard/></Layout></ProtectedRoute>} />
           <Route path="/equipos" element={<ProtectedRoute><Layout><Equipos/></Layout></ProtectedRoute>} />
           <Route path="/personal" element={<ProtectedRoute><Layout><Personal/></Layout></ProtectedRoute>} />
+          <Route path="/materiales" element={<ProtectedRoute><Layout><Materiales/></Layout></ProtectedRoute>} />
+          <Route path="/materiales/tipoMaterial" element={<ProtectedRoute><Layout><TipoMaterial/></Layout></ProtectedRoute>} />
           
           {/*oferta - layout con sidebar*/}
           <Route path="/oferta" element={<ProtectedRoute><OfertaLayout/></ProtectedRoute>}>

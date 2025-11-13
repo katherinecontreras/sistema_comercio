@@ -17,7 +17,7 @@ import { useToastHelpers } from '@/components/notifications/ToastProvider';
 import HeaderOferta from '@/components/headers/HeaderOferta';
 import { Button } from '@/components/ui/button';
 import AddItemModal from '@/components/modals/AddItemModal';
-import ItemCard from '@/components/items/ItemCard';
+import ItemCard from '@/components/cards/ItemCard';
 
 const ItemsPage: React.FC = () => {
   const navigate = useNavigate();

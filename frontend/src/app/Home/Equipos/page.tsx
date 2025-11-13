@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import useEquipoBaseStore from '@/store/equipo/equipoStore';
-import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
-import EquiposTable from '@/components/tables/EquiposTable';
+import { Upload, Package } from 'lucide-react';
+
 import { getEquipos, importEquiposOriginal, resetEquipos } from '@/actions/equipos';
+import { HeaderHome } from '@/components';
+import EquiposTable from '@/components/tables/EquiposTable';
+import { Button } from '@/components/ui/button';
 import { useAsyncOperation } from '@/hooks/useAsyncOperation';
+import useEquipoBaseStore from '@/store/equipo/equipoStore';
 
 const Equipos: React.FC = () => {
   const { equipos, setEquipos, loading, setLoading, setError } = useEquipoBaseStore();
@@ -79,48 +81,33 @@ const Equipos: React.FC = () => {
   };
 
   return (
-    <div className="p-4">
-      {/* Header */}
-      <div className="relative flex items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-600 text-white shadow-lg shadow-sky-900/40">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M20 7h-4m-4 0H4m16 5h-4m-4 0H4m16 5h-4m-4 0H4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
+    <div className="space-y-6">
+      <HeaderHome
+        title="Equipos – Vista por Secciones"
+        description="Visualiza y filtra costos de propiedad, operación y resumen de equipos."
+        icon={Package}
+        aside={
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <Button
+              onClick={handleCargarEquiposClick}
+              className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
+            >
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Cargar Equipos</span>
+              <span className="sm:hidden">Cargar</span>
+            </Button>
           </div>
+        }
+      />
 
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">
-              Equipos – Vista por Secciones
-            </h1>
-            <p className="mt-1 text-sm text-slate-400">
-              Visualiza y filtra costos de propiedad, operación y resumen de equipos.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <Button
-            onClick={handleCargarEquiposClick}
-            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
-          >
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Cargar Equipos</span>
-            <span className="sm:hidden">Cargar</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabla */}
-      <div>
-        <EquiposTable rows={equipos} loading={loading || loadingLoad || loadingImport} />
-      </div>
+      <EquiposTable rows={equipos} loading={loading || loadingLoad || loadingImport} />
     </div>
   );
 };

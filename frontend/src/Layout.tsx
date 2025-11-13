@@ -12,7 +12,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = React.memo(({ children }
 
   const isForSideBar = () => {
     let result = false;
-    if (location.pathname === "/dashboard" || location.pathname === "/equipos" || location.pathname === "/personal" || location.pathname === "/planilla" || location.pathname === "/configuracion") {
+    const rutasSidebar = ["/dashboard", "/equipos", "/personal", "/materiales", "/planilla", "/configuracion"];
+    if (rutasSidebar.some((ruta) => location.pathname.startsWith(ruta))) {
       result = true;
     }
     return result;

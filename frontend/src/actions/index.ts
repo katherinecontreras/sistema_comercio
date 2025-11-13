@@ -5,3 +5,4 @@ export * from './mesesJornada';
 export * from './obras';
 export * from './personal';
 export * from './recursos';
+export * from './materiales';

@@ -15,6 +15,7 @@ from app.routers.itemsObra import router as itemsObra_router
 from app.routers.recursos import router as recursos_router
 from app.routers.costos import router as costos_router
 from app.routers.mesesJornada import router as mesesJornada_router
+from app.routers.materiales import router as materiales_router
 from app.services.startup import seed_admin
 
 
@@ -46,6 +47,7 @@ app.include_router(itemsObra_router, prefix=settings.API_V1_PREFIX)
 app.include_router(recursos_router, prefix=settings.API_V1_PREFIX)
 app.include_router(mesesJornada_router, prefix=settings.API_V1_PREFIX)
 app.include_router(costos_router, prefix=settings.API_V1_PREFIX)
+app.include_router(materiales_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.on_event("startup")

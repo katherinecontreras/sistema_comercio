@@ -23,6 +23,7 @@ export { default as LoadingState } from './ui/LoadingState';
 export { default as BaseModal, ConfirmModal } from './modals/BaseModal';
 export { default as SmartSelect } from './ui/SmartSelect';
 export { default as HeaderOferta } from './headers/HeaderOferta';
+export { default as HeaderHome } from './headers/HeaderHome';
 export { 
   FormField, 
   TextareaField, 

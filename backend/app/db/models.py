@@ -165,6 +165,83 @@ class Costo(Base):
 
     tipo_costo = relationship("TipoCosto", back_populates="costos")
 
+
+def _default_headers_base() -> list[dict[str, Any]]:
+    titulos = ["Detalle", "Cantidad", "Unidad", "$Unitario", "$Total"]
+    headers: list[dict[str, Any]] = []
+    for idx, titulo in enumerate(titulos, start=1):
+        if titulo == "$Total":
+            calculo = {
+                "activo": True,
+                "isMultiple": False,
+                "operaciones": [
+                    {
+                        "tipo": "multiplicacion",
+                        "headers_base": [2, 4],
+                        "headers_atributos": [],
+                    }
+                ],
+            }
+        else:
+            calculo = {
+                "activo": False,
+                "isMultiple": False,
+                "operaciones": [],
+            }
+        headers.append(
+            {
+                "id_header_base": idx,
+                "titulo": titulo,
+                "active": True,
+                "calculo": calculo,
+            }
+        )
+    return headers
+
+
+def _default_total_cantidad() -> list[dict[str, Any]]:
+    # Corresponde a los headers base con valores numéricos y queda listo para atributos
+    return [
+        {"typeOfHeader": "base", "idHeader": 2, "total": 0.0},  # Cantidad
+        {"typeOfHeader": "base", "idHeader": 4, "total": 0.0},  # $Unitario
+        {"typeOfHeader": "base", "idHeader": 5, "total": 0.0},  # $Total
+    ]
+
+
+class TipoMaterial(Base):
+    __tablename__ = "tiposMaterial"
+
+    id_tipo_material: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    titulo: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    total_costo_unitario: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_costo_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_cantidad: Mapped[list[dict[str, Any]]] = mapped_column(
+        MutableList.as_mutable(JSONB), default=_default_total_cantidad
+    )
+    headers_base: Mapped[list[dict[str, Any]]] = mapped_column(
+        MutableList.as_mutable(JSONB), default=_default_headers_base
+    )
+    headers_atributes: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, default=None)
+
+    materiales = relationship("Material", back_populates="tipo_material", cascade="all, delete-orphan")
+
+
+class Material(Base):
+    __tablename__ = "materiales"
+
+    id_material: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id_tipo_material: Mapped[int] = mapped_column(Integer, ForeignKey("tiposMaterial.id_tipo_material"), nullable=False)
+    detalle: Mapped[str] = mapped_column(String(255), nullable=False)
+    unidad: Mapped[str | None] = mapped_column(String(50))
+    cantidad: Mapped[str | None] = mapped_column(String(50))
+    costo_unitario: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    costo_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    atributos: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        MutableList.as_mutable(JSONB), default=list
+    )
+
+    tipo_material = relationship("TipoMaterial", back_populates="materiales")
+
 class MesResumen(Base):
     __tablename__ = "mesesResumen"
 

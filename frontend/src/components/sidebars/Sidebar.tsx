@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Home, Calculator, Package, Users, Settings, LogOut, X, Menu, Building2 } from 'lucide-react';
+import { Home, Package, Users, LogOut, X, Menu, Building2, Boxes } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAppStore } from '@/store/app';
@@ -62,10 +62,9 @@ const Sidebar: React.FC = React.memo(() => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Planilla', href: '/planilla', icon: Calculator },
     { name: 'Equipos', href: '/equipos', icon: Package },
     { name: 'Personal', href: '/personal', icon: Users },
-    { name: 'Configuración', href: '/configuracion', icon: Settings },
+    { name: 'Materiales', href: '/materiales', icon: Boxes },
   ];
 
   const handleLogout = () => {
@@ -148,7 +147,9 @@ const Sidebar: React.FC = React.memo(() => {
         {/* Navegación principal */}
         <nav className="flex-grow space-y-2">
           {navigation.map((link, index) => {
-            const isActive = location.pathname === link.href;
+            const isActive =
+              location.pathname === link.href ||
+              location.pathname.startsWith(`${link.href}/`);
             return (
               <NavLink
                 key={`${link.name}-${index}`}
