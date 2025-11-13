@@ -5,6 +5,11 @@ export const getTiposMaterial = async () => {
   return data;
 };
 
+export const getTipoMaterialDetalle = async (id_tipo_material: number) => {
+  const { data } = await api.get(`/materiales/tipos/${id_tipo_material}`);
+  return data;
+};
+
 export const createTipoMaterial = async (payload: {
   titulo: string;
   headers_base_active?: number[];
@@ -12,6 +17,19 @@ export const createTipoMaterial = async (payload: {
   headers_atributes?: any;
 }) => {
   const { data } = await api.post('/materiales/tipos', payload);
+  return data;
+};
+
+export const updateTipoMaterial = async (
+  id_tipo_material: number,
+  payload: {
+    titulo: string;
+    headers_base_active?: number[];
+    headers_base_calculations?: any;
+    headers_atributes?: any;
+  },
+) => {
+  const { data } = await api.put(`/materiales/tipos/${id_tipo_material}`, payload);
   return data;
 };
 

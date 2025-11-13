@@ -8,12 +8,14 @@ import {
   SelectionBackup,
   CalculoOperation 
 } from '@/store/material/types';
-import { 
-  createPlaceholderValue, 
-  headerSupportsCalculation, 
+import {
+  createPlaceholderValue,
+  headerSupportsCalculation,
   cloneHeaderDraft,
   getHeaderTitle,
-  formatExpression 
+  formatExpression,
+  OPERATOR_LABEL_MAP,
+  OPERATOR_SYMBOL_MAP,
 } from '@/utils/materiales';
 
 export const useCalculationHandlers = (
@@ -236,8 +238,8 @@ export const useCalculationHandlers = (
       if (!value?.headerRef) return;
 
       const titleHeader = getHeaderTitle(header);
-      const symbolChar = operation.operator === 'multiplicacion' ? '×' : '÷';
-      const symbolWord = operation.operator === 'multiplicacion' ? 'multiplicación' : 'división';
+      const symbolChar = OPERATOR_SYMBOL_MAP[operation.operator];
+      const symbolWord = OPERATOR_LABEL_MAP[operation.operator];
 
       if (operations.length === 1 && operation.values.length <= 2) {
         const first = operation.values[0];

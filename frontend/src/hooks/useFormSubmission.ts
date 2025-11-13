@@ -3,14 +3,15 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HeaderDraft, CalculoOperation, OperatorType, CalculoValue } from '@/store/material/types';
 import { getHeaderTitle } from '@/utils/materiales';
-import { createTipoMaterial } from '@/actions/materiales';
+import { createTipoMaterial, updateTipoMaterial } from '@/actions/materiales';
 import { useAsyncOperation } from '@/hooks/useAsyncOperation';
 import { useMaterialStore } from '@/store/material/materialStore';
 
 export const useFormSubmission = (
   headers: HeaderDraft[],
   titulo: string,
-  setFormError: React.Dispatch<React.SetStateAction<string | null>>
+  setFormError: React.Dispatch<React.SetStateAction<string | null>>,
+  editingTipoId: number | null,
 ) => {
   const navigate = useNavigate();
   const { tipos, setTipos, setLoading } = useMaterialStore();
@@ -105,41 +106,125 @@ export const useFormSubmission = (
     }
 
     const atributos = headers.filter((header) => !header.isBaseHeader);
-    const atributoIndexMap = new Map(atributos.map((header, index) => [header.id, index + 1]));
+    const atributoIndexMap = new Map(
+      atributos.map((header, index) => {
+        const match = header.id.match(/^attr-(\d+)$/);
+        const resolvedId = match ? Number(match[1]) : index + 1;
+        return [header.id, resolvedId];
+      }),
+    );
+
+    const headersBaseActive = headers
+      .filter(
+        (header) =>
+          header.isBaseHeader &&
+          header.baseHeaderId &&
+          header.baseHeaderId !== 1 &&
+          header.baseHeaderId !== 4 &&
+          header.baseHeaderId !== 5,
+      )
+      .map((header) => header.baseHeaderId!)
+      .filter((value, index, self) => self.indexOf(value) === index);
+
+    const headersBasePayload = headers
+      .filter((header) => header.isBaseHeader && header.baseHeaderId)
+      .map((header) => {
+        const tituloLimpio = (header.title || getHeaderTitle(header)).trim();
+        const calculoPayload = buildCalculoPayload(header.calculoOperations, atributoIndexMap);
+
+        const entry: {
+          id_header_base: number;
+          titulo: string;
+          order: number;
+          calculo?: ReturnType<typeof buildCalculoPayload>;
+        } = {
+          id_header_base: header.baseHeaderId!,
+          titulo: tituloLimpio || getHeaderTitle(header),
+          order: header.order,
+        };
+
+        if (calculoPayload) {
+          entry.calculo = calculoPayload;
+        }
+
+        return entry;
+      });
+
+    const orderHeaders = headers
+      .map((header) => {
+        const baseInfo = header.isBaseHeader ? header.baseHeaderId : undefined;
+        const attrMatch = !header.isBaseHeader ? header.id.match(/^attr-(\d+)$/) : null;
+        const attrId = attrMatch ? Number(attrMatch[1]) : undefined;
+        const orderValue = header.order;
+
+        if (header.isBaseHeader && baseInfo !== undefined) {
+          return {
+            type: 'base' as const,
+            id: baseInfo,
+            order: orderValue,
+          };
+        }
+
+        if (!header.isBaseHeader && attrId !== undefined) {
+          return {
+            type: 'atribute' as const,
+            id: attrId,
+            order: orderValue,
+          };
+        }
+
+        return null;
+      })
+      .filter((entry): entry is { type: 'base' | 'atribute'; id: number; order: number } => entry !== null)
+      .sort((a, b) => a.order - b.order);
 
     const payload = {
       titulo: titulo.trim(),
-      headers_base_active: headers
-        .filter(
-          (header) =>
-            header.isBaseHeader &&
-            header.baseHeaderId &&
-            header.baseHeaderId !== 1 &&
-            header.baseHeaderId !== 4 &&
-            header.baseHeaderId !== 5
-        )
-        .map((header) => header.baseHeaderId!)
-        .filter((value, index, self) => self.indexOf(value) === index),
-      headers_base_calculations: headers
-        .filter((header) => header.isBaseHeader && header.baseHeaderId)
-        .map((header) => ({
-          id_header_base: header.baseHeaderId!,
-          calculo: buildCalculoPayload(header.calculoOperations, atributoIndexMap),
-        }))
-        .filter((item) => item.calculo !== undefined),
+      headers_base_active: headersBaseActive,
+      headers_base_calculations: headersBasePayload,
       headers_atributes:
         atributos.length > 0
-          ? atributos.map((header) => ({
-              titulo: header.title.trim() || 'Header',
-              isCantidad: header.isCantidad,
-              calculo: buildCalculoPayload(header.calculoOperations, atributoIndexMap),
-            }))
+          ? atributos.map((header) => {
+              const match = header.id.match(/^attr-(\d+)$/);
+              const attributeId = match ? Number(match[1]) : undefined;
+              const basePayload: {
+                id_header_atribute?: number;
+                titulo: string;
+                isCantidad: boolean;
+                order: number;
+                calculo?: ReturnType<typeof buildCalculoPayload>;
+              } = {
+                titulo: (header.title || getHeaderTitle(header)).trim() || 'Header',
+                isCantidad: header.isCantidad,
+                order: header.order,
+              };
+              const calculoPayload = buildCalculoPayload(header.calculoOperations, atributoIndexMap);
+              if (calculoPayload) {
+                basePayload.calculo = calculoPayload;
+              }
+              if (attributeId !== undefined) {
+                basePayload.id_header_atribute = attributeId;
+              }
+              return basePayload;
+            })
           : undefined,
+      order_headers: orderHeaders,
     };
 
     await execute(
       async () => {
         setLoading(true);
+        if (editingTipoId) {
+          const updated = await updateTipoMaterial(editingTipoId, payload);
+          setTipos(
+            tipos.map((tipo) =>
+              tipo.id_tipo_material === updated.id_tipo_material ? updated : tipo,
+            ),
+          );
+          navigate('/materiales');
+          return updated;
+        }
+
         const created = await createTipoMaterial(payload);
         setTipos([...tipos, created]);
         navigate('/materiales');
@@ -147,16 +232,25 @@ export const useFormSubmission = (
       },
       {
         showErrorToast: true,
-        successMessage: 'Tabla de materiales creada correctamente',
-        errorMessage: 'Error al crear la tabla de materiales',
+        successMessage: editingTipoId
+          ? 'Tabla de materiales actualizada correctamente'
+          : 'Tabla de materiales creada correctamente',
+        errorMessage: editingTipoId
+          ? 'Error al actualizar la tabla de materiales'
+          : 'Error al crear la tabla de materiales',
         onError: (error) => {
-          setFormError(error?.response?.data?.detail || 'Ocurrió un error al crear la tabla.');
+          setFormError(
+            error?.response?.data?.detail ||
+              (editingTipoId
+                ? 'Ocurrió un error al actualizar la tabla.'
+                : 'Ocurrió un error al crear la tabla.'),
+          );
           setLoading(false);
         },
         onSuccess: () => {
           setLoading(false);
         },
-      }
+      },
     );
   }, [
     buildCalculoPayload,
@@ -169,6 +263,7 @@ export const useFormSubmission = (
     tipos,
     validateCalculations,
     setFormError,
+    editingTipoId,
   ]);
 
   return {

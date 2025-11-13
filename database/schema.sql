@@ -100,7 +100,7 @@ CREATE TABLE equipos (
     Total_mes DOUBLE PRECISION NOT NULL
 );
 
-CREATE TABLE "tiposCosto" (
+CREATE TABLE tipos_costo (
   id_tipo_costo SERIAL PRIMARY KEY,
   tipo VARCHAR(10) NOT NULL,
   descripcion VARCHAR(255),
@@ -110,7 +110,7 @@ CREATE TABLE "tiposCosto" (
 
 CREATE TABLE costos (
   id_costo SERIAL PRIMARY KEY,
-  id_tipo_costo INTEGER NOT NULL REFERENCES "tiposCosto"(id_tipo_costo) ON DELETE CASCADE,
+  id_tipo_costo INTEGER NOT NULL REFERENCES tipos_costo(id_tipo_costo) ON DELETE CASCADE,
   detalle VARCHAR(255) NOT NULL,
   "values" JSONB NOT NULL DEFAULT '[]'::jsonb,
   unidad VARCHAR(20) NOT NULL DEFAULT 'mes',
@@ -120,19 +120,20 @@ CREATE TABLE costos (
   "itemsObra" JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
-CREATE TABLE "tiposMaterial" (
+CREATE TABLE tipos_material (
   id_tipo_material SERIAL PRIMARY KEY,
   titulo VARCHAR(255) NOT NULL UNIQUE,
   total_costo_unitario DOUBLE PRECISION NOT NULL DEFAULT 0,
   total_costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
   total_cantidad JSONB NOT NULL DEFAULT '[]'::jsonb,
   headers_base JSONB NOT NULL DEFAULT '[]'::jsonb,
-  headers_atributes JSONB
+  headers_atributes JSONB,
+  order_headers JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
 CREATE TABLE materiales (
   id_material SERIAL PRIMARY KEY,
-  id_tipo_material INTEGER NOT NULL REFERENCES "tiposMaterial"(id_tipo_material) ON DELETE CASCADE,
+  id_tipo_material INTEGER NOT NULL REFERENCES tipos_material(id_tipo_material) ON DELETE CASCADE,
   detalle VARCHAR(255) NOT NULL,
   unidad VARCHAR(50),
   cantidad VARCHAR(50),
@@ -150,7 +151,7 @@ CREATE TABLE itemsObra (
 );
 
 -- Tipos de recurso
-CREATE TABLE "tiposRecurso" (
+CREATE TABLE tipos_recurso (
   id_tipo_recurso SERIAL PRIMARY KEY,
   descripcion VARCHAR(250) NOT NULL UNIQUE
 );
@@ -159,7 +160,7 @@ CREATE TABLE "tiposRecurso" (
 CREATE TABLE recursos (
   id_recurso SERIAL PRIMARY KEY,
   descripcion VARCHAR(250) NOT NULL,
-  id_tipo_recurso INTEGER NOT NULL REFERENCES "tiposRecurso"(id_tipo_recurso) ON DELETE RESTRICT,
+  id_tipo_recurso INTEGER NOT NULL REFERENCES tipos_recurso(id_tipo_recurso) ON DELETE RESTRICT,
   unidad VARCHAR(20) NOT NULL,
   cantidad DOUBLE PRECISION NOT NULL DEFAULT 0,
   meses_operario DOUBLE PRECISION NOT NULL DEFAULT 0
@@ -185,7 +186,7 @@ INSERT INTO clientes (razon_social, cuit, actividad) VALUES
 ('UTE LOS TOLDOS (TECPETROL)', '30-71217040-5', 'OPERADORA GAS Y PETROLEO');
 
 -- Carga inicial de tipos de recurso
-INSERT INTO "tiposRecurso" (descripcion) VALUES
+INSERT INTO tipos_recurso (descripcion) VALUES
 ('Replanteos ,estudios e ingenieria de detalle'),
 ('Gestion de compras y abastecimiento de materiales'),
 ('Movilizacion y demovilizacion de  personal , obrador y equipos , y cursos'),

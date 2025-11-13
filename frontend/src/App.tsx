@@ -44,6 +44,7 @@ function App() {
           <Route path="/personal" element={<ProtectedRoute><Layout><Personal/></Layout></ProtectedRoute>} />
           <Route path="/materiales" element={<ProtectedRoute><Layout><Materiales/></Layout></ProtectedRoute>} />
           <Route path="/materiales/tipoMaterial" element={<ProtectedRoute><Layout><TipoMaterial/></Layout></ProtectedRoute>} />
+          <Route path="/materiales/tipoMaterial/:id" element={<ProtectedRoute><Layout><TipoMaterial/></Layout></ProtectedRoute>} />
           
           {/*oferta - layout con sidebar*/}
           <Route path="/oferta" element={<ProtectedRoute><OfertaLayout/></ProtectedRoute>}>

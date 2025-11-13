@@ -74,7 +74,7 @@ class ItemObra(Base):
     obra = relationship("Obra", back_populates="itemsObra")
 
 class Tipo_recurso(Base):
-    __tablename__ = "tiposRecurso"
+    __tablename__ = "tipos_recurso"
 
     id_tipo_recurso: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
@@ -86,7 +86,7 @@ class Recurso(Base):
 
     id_recurso: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     descripcion: Mapped[str] = mapped_column(String(250), nullable=False)
-    id_tipo_recurso: Mapped[int] = mapped_column(Integer, ForeignKey("tiposRecurso.id_tipo_recurso"), nullable=False)
+    id_tipo_recurso: Mapped[int] = mapped_column(Integer, ForeignKey("tipos_recurso.id_tipo_recurso"), nullable=False)
     unidad: Mapped[str] = mapped_column(String(20), nullable=False)
     cantidad: Mapped[float] = mapped_column(Float, nullable=False)
     meses_operario: Mapped[float] = mapped_column(Float, nullable=False)
@@ -132,7 +132,7 @@ class Equipo(Base):
 
 
 class TipoCosto(Base):
-    __tablename__ = "tiposCosto"
+    __tablename__ = "tipos_costo"
 
     id_tipo_costo: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tipo: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -149,7 +149,7 @@ class Costo(Base):
     __tablename__ = "costos"
 
     id_costo: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    id_tipo_costo: Mapped[int] = mapped_column(Integer, ForeignKey("tiposCosto.id_tipo_costo"), nullable=False)
+    id_tipo_costo: Mapped[int] = mapped_column(Integer, ForeignKey("tipos_costo.id_tipo_costo"), nullable=False)
     detalle: Mapped[str] = mapped_column(String(255), nullable=False)
     values: Mapped[list[dict[str, Any]]] = mapped_column(
         "values",
@@ -167,7 +167,7 @@ class Costo(Base):
 
 
 def _default_headers_base() -> list[dict[str, Any]]:
-    titulos = ["Detalle", "Cantidad", "Unidad", "$Unitario", "$Total"]
+    titulos = ["Detalle", "Unidad", "Cantidad", "$Unitario", "$Total"]
     headers: list[dict[str, Any]] = []
     for idx, titulo in enumerate(titulos, start=1):
         if titulo == "$Total":
@@ -178,7 +178,7 @@ def _default_headers_base() -> list[dict[str, Any]]:
                     {
                         "tipo": "multiplicacion",
                         "headers_base": [2, 4],
-                        "headers_atributos": [],
+                        "headers_atributes": [],
                     }
                 ],
             }
@@ -194,9 +194,22 @@ def _default_headers_base() -> list[dict[str, Any]]:
                 "titulo": titulo,
                 "active": True,
                 "calculo": calculo,
+                "order": 999 if titulo == "$Total" else idx,
             }
         )
     return headers
+
+
+def _default_order_headers() -> list[dict[str, Any]]:
+    base_ids_in_order = [1, 3, 2, 4, 5]
+    order_entries: list[dict[str, Any]] = []
+    for order, base_id in enumerate(base_ids_in_order, start=1):
+        order_entries.append({
+            "type": "base",
+            "id": base_id,
+            "order": 999 if base_id == 5 else order,
+        })
+    return order_entries
 
 
 def _default_total_cantidad() -> list[dict[str, Any]]:
@@ -209,7 +222,7 @@ def _default_total_cantidad() -> list[dict[str, Any]]:
 
 
 class TipoMaterial(Base):
-    __tablename__ = "tiposMaterial"
+    __tablename__ = "tipos_material"
 
     id_tipo_material: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     titulo: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
@@ -222,6 +235,9 @@ class TipoMaterial(Base):
         MutableList.as_mutable(JSONB), default=_default_headers_base
     )
     headers_atributes: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, default=None)
+    order_headers: Mapped[list[dict[str, Any]]] = mapped_column(
+        MutableList.as_mutable(JSONB), default=_default_order_headers
+    )
 
     materiales = relationship("Material", back_populates="tipo_material", cascade="all, delete-orphan")
 
@@ -230,7 +246,7 @@ class Material(Base):
     __tablename__ = "materiales"
 
     id_material: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    id_tipo_material: Mapped[int] = mapped_column(Integer, ForeignKey("tiposMaterial.id_tipo_material"), nullable=False)
+    id_tipo_material: Mapped[int] = mapped_column(Integer, ForeignKey("tipos_material.id_tipo_material"), nullable=False)
     detalle: Mapped[str] = mapped_column(String(255), nullable=False)
     unidad: Mapped[str | None] = mapped_column(String(50))
     cantidad: Mapped[str | None] = mapped_column(String(50))

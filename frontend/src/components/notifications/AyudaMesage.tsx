@@ -92,11 +92,11 @@ export function AyudaMesage({ open, onOpenChange }: AyudaMesageProps) {
         description: (
           <ul className="list-disc list-inside space-y-1 text-emerald-100">
             <li>
-              Los botones <strong>×</strong> y <strong>/</strong> aparecen solo en headers con cantidades o
+              Los botones <strong>×</strong>, <strong>/</strong>, <strong>+</strong> y <strong>-</strong> aparecen solo en headers con cantidades o
               cálculos activos.
             </li>
             <li>Pulsa uno de los botones para agregar un cálculo y crear nuevos placeholders “Seleccionar…”.</li>
-            <li>Cada expresión puede contener múltiples pasos de multiplicación o división.</li>
+            <li>Cada expresión puede combinar multiplicaciones, divisiones, sumas o restas.</li>
           </ul>
         ),
       },

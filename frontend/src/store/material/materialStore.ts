@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export interface CalculoOperacion {
-  tipo: 'multiplicacion' | 'division';
+  tipo: 'multiplicacion' | 'division' | 'suma' | 'resta';
   headers_base?: number[] | null;
   headers_atributes?: number[] | null;
 }
@@ -17,6 +17,7 @@ export interface HeaderBase {
   titulo: string;
   active: boolean;
   calculo: Calculo;
+  order?: number;
 }
 
 export interface HeaderAtributo {
@@ -25,12 +26,19 @@ export interface HeaderAtributo {
   isCantidad: boolean;
   calculo: Calculo;
   total_costo_header: number;
+  order?: number;
 }
 
 export interface TotalCantidad {
   typeOfHeader: 'base' | 'atribute';
   idHeader: number;
   total: number;
+}
+
+export interface OrderHeaderEntry {
+  id: number;
+  order: number;
+  type: 'base' | 'atribute';
 }
 
 export interface TipoMaterial {
@@ -41,6 +49,7 @@ export interface TipoMaterial {
   total_cantidad: TotalCantidad[];
   headers_base: HeaderBase[];
   headers_atributes: HeaderAtributo[] | null;
+  order_headers?: OrderHeaderEntry[];
 }
 
 export interface MaterialAtributo {
@@ -155,7 +164,20 @@ const recalculateDraftForTipo = (draft: MaterialDraft, tipo?: TipoMaterial | nul
 
     if (values.length === 0) return null;
 
-    return values.reduce((acc, val) => acc * val, 1);
+    switch (operacion.tipo) {
+      case 'multiplicacion':
+      case 'division':
+        return values.reduce((acc, val) => acc * val, 1);
+      case 'suma':
+        return values.reduce((acc, val) => acc + val, 0);
+      case 'resta': {
+        const [first, ...rest] = values;
+        if (first === undefined) return null;
+        return rest.reduce((acc, val) => acc - val, first);
+      }
+      default:
+        return values[0] ?? null;
+    }
   };
 
   const computeCalculo = (calculo: Calculo): number | null => {
@@ -166,7 +188,7 @@ const recalculateDraftForTipo = (draft: MaterialDraft, tipo?: TipoMaterial | nul
     let resultado: number | null = null;
     for (const operacion of operaciones) {
       const valor = computeOperacion(operacion);
-      if (valor === null) {
+      if (valor === null || !Number.isFinite(valor)) {
         continue;
       }
 
@@ -182,13 +204,24 @@ const recalculateDraftForTipo = (draft: MaterialDraft, tipo?: TipoMaterial | nul
         continue;
       }
 
-      if (operacion.tipo === 'division') {
-        if (valor === 0) {
-          return null;
-        }
-        resultado /= valor;
-      } else {
-        resultado *= valor;
+      switch (operacion.tipo) {
+        case 'multiplicacion':
+          resultado *= valor;
+          break;
+        case 'division':
+          if (valor === 0) {
+            return null;
+          }
+          resultado /= valor;
+          break;
+        case 'suma':
+          resultado += valor;
+          break;
+        case 'resta':
+          resultado -= valor;
+          break;
+        default:
+          break;
       }
     }
 

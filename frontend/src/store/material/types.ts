@@ -1,5 +1,5 @@
 // types.ts - Tipos compartidos del módulo
-export type OperatorType = 'multiplicacion' | 'division';
+export type OperatorType = 'multiplicacion' | 'division' | 'suma' | 'resta';
 export type ColumnType = 'base' | 'atribute';
 
 export interface CalculoValue {

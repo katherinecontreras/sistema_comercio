@@ -20,12 +20,20 @@ class HeaderBase(BaseModel):
     titulo: str
     active: bool = True
     calculo: Calculo = Field(default_factory=Calculo)
+    order: Optional[int] = None
 
 
 class HeaderBaseUpdate(BaseModel):
     titulo: Optional[str] = None
     active: Optional[bool] = None
     calculo: Optional[Calculo] = None
+    order: Optional[int] = None
+
+
+class OrderHeaderEntry(BaseModel):
+    id: int
+    order: int
+    type: Optional[str] = Field(default="base")
 
 
 class HeaderAtributo(BaseModel):
@@ -34,22 +42,27 @@ class HeaderAtributo(BaseModel):
     isCantidad: bool = False
     calculo: Calculo = Field(default_factory=Calculo)
     total_costo_header: float = 0.0
+    order: Optional[int] = None
 
 
 class HeaderAtributoCreate(BaseModel):
+    id_header_atribute: Optional[int] = None
     titulo: str
     isCantidad: bool = False
     calculo: Optional[Calculo] = None
+    order: Optional[int] = None
 
 
 class HeaderAtributoUpdate(BaseModel):
     titulo: Optional[str] = None
     isCantidad: Optional[bool] = None
     calculo: Optional[Calculo] = None
+    order: Optional[int] = None
 
 
 class HeaderBaseCalc(BaseModel):
     id_header_base: int
+    titulo: Optional[str] = None
     calculo: Optional[Calculo] = None
 
 
@@ -64,12 +77,14 @@ class TipoMaterialCreate(BaseModel):
     headers_base_calculations: Optional[List[HeaderBaseCalc]] = None
     headers_base_active: Optional[List[int]] = None
     headers_atributes: Optional[List[HeaderAtributoCreate]] = None
+    order_headers: Optional[List[OrderHeaderEntry]] = None
 
 
 class TipoMaterialUpdate(BaseModel):
     titulo: Optional[str] = None
     headers_base: Optional[List[HeaderBaseUpdate]] = None
     headers_atributes: Optional[List[HeaderAtributoUpdate]] = None
+    order_headers: Optional[List[OrderHeaderEntry]] = None
 
 
 class TipoMaterialRead(BaseModel):
@@ -80,6 +95,7 @@ class TipoMaterialRead(BaseModel):
     total_cantidad: List[TotalCantidad]
     headers_base: List[HeaderBase]
     headers_atributes: Optional[List[HeaderAtributo]] = None
+    order_headers: List[OrderHeaderEntry]
 
     class Config:
         from_attributes = True

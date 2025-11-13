@@ -10,6 +10,8 @@ import { useDraggableHeaders } from '@/hooks/useDraggableHeaders';
 import { DraggableTableHead } from '../animations/DraggableTableHeadProps';
 import { AnimatedTableCell } from '../animations/AnimatedTableCell';
 import { AnimatedTableRow } from '../animations/AnimatedTableRow';
+import { OPERATOR_SYMBOL_MAP } from '@/utils/materiales';
+import { OperatorType } from '@/store/material/types';
 
 interface HeaderData {
   id: string;
@@ -21,7 +23,7 @@ interface HeaderData {
   showQuantityQuestion: boolean;
   baseHeaderId?: number;
   calculoOperations: Array<{
-    operator: 'multiplicacion' | 'division';
+    operator: OperatorType;
     values: Array<{
       id: string;
       headerRef: string | null;
@@ -42,7 +44,7 @@ interface DraftTableViewProps {
   onHeaderTitleChange: (headerId: string, value: string) => void;
   onHeaderRemove: (headerId: string) => void;
   onQuantityResponse: (headerId: string, value: boolean) => void;
-  onAddCalculo: (headerId: string, operator: 'multiplicacion' | 'division') => void;
+  onAddCalculo: (headerId: string, operator: OperatorType) => void;
   onValueClick: (headerId: string, operationIndex: number, valueIndex: number) => void;
   onValueDoubleClick: (headerId: string, operationIndex: number, valueIndex: number) => void;
   onValueContextMenu: (headerId: string, operationIndex: number, valueIndex: number) => void;
@@ -168,7 +170,7 @@ export const DraftTableView: React.FC<DraftTableViewProps> = ({
         if (parts.length > 0) {
           parts.push(
             <span key={`op-${opIdx}-${valIdx}`} className="mx-1 text-emerald-300">
-              {operation.operator === 'multiplicacion' ? '×' : '÷'}
+              {OPERATOR_SYMBOL_MAP[operation.operator]}
             </span>
           );
         }
@@ -197,38 +199,33 @@ export const DraftTableView: React.FC<DraftTableViewProps> = ({
           !header.isQuantityDefined &&
           header.calculoOperations.length === 0);
 
+      const operatorButtons: Array<{ operator: OperatorType; symbol: string }> = [
+        { operator: 'multiplicacion', symbol: OPERATOR_SYMBOL_MAP.multiplicacion },
+        { operator: 'division', symbol: OPERATOR_SYMBOL_MAP.division },
+        { operator: 'suma', symbol: OPERATOR_SYMBOL_MAP.suma },
+        { operator: 'resta', symbol: OPERATOR_SYMBOL_MAP.resta },
+      ];
+
       return (
         <div className="flex justify-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 w-8 p-0 border-emerald-500/50 hover:bg-emerald-500/10"
-            data-calculo-trigger="true"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAddCalculo(header.id, 'multiplicacion');
-            }}
-            disabled={disabled}
-          >
-            <span className="text-lg font-semibold leading-none text-emerald-300">
-              ×
-            </span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 w-8 p-0 border-emerald-500/50 hover:bg-emerald-500/10"
-            data-calculo-trigger="true"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAddCalculo(header.id, 'division');
-            }}
-            disabled={disabled}
-          >
-            <span className="text-lg font-semibold leading-none text-emerald-300">
-              ÷
-            </span>
-          </Button>
+          {operatorButtons.map(({ operator, symbol }) => (
+            <Button
+              key={operator}
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0 border-emerald-500/50 hover:bg-emerald-500/10"
+              data-calculo-trigger="true"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddCalculo(header.id, operator);
+              }}
+              disabled={disabled}
+            >
+              <span className="text-lg font-semibold leading-none text-emerald-300">
+                {symbol}
+              </span>
+            </Button>
+          ))}
         </div>
       );
     }
@@ -249,7 +246,7 @@ export const DraftTableView: React.FC<DraftTableViewProps> = ({
                   <div key={value.id} className="flex items-center gap-2">
                     {(opIndex > 0 || valIndex > 0) && (
                       <span className="text-xs text-emerald-300">
-                        {operation.operator === 'multiplicacion' ? '×' : '÷'}
+                        {OPERATOR_SYMBOL_MAP[operation.operator]}
                       </span>
                     )}
                     <div

@@ -65,23 +65,104 @@ def _normalize_headers_atributes(headers: Optional[List[HeaderAtributoCreate]]) 
         return None
     normalized: List[Dict[str, Any]] = []
     for idx, header in enumerate(headers, start=1):
-        calculo = header.calculo.dict() if header.calculo else Calculo().dict()
+        header_data = header.dict() if hasattr(header, "dict") else dict(header)
+        calculo_payload = header_data.get("calculo")
+        if hasattr(calculo_payload, "dict"):
+            calculo_payload = calculo_payload.dict()
+
+        calculo = calculo_payload if calculo_payload is not None else Calculo().dict()
+        attr_id = header_data.get("id_header_atribute") or header_data.get("id_header_attribute")
+        if attr_id is None:
+            attr_id = idx
+        order = header_data.get("order")
+        if order is None:
+            order = idx
         normalized.append(
             {
-                "id_header_atribute": idx,
-                "titulo": header.titulo,
-                "isCantidad": header.isCantidad,
+                "id_header_atribute": int(attr_id),
+                "titulo": header_data.get("titulo"),
+                "isCantidad": bool(header_data.get("isCantidad", False)),
                 "calculo": calculo,
                 "total_costo_header": 0.0,
+                "order": int(order),
             }
         )
+
+    normalized.sort(key=lambda item: item.get("order", item["id_header_atribute"]))
     return normalized
+
+
+def _parse_order_payload(order_payload: Optional[List[Dict[str, Any]]]) -> Dict[tuple[str, int], int]:
+    order_map: Dict[tuple[str, int], int] = {}
+    if not order_payload:
+        return order_map
+
+    for entry in order_payload:
+        entry_data = entry.dict() if hasattr(entry, "dict") else dict(entry)
+        header_id = entry_data.get("id")
+        if header_id is None:
+            continue
+        order_value = entry_data.get("order", entry_data.get("orden"))
+        if order_value is None:
+            continue
+        entry_type_raw = entry_data.get("type")
+        header_type = "base"
+        if isinstance(entry_type_raw, str):
+            lowered = entry_type_raw.lower()
+            if lowered in ("base", "atribute", "atributo", "atribute"):
+                header_type = "atribute" if lowered.startswith("atr") else "base"
+        order_map[(header_type, int(header_id))] = int(order_value)
+    return order_map
+
+
+def _apply_order_headers(
+    headers_base: List[Dict[str, Any]],
+    headers_atributes: Optional[List[Dict[str, Any]]],
+    order_payload: Optional[List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    order_map = _parse_order_payload(order_payload)
+
+    next_order = 1
+    for header in headers_base:
+        key = ("base", int(header["id_header_base"]))
+        if key in order_map:
+            header["order"] = order_map[key]
+        else:
+            header.setdefault("order", next_order)
+        next_order = max(next_order, header.get("order", next_order) + 1)
+
+    if headers_atributes:
+        for header in headers_atributes:
+            key = ("atribute", int(header["id_header_atribute"]))
+            if key in order_map:
+                header["order"] = order_map[key]
+            else:
+                header.setdefault("order", next_order)
+            next_order = max(next_order, header.get("order", next_order) + 1)
+
+    combined_entries: List[Dict[str, Any]] = []
+    for header in headers_base:
+        combined_entries.append({
+            "type": "base",
+            "id": int(header["id_header_base"]),
+            "order": int(header.get("order", 0)),
+        })
+
+    for header in headers_atributes or []:
+        combined_entries.append({
+            "type": "atribute",
+            "id": int(header["id_header_atribute"]),
+            "order": int(header.get("order", 0)),
+        })
+
+    combined_entries.sort(key=lambda item: item["order"])
+    return combined_entries
 
 
 def _build_headers_base(active_ids: Optional[List[int]] = None) -> List[Dict[str, Any]]:
     active_set = REQUIRED_BASE_HEADERS.union(active_ids or [])
     headers: List[Dict[str, Any]] = []
-    for header_id, titulo in BASE_HEADERS_DEFINITION:
+    for index, (header_id, titulo) in enumerate(BASE_HEADERS_DEFINITION, start=1):
         is_active = header_id in active_set
         calculo = Calculo().dict()
         if titulo == "$Total":
@@ -96,12 +177,14 @@ def _build_headers_base(active_ids: Optional[List[int]] = None) -> List[Dict[str
                     }
                 ],
             }
+        order = 999 if header_id == 5 else index
         headers.append(
             {
                 "id_header_base": header_id,
                 "titulo": titulo,
                 "active": is_active,
                 "calculo": calculo,
+                "order": order,
             }
         )
     return headers
@@ -114,29 +197,49 @@ def _apply_base_calculations(
     if not overrides:
         return headers_base
 
-    override_map: Dict[int, Dict[str, Any] | Any] = {}
+    override_map: Dict[int, Dict[str, Any]] = {}
     for entry in overrides:
         if isinstance(entry, dict):
             header_id = entry.get("id_header_base")
             calculo = entry.get("calculo")
+            titulo = entry.get("titulo")
+            order = entry.get("order")
         else:
             header_id = getattr(entry, "id_header_base", None)
             calculo = getattr(entry, "calculo", None)
+            titulo = getattr(entry, "titulo", None)
+            order = getattr(entry, "order", None)
         if header_id is None:
             continue
-        override_map[header_id] = calculo
+        override_map[header_id] = {"calculo": calculo, "titulo": titulo, "order": order}
 
     for header in headers_base:
         header_id = header["id_header_base"]
         if header_id not in override_map:
             continue
         override = override_map[header_id]
-        if override is None:
-            header["calculo"] = Calculo().dict()
-            continue
-        if hasattr(override, "dict"):
-            override = override.dict()
-        header["calculo"] = override or Calculo().dict()
+        titulo_override = override.get("titulo")
+        if titulo_override is not None:
+            header["titulo"] = titulo_override
+
+        if "calculo" in override:
+            calculo_override = override.get("calculo")
+            if calculo_override is None:
+                header["calculo"] = Calculo().dict()
+            else:
+                if hasattr(calculo_override, "dict"):
+                    calculo_override = calculo_override.dict()
+                header["calculo"] = calculo_override or Calculo().dict()
+
+        if "order" in override and override["order"] is not None:
+            header["order"] = int(override["order"])
+
+    headers_base.sort(
+        key=lambda header: header.get(
+            "order",
+            999 if header.get("id_header_base") == 5 else header.get("id_header_base", 999),
+        )
+    )
     return headers_base
 
 
@@ -434,6 +537,7 @@ def crear_tipo_material(payload: TipoMaterialCreate, db: Session = Depends(get_d
     headers_base = _build_headers_base(payload.headers_base_active)
     headers_base = _apply_base_calculations(headers_base, getattr(payload, "headers_base_calculations", None))
     headers_atributes = _normalize_headers_atributes(payload.headers_atributes)
+    order_headers = _apply_order_headers(headers_base, headers_atributes, getattr(payload, "order_headers", None))
     total_cantidad = _initialize_total_cantidad(headers_base, headers_atributes)
 
     nuevo = TipoMaterial(
@@ -441,12 +545,57 @@ def crear_tipo_material(payload: TipoMaterialCreate, db: Session = Depends(get_d
         headers_base=headers_base,
         headers_atributes=headers_atributes,
         total_cantidad=total_cantidad,
+        order_headers=order_headers,
     )
 
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
     return nuevo
+
+
+@router.put("/tipos/{id_tipo_material}", response_model=TipoMaterialRead)
+def actualizar_tipo_material(
+    id_tipo_material: int,
+    payload: TipoMaterialCreate,
+    db: Session = Depends(get_db),
+):
+    tipo = db.get(TipoMaterial, id_tipo_material)
+    if not tipo:
+        raise HTTPException(status_code=404, detail="Tipo de material no encontrado")
+
+    if payload.titulo != tipo.titulo:
+        existente = db.scalar(
+            select(TipoMaterial)
+            .where(TipoMaterial.titulo == payload.titulo)
+            .where(TipoMaterial.id_tipo_material != id_tipo_material)
+        )
+        if existente:
+            raise HTTPException(status_code=409, detail="Ya existe un tipo de material con ese título")
+
+    headers_base = _build_headers_base(payload.headers_base_active)
+    headers_base = _apply_base_calculations(headers_base, getattr(payload, "headers_base_calculations", None))
+    headers_atributes = _normalize_headers_atributes(payload.headers_atributes)
+    order_headers = _apply_order_headers(headers_base, headers_atributes, getattr(payload, "order_headers", None))
+    total_cantidad = _initialize_total_cantidad(headers_base, headers_atributes)
+
+    tipo.titulo = payload.titulo
+    tipo.headers_base = headers_base
+    tipo.headers_atributes = headers_atributes
+    tipo.total_cantidad = total_cantidad
+    tipo.total_costo_unitario = 0.0
+    tipo.total_costo_total = 0.0
+    tipo.order_headers = order_headers
+
+    if tipo.materiales:
+        for material in tipo.materiales:
+            _apply_calculo(tipo, material)
+            _add_material_to_totals(tipo, material)
+
+    db.add(tipo)
+    db.commit()
+    db.refresh(tipo)
+    return tipo
 
 
 @router.get("/tipos/{id_tipo_material}", response_model=TipoMaterialRead)

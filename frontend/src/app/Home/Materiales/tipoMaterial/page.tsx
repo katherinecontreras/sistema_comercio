@@ -1,6 +1,6 @@
 // page.tsx - Componente Principal Refactorizado
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -18,21 +18,31 @@ import { useHeaderOperations } from '@/hooks/useHeaderOperations';
 import { useHeaderRemoval } from '@/hooks/useHeaderRemoval';
 import { useCalculationHandlers } from '@/hooks/useCalculationHandlers';
 import { useFormSubmission } from '@/hooks/useFormSubmission';
+import { useMaterialStore, TipoMaterial } from '@/store/material/materialStore';
+import { useAsyncOperation } from '@/hooks/useAsyncOperation';
 
 // Estado inicial
 import { createInitialHeaders } from '@/store/material/initialState';
+import { getTipoMaterialDetalle } from '@/actions/materiales';
+import { buildDraftHeadersFromTipo } from '@/utils/materiales';
 
 const MotionButton = motion(Button);
 
 const TipoMaterialPage: React.FC = () => {
   const navigate = useNavigate();
+  const { id: tipoIdParam } = useParams<{ id?: string }>();
+  const parsedTipoId = tipoIdParam ? Number(tipoIdParam) : null;
+  const editingTipoId = parsedTipoId !== null && !Number.isNaN(parsedTipoId) ? parsedTipoId : null;
+  const isEditing = editingTipoId !== null;
+  const [initializing, setInitializing] = useState<boolean>(isEditing);
+  const { execute: executeFetchTipo, loading: loadingTipo } = useAsyncOperation<TipoMaterial>();
+  const { setLoading: setStoreLoading } = useMaterialStore();
   
   // Estado local
   const [titulo, setTitulo] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [ayudaOpen, setAyudaOpen] = useState(false);
 
-  // Hook de gestión de headers
   const {
     headers,
     setHeadersWithNormalize,
@@ -41,6 +51,64 @@ const TipoMaterialPage: React.FC = () => {
     availableBaseHeaders,
     customHeaderOptions,
   } = useHeadersState(createInitialHeaders());
+
+  useEffect(() => {
+    setStoreLoading(false);
+  }, [setStoreLoading]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isEditing || editingTipoId === null) {
+      setTitulo('');
+      setHeadersWithNormalize(() => createInitialHeaders());
+      setInitializing(false);
+      return;
+    }
+
+    const loadTipoMaterial = async () => {
+      try {
+        setInitializing(true);
+        const data = await executeFetchTipo(
+          () => getTipoMaterialDetalle(editingTipoId),
+          {
+            showSuccessToast: false,
+            showErrorToast: true,
+            errorMessage: 'Error al cargar la tabla de materiales',
+          },
+        );
+
+        if (!data || cancelled) {
+          return;
+        }
+
+        const drafts = buildDraftHeadersFromTipo(data);
+        setHeadersWithNormalize(() => drafts);
+        setTitulo(data.titulo);
+        setFormError(null);
+      } catch (error) {
+        if (!cancelled) {
+          setFormError('No se pudo cargar la tabla seleccionada.');
+        }
+      } finally {
+        if (!cancelled) {
+          setInitializing(false);
+        }
+      }
+    };
+
+    loadTipoMaterial();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    executeFetchTipo,
+    isEditing,
+    editingTipoId,
+    setFormError,
+    setHeadersWithNormalize,
+  ]);
 
   // Hook de gestión de selección
   const {
@@ -94,17 +162,35 @@ const TipoMaterialPage: React.FC = () => {
   );
 
   // Hook de envío del formulario
-  const { handleSubmit, loading } = useFormSubmission(headers, titulo, setFormError);
+  const { handleSubmit, loading: formLoading } = useFormSubmission(
+    headers,
+    titulo,
+    setFormError,
+    editingTipoId,
+  );
 
   const handleBack = useCallback(() => {
     navigate('/materiales');
   }, [navigate]);
 
+  const headerTitle = isEditing ? 'Editar Tabla de Materiales' : 'Nueva Tabla de Materiales';
+  const headerDescription = isEditing
+    ? 'Actualiza la estructura de tu tabla, ajusta cálculos existentes o renombra columnas según lo necesites.'
+    : 'Diseña tu tabla personalizada agregando los campos que necesites. Puedes crear cálculos automáticos entre columnas usando multiplicaciones, divisiones, sumas o restas.';
+  const isFormBusy = formLoading || initializing || loadingTipo;
+  const primaryButtonLabel = isEditing
+    ? formLoading
+      ? 'Guardando cambios...'
+      : 'Guardar cambios'
+    : formLoading
+    ? 'Creando tabla...'
+    : 'Guardar nueva tabla';
+
   return (
     <div className="space-y-6 pb-8">
       <HeaderHome
-        title="Nueva Tabla de Materiales"
-        description="Diseña tu tabla personalizada agregando los campos que necesites. Puedes crear cálculos automáticos entre columnas usando multiplicaciones y divisiones."
+        title={headerTitle}
+        description={headerDescription}
         icon={Boxes}
         iconClassName="bg-emerald-600 text-white shadow-lg shadow-emerald-900/40"
         aside={
@@ -157,7 +243,7 @@ const TipoMaterialPage: React.FC = () => {
                     onSelectBase={handleAddBaseHeader}
                     onRestoreCustom={handleRestoreCustomHeader}
                     onDiscardCustom={handleDiscardCustomHeader}
-                    loading={loading}
+                    loading={isFormBusy}
                   />
                 </motion.div>
               )}
@@ -179,7 +265,7 @@ const TipoMaterialPage: React.FC = () => {
                   onClick={handleAddNewHeader}
                   data-help-anchor="add-custom-header"
                   className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                  disabled={loading}
+                  disabled={isFormBusy}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo header personalizado
@@ -207,7 +293,7 @@ const TipoMaterialPage: React.FC = () => {
             onValueDoubleClick={handleValueDoubleClick}
             onValueContextMenu={handleValueContextMenu}
             onColumnSelect={handleColumnSelect}
-            loading={loading}
+            loading={isFormBusy}
             onReorderHeaders={handleReorderEditableHeaders}
           />
 
@@ -222,11 +308,11 @@ const TipoMaterialPage: React.FC = () => {
               type="button"
               size="lg"
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-8"
-              disabled={loading || !titulo.trim()}
+              disabled={isFormBusy || !titulo.trim()}
               onClick={handleSubmit}
               data-help-anchor="save-button"
             >
-              {loading ? 'Creando tabla...' : 'Guardar nueva tabla'}
+              {primaryButtonLabel}
             </Button>
           </div>
         </div>
