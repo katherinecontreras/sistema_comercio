@@ -15,6 +15,8 @@ export const createTipoMaterial = async (payload: {
   headers_base_active?: number[];
   headers_base_calculations?: any;
   headers_atributes?: any;
+  order_headers?: any;
+  valor_dolar?: number;
 }) => {
   const { data } = await api.post('/materiales/tipos', payload);
   return data;
@@ -27,6 +29,8 @@ export const updateTipoMaterial = async (
     headers_base_active?: number[];
     headers_base_calculations?: any;
     headers_atributes?: any;
+    order_headers?: any;
+    valor_dolar?: number;
   },
 ) => {
   const { data } = await api.put(`/materiales/tipos/${id_tipo_material}`, payload);
@@ -53,6 +57,36 @@ export const downloadExcelTipoMaterial = async (id_tipo_material: number) => {
   return response.data as Blob;
 };
 
+export const uploadExcelTipoMaterial = async (
+  id_tipo_material: number,
+  file: File
+): Promise<{
+  success: boolean;
+  materiales_creados: number;
+  valor_dolar_actualizado: boolean;
+  nuevo_valor_dolar: number | null;
+  totales_actualizados: {
+    total_costo_unitario: number;
+    total_costo_total: number;
+    total_USD: number;
+  };
+}> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await api.post(
+    `/materiales/tipos/${id_tipo_material}/upload-excel`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  
+  return data;
+};
+
 export const createMaterial = async (payload: any) => {
   const { data } = await api.post('/materiales', payload);
   return data;
@@ -66,5 +100,3 @@ export const updateMaterial = async (id_material: number, payload: any) => {
 export const deleteMaterial = async (id_material: number) => {
   await api.delete(`/materiales/${id_material}`);
 };
-
-

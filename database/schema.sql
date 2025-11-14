@@ -125,7 +125,9 @@ CREATE TABLE tipos_material (
   titulo VARCHAR(255) NOT NULL UNIQUE,
   total_costo_unitario DOUBLE PRECISION NOT NULL DEFAULT 0,
   total_costo_total DOUBLE PRECISION NOT NULL DEFAULT 0,
-  total_cantidad JSONB NOT NULL DEFAULT '[]'::jsonb,
+  total_USD DOUBLE PRECISION NOT NULL DEFAULT 0,
+  valor_dolar DOUBLE PRECISION NOT NULL DEFAULT 1400,
+  total_cantidad JSONB NOT NULL DEFAULT '{"total_cantidades":0,"cantidades":[]}'::jsonb,
   headers_base JSONB NOT NULL DEFAULT '[]'::jsonb,
   headers_atributes JSONB,
   order_headers JSONB NOT NULL DEFAULT '[]'::jsonb

@@ -1,5 +1,5 @@
 // page.tsx - Componente Principal Refactorizado
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -28,6 +28,8 @@ import { buildDraftHeadersFromTipo } from '@/utils/materiales';
 
 const MotionButton = motion(Button);
 
+const DEFAULT_VALOR_DOLAR = 1400;
+
 const TipoMaterialPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: tipoIdParam } = useParams<{ id?: string }>();
@@ -36,12 +38,14 @@ const TipoMaterialPage: React.FC = () => {
   const isEditing = editingTipoId !== null;
   const [initializing, setInitializing] = useState<boolean>(isEditing);
   const { execute: executeFetchTipo, loading: loadingTipo } = useAsyncOperation<TipoMaterial>();
-  const { setLoading: setStoreLoading } = useMaterialStore();
+  const { setLoading: setStoreLoading, tipos } = useMaterialStore();
   
   // Estado local
   const [titulo, setTitulo] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [ayudaOpen, setAyudaOpen] = useState(false);
+  const [valorDolar, setValorDolar] = useState(String(DEFAULT_VALOR_DOLAR));
+  const [valorEditable, setValorEditable] = useState(false);
 
   const {
     headers,
@@ -86,6 +90,8 @@ const TipoMaterialPage: React.FC = () => {
         setHeadersWithNormalize(() => drafts);
         setTitulo(data.titulo);
         setFormError(null);
+        setValorEditable(false);
+        setValorDolar(String(data.valor_dolar ?? 1));
       } catch (error) {
         if (!cancelled) {
           setFormError('No se pudo cargar la tabla seleccionada.');
@@ -108,7 +114,22 @@ const TipoMaterialPage: React.FC = () => {
     editingTipoId,
     setFormError,
     setHeadersWithNormalize,
+    setValorEditable,
   ]);
+
+  useEffect(() => {
+    if (isEditing) {
+      return;
+    }
+    if (valorEditable) {
+      return;
+    }
+    if (valorDolar.trim()) {
+      return;
+    }
+    const fallbackValor = tipos[0]?.valor_dolar ?? DEFAULT_VALOR_DOLAR;
+    setValorDolar(String(fallbackValor));
+  }, [isEditing, tipos, valorEditable, valorDolar]);
 
   // Hook de gestión de selección
   const {
@@ -186,6 +207,42 @@ const TipoMaterialPage: React.FC = () => {
     ? 'Creando tabla...'
     : 'Guardar nueva tabla';
 
+  const displayValorDolar = useMemo(() => {
+    const parsed = Number(valorDolar);
+    if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
+      return '$—';
+    }
+    return parsed.toLocaleString('es-AR', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, [valorDolar]);
+
+  const handleValorDolarDoubleClick = () => {
+    if (valorEditable) return;
+    const confirmed = window.confirm(
+      'El valor del dólar es un valor constante para todas las tablas. Si lo modificas aquí, se actualizará en el resto de las tablas. ¿Deseas continuar?',
+    );
+    if (confirmed) {
+      setValorEditable(true);
+    }
+  };
+
+  const handleSaveClick = () => {
+    if (valorEditable) {
+      const normalized = Number(valorDolar.toString().replace(',', '.'));
+      if (!Number.isFinite(normalized) || normalized <= 0) {
+        setFormError('Ingresa un valor válido para el dólar antes de guardar.');
+        return;
+      }
+      handleSubmit({ valorDolar: normalized });
+      return;
+    }
+    handleSubmit();
+  };
+
   return (
     <div className="space-y-6 pb-8">
       <HeaderHome
@@ -194,7 +251,7 @@ const TipoMaterialPage: React.FC = () => {
         icon={Boxes}
         iconClassName="bg-emerald-600 text-white shadow-lg shadow-emerald-900/40"
         aside={
-          <div className='flex'>
+          <div className="flex">
             <Button
               type="button"
               onClick={handleBack}
@@ -205,14 +262,41 @@ const TipoMaterialPage: React.FC = () => {
               Volver
             </Button>
             <Button
-              className="border-slate-600 text-slate-200 bg-slate-900 hover:bg-slate-800/60" 
-              variant="outline" 
-              onClick={() => setAyudaOpen(true)}>
+              className="border-slate-600 text-slate-200 bg-slate-900 hover:bg-slate-800/60"
+              variant="outline"
+              onClick={() => setAyudaOpen(true)}
+            >
               Ayuda
             </Button>
           </div>
-        } 
-      />
+        }
+      >
+        <div className="text-xs sm:text-sm text-slate-300">
+          <div className="flex flex-wrap items-center gap-3" data-help-anchor="valor-dolar">
+            <span className="font-semibold text-white">Valor del dólar:</span>
+            {valorEditable ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-32 rounded-md border border-slate-600 bg-slate-950/60 px-3 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={valorDolar}
+                  onChange={(event) => setValorDolar(event.target.value)}
+                />
+                <span className="text-xs text-slate-400">Este valor se guardará para todas las tablas.</span>
+              </div>
+            ) : (
+              <span
+                className="select-none rounded-md bg-slate-950/40 px-3 py-1 font-semibold text-emerald-200"
+                onDoubleClick={handleValorDolarDoubleClick}
+                title="Haz doble clic para solicitar editar este valor"
+              >
+                {displayValorDolar}
+              </span>
+            )}
+          </div>
+        </div>
+      </HeaderHome>
 
       <div className="text-slate-100">
         <div className="space-y-6" data-help-anchor="review-area">
@@ -309,7 +393,7 @@ const TipoMaterialPage: React.FC = () => {
               size="lg"
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-8"
               disabled={isFormBusy || !titulo.trim()}
-              onClick={handleSubmit}
+              onClick={handleSaveClick}
               data-help-anchor="save-button"
             >
               {primaryButtonLabel}

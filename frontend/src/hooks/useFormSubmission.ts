@@ -7,6 +7,10 @@ import { createTipoMaterial, updateTipoMaterial } from '@/actions/materiales';
 import { useAsyncOperation } from '@/hooks/useAsyncOperation';
 import { useMaterialStore } from '@/store/material/materialStore';
 
+interface SubmitOptions {
+  valorDolar?: number;
+}
+
 export const useFormSubmission = (
   headers: HeaderDraft[],
   titulo: string,
@@ -85,7 +89,7 @@ export const useFormSubmission = (
     [headers]
   );
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (options?: SubmitOptions) => {
     setFormError(null);
 
     if (!titulo.trim()) {
@@ -178,7 +182,7 @@ export const useFormSubmission = (
       .filter((entry): entry is { type: 'base' | 'atribute'; id: number; order: number } => entry !== null)
       .sort((a, b) => a.order - b.order);
 
-    const payload = {
+    const payload: any = {
       titulo: titulo.trim(),
       headers_base_active: headersBaseActive,
       headers_base_calculations: headersBasePayload,
@@ -210,6 +214,10 @@ export const useFormSubmission = (
           : undefined,
       order_headers: orderHeaders,
     };
+
+    if (options?.valorDolar !== undefined) {
+      payload.valor_dolar = options.valorDolar;
+    }
 
     await execute(
       async () => {

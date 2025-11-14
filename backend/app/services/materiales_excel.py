@@ -8,11 +8,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from app.db.models import Material, TipoMaterial
+from app.db.models import Material, TipoMaterial, ensure_total_cantidad_struct
 
 
 HeaderKind = Literal["base", "atribute"]
 
+# Número máximo de filas con fórmulas (hasta fila 1000)
+MAX_FORMULA_ROWS = 1000
 
 BASE_TITLE_FIELD_MAP: Dict[str, str] = {
     "detalle": "detalle",
@@ -474,20 +476,31 @@ def build_excel_for_tipo_material(tipo: TipoMaterial, materiales: List[Material]
     }
     headers_lookup = {(header.kind, header.header_id): header for header in headers}
 
+    # Crear headers en fila 2
     for idx, header in enumerate(headers, start=1):
         cell = worksheet.cell(row=2, column=idx, value=header.titulo or "")
         _apply_header_style(cell)
 
+    # Identificar columnas con cálculo activo
+    columns_with_formulas: Dict[int, HeaderSpec] = {}
+    for col_idx, header in enumerate(headers, start=1):
+        calculo = header.calculo or {}
+        if calculo.get("activo"):
+            columns_with_formulas[col_idx] = header
+
     totals_map: Dict[Tuple[HeaderKind, int], float] = {}
 
+    # Llenar datos de materiales existentes (filas 3 en adelante)
     for row_idx, material in enumerate(materiales, start=3):
         values_map = _build_row_values(tipo, material, headers)
         for col_idx, header in enumerate(headers, start=1):
             value = values_map.get((header.kind, header.header_id))
             cell = worksheet.cell(row=row_idx, column=col_idx)
-            formula = _build_formula_for_header(row_idx, header, column_map)
-            if formula:
-                cell.value = formula
+            
+            # Si esta columna tiene cálculo, NO poner fórmula aquí
+            # (las fórmulas se pondrán después en todas las filas)
+            if col_idx in columns_with_formulas:
+                # Dejar celda vacía por ahora, se llenará con fórmulas después
                 _apply_body_style(cell)
                 numerical_for_total = _safe_to_float(value)
                 totals_map[(header.kind, header.header_id)] = (
@@ -495,6 +508,7 @@ def build_excel_for_tipo_material(tipo: TipoMaterial, materiales: List[Material]
                 )
                 continue
 
+            # Para columnas sin cálculo, llenar con valores
             if header.numeric_hint:
                 numeric_value = _safe_to_float(value)
                 cell.value = numeric_value
@@ -505,13 +519,24 @@ def build_excel_for_tipo_material(tipo: TipoMaterial, materiales: List[Material]
                 cell.value = value if value is not None else ""
             _apply_body_style(cell)
 
+    # Ahora aplicar fórmulas a TODAS las filas (desde fila 3 hasta MAX_FORMULA_ROWS) 
+    # para las columnas que tienen cálculo
+    for col_idx, header in columns_with_formulas.items():
+        for row_idx in range(3, MAX_FORMULA_ROWS + 1):
+            cell = worksheet.cell(row=row_idx, column=col_idx)
+            formula = _build_formula_for_header(row_idx, header, column_map)
+            if formula:
+                cell.value = formula
+                _apply_body_style(cell)
+
     _auto_adjust_columns(worksheet, column_count)
 
-    totals_start_column = column_count + 5
+    # Tabla de totales (a la derecha)
+    totals_start_column = column_count + 3
     totals_title_cell = worksheet.cell(
         row=1,
         column=totals_start_column,
-        value=f"Totales de {tipo.titulo}",
+        value="Tabla de totales",
     )
     _apply_title_style(totals_title_cell)
     worksheet.merge_cells(
@@ -521,36 +546,104 @@ def build_excel_for_tipo_material(tipo: TipoMaterial, materiales: List[Material]
         end_column=totals_start_column + 1,
     )
 
-    costo_unitario_total = totals_map.get(("base", 4), 0.0)
-    costo_total_total = totals_map.get(("base", 5), 0.0)
+    # Construir mapa inverso: header_id -> columna
+    header_to_column: Dict[Tuple[HeaderKind, int], str] = {}
+    for idx, header in enumerate(headers, start=1):
+        header_to_column[(header.kind, header.header_id)] = get_column_letter(idx)
 
-    totals_rows = [
-        ("Costo Unitario", costo_unitario_total),
-        ("Costo Total", costo_total_total),
-    ]
+    total_cantidad_struct = ensure_total_cantidad_struct(tipo.total_cantidad)
+    cantidad_entries = total_cantidad_struct.get("cantidades") or []
 
-    cantidad_spec = headers_lookup.get(("base", 2))
-    if cantidad_spec:
-        cantidad_label = cantidad_spec.titulo or "Cantidad"
-        totals_rows.append((cantidad_label, totals_map.get(("base", 2), 0.0)))
-
-    total_cantidad_entries = tipo.total_cantidad or []
     headers_lookup = {(spec.kind, spec.header_id): spec for spec in headers}
 
-    for entry in total_cantidad_entries:
+    # Lista de filas para la tabla de totales con etiqueta, fórmula/valor y referencia de celda
+    totals_rows: List[Tuple[str, Any, Optional[str]]] = []
+    total_cantidades_cells: List[str] = []  # Referencias de celdas para sumar Total Cantidades
+
+    # Fila 2: Costo Unitario (header base id=4)
+    costo_unitario_column = header_to_column.get(("base", 4))
+    if costo_unitario_column:
+        formula_costo_unitario = f"=SUM({costo_unitario_column}3:{costo_unitario_column}{MAX_FORMULA_ROWS})"
+        totals_rows.append(("Costo Unitario", formula_costo_unitario, None))
+    else:
+        totals_rows.append(("Costo Unitario", 0.0, None))
+
+    # Fila 3: Costo Total (header base id=5)
+    costo_total_column = header_to_column.get(("base", 5))
+    costo_total_row_ref = None
+    if costo_total_column:
+        formula_costo_total = f"=SUM({costo_total_column}3:{costo_total_column}{MAX_FORMULA_ROWS})"
+        current_row = 2 + len(totals_rows)
+        costo_total_row_ref = f"{get_column_letter(totals_start_column + 1)}{current_row}"
+        totals_rows.append(("Costo Total", formula_costo_total, costo_total_row_ref))
+    else:
+        totals_rows.append(("Costo Total", 0.0, None))
+
+    # Filas para cada entrada de cantidad
+    for entry in cantidad_entries:
         header_type = _normalize_header_type(entry.get("typeOfHeader"))
         try:
             header_id = int(entry.get("idHeader", 0))
         except (TypeError, ValueError):
             continue
-        if header_type == "base" and header_id in {2, 4, 5}:
+        if header_type == "base" and header_id in {4, 5}:
             continue
+        
         header_spec = headers_lookup.get((header_type, header_id))
-        titulo = header_spec.titulo if header_spec else f"Header {header_id}"
-        total_value = totals_map.get((header_type, header_id), 0.0)
-        totals_rows.append((titulo, total_value))
+        if not header_spec and header_type == "base" and header_id == 2:
+            header_label = "Cantidad"
+        elif header_spec:
+            header_label = header_spec.titulo or ("Header" if header_type == "atribute" else f"Base {header_id}")
+        else:
+            header_label = f"Header {header_id}"
+        
+        cantidad_column = header_to_column.get((header_type, header_id))
+        if cantidad_column:
+            formula_cantidad = f"=SUM({cantidad_column}3:{cantidad_column}{MAX_FORMULA_ROWS})"
+            current_row = 2 + len(totals_rows)
+            cell_ref = f"{get_column_letter(totals_start_column + 1)}{current_row}"
+            totals_rows.append((f"Total {header_label}", formula_cantidad, cell_ref))
+            total_cantidades_cells.append(cell_ref)
+        else:
+            totals_rows.append((f"Total {header_label}", 0.0, None))
 
-    for offset, (label, value) in enumerate(totals_rows, start=2):
+    # Total costo cantidades (solo si hay más de una cantidad)
+    total_cantidades_row_ref = None
+    if len(cantidad_entries) > 1:
+        if total_cantidades_cells:
+            formula_total_cantidades = f"={'+'.join(total_cantidades_cells)}"
+            current_row = 2 + len(totals_rows)
+            total_cantidades_row_ref = f"{get_column_letter(totals_start_column + 1)}{current_row}"
+            totals_rows.append(("Total costo cantidades", formula_total_cantidades, total_cantidades_row_ref))
+        else:
+            totals_rows.append(("Total costo cantidades", 0.0, None))
+
+    # Separar el valor del dólar en su propia celda
+    valor_dolar_column = totals_start_column + 2
+    valor_dolar_label_cell = worksheet.cell(
+        row=1,
+        column=valor_dolar_column,
+        value="Valor del dólar:",
+    )
+    _apply_body_style(valor_dolar_label_cell)
+    
+    valor_dolar_value_cell = worksheet.cell(
+        row=1,
+        column=valor_dolar_column + 1,
+        value=tipo.valor_dolar,
+    )
+    _apply_body_style(valor_dolar_value_cell)
+    valor_dolar_cell_ref = f"{get_column_letter(valor_dolar_column + 1)}1"
+
+    # Total USD
+    if costo_total_row_ref and valor_dolar_cell_ref:
+        formula_total_usd = f"={costo_total_row_ref}*{valor_dolar_cell_ref}"
+        totals_rows.append(("Total USD", formula_total_usd, None))
+    else:
+        totals_rows.append(("Total USD", tipo.total_USD, None))
+
+    # Escribir las filas de totales
+    for offset, (label, value, cell_ref) in enumerate(totals_rows, start=2):
         label_cell = worksheet.cell(row=offset, column=totals_start_column, value=label)
         value_cell = worksheet.cell(row=offset, column=totals_start_column + 1, value=value)
         _apply_body_style(label_cell)
@@ -558,7 +651,7 @@ def build_excel_for_tipo_material(tipo: TipoMaterial, materiales: List[Material]
         label_cell.fill = PatternFill(fill_type="solid", fgColor=TOTAL_LABEL_FILL_COLOR)
         value_cell.fill = PatternFill(fill_type="solid", fgColor=TOTAL_VALUE_FILL_COLOR)
 
-    _auto_adjust_columns(worksheet, totals_start_column + 1)
+    _auto_adjust_columns(worksheet, valor_dolar_column + 1)
 
     buffer = io.BytesIO()
     workbook.save(buffer)
@@ -567,4 +660,3 @@ def build_excel_for_tipo_material(tipo: TipoMaterial, materiales: List[Material]
 
 
 __all__ = ["build_excel_for_tipo_material"]
-

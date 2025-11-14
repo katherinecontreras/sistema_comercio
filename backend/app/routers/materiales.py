@@ -4,12 +4,12 @@ import io
 import re
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from app.db.models import Material, TipoMaterial
+from app.db.models import Material, TipoMaterial, ensure_total_cantidad_struct
 from app.db.session import get_db
 from app.schemas.materiales import (
     Calculo,
@@ -21,6 +21,7 @@ from app.schemas.materiales import (
     TipoMaterialRead,
 )
 from app.services.materiales_excel import build_excel_for_tipo_material
+from app.services.materiales_excel_upload import process_excel_upload
 
 
 router = APIRouter(prefix="/materiales", tags=["Materiales"])
@@ -44,6 +45,7 @@ BASE_HEADERS_DEFINITION = [
     (5, "$Total"),
 ]
 REQUIRED_BASE_HEADERS = {1, 4, 5}
+DEFAULT_VALOR_DOLAR = 1400.0
 
 
 def _slugify_filename(value: str) -> str:
@@ -265,39 +267,50 @@ def _apply_base_calculations(
 def _initialize_total_cantidad(
     headers_base: List[Dict[str, Any]],
     headers_atributes: Optional[List[Dict[str, Any]]],
-) -> List[Dict[str, Any]]:
-    total_cantidad: List[Dict[str, Any]] = []
+) -> Dict[str, Any]:
+    cantidades: List[Dict[str, Any]] = []
 
     for header in headers_base:
         if not header.get("active", True):
             continue
         header_id = int(header.get("id_header_base", 0))
         titulo = (header.get("titulo") or "").strip().lower()
-        if header_id in NUMERIC_BASE_IDS or titulo in NUMERIC_BASE_TITLES:
-            total_cantidad.append(
+        if header_id == 2 or titulo == "cantidad":
+            cantidades.append(
                 {"typeOfHeader": "base", "idHeader": header["id_header_base"], "total": 0.0}
             )
 
     for header in headers_atributes or []:
         calculo = header.get("calculo") or {}
         if header.get("isCantidad") or calculo.get("activo"):
-            total_cantidad.append(
+            cantidades.append(
                 {"typeOfHeader": "atribute", "idHeader": header["id_header_atribute"], "total": 0.0}
             )
 
-    return total_cantidad
+    return {"total_cantidades": 0.0, "cantidades": cantidades}
+
+
+def _normalize_tipo_totales(tipo: TipoMaterial) -> None:
+    tipo.total_cantidad = ensure_total_cantidad_struct(tipo.total_cantidad)
+    if hasattr(tipo, "materiales"):
+        try:
+            tipo.materiales_count = len(tipo.materiales or [])
+        except Exception:
+            tipo.materiales_count = 0
+    else:
+        tipo.materiales_count = 0
 
 
 def _ensure_total_cantidad_entry(
-    total_cantidad: List[Dict[str, Any]],
+    cantidades: List[Dict[str, Any]],
     tipo_header: str,
     header_id: int,
 ) -> Dict[str, Any]:
-    for entry in total_cantidad:
+    for entry in cantidades:
         if entry["typeOfHeader"] == tipo_header and entry["idHeader"] == header_id:
             return entry
     entry = {"typeOfHeader": tipo_header, "idHeader": header_id, "total": 0.0}
-    total_cantidad.append(entry)
+    cantidades.append(entry)
     return entry
 
 
@@ -431,17 +444,17 @@ def _apply_calculo(tipo: TipoMaterial, material: Material) -> None:
 
 def _accumulate_totals(tipo: TipoMaterial, material: Material, factor: float) -> None:
     base_map = _get_base_header_map(tipo)
-    total_cantidad = tipo.total_cantidad or []
+    total_cantidad = ensure_total_cantidad_struct(tipo.total_cantidad)
+    cantidades = total_cantidad.get("cantidades") or []
 
     for header in base_map.values():
         if not header.get("active", True):
             continue
-        titulo = header["titulo"].strip().lower()
-        if titulo not in NUMERIC_BASE_TITLES:
+        if header["id_header_base"] != 2:
             continue
         valor = _extract_base_value(material, header)
         numerical = _to_float(valor, header["titulo"], allow_blank=True)
-        entry = _ensure_total_cantidad_entry(total_cantidad, "base", header["id_header_base"])
+        entry = _ensure_total_cantidad_entry(cantidades, "base", header["id_header_base"])
         entry["total"] = float(entry.get("total", 0.0)) + (numerical * factor)
 
     attr_map = _get_attribute_header_map(tipo)
@@ -454,9 +467,11 @@ def _accumulate_totals(tipo: TipoMaterial, material: Material, factor: float) ->
             continue
         numerical = _to_float(attr.get("value"), f"atributo {header['titulo']}", allow_blank=True)
         header["total_costo_header"] = float(header.get("total_costo_header", 0.0)) + (numerical * factor)
-        entry = _ensure_total_cantidad_entry(total_cantidad, "atribute", header["id_header_atribute"])
+        entry = _ensure_total_cantidad_entry(cantidades, "atribute", header["id_header_atribute"])
         entry["total"] = float(entry.get("total", 0.0)) + (numerical * factor)
 
+    total_cantidad["cantidades"] = cantidades
+    total_cantidad["total_cantidades"] = sum(float(entry.get("total", 0.0) or 0.0) for entry in cantidades)
     tipo.total_cantidad = total_cantidad
 
 
@@ -464,6 +479,7 @@ def _add_material_to_totals(tipo: TipoMaterial, material: Material) -> None:
     tipo.total_costo_unitario += float(material.costo_unitario or 0.0)
     tipo.total_costo_total += float(material.costo_total or 0.0)
     _accumulate_totals(tipo, material, factor=1.0)
+    _recalculate_total_usd(tipo)
 
 
 def _remove_material_from_totals(tipo: TipoMaterial, material: Material) -> None:
@@ -472,6 +488,7 @@ def _remove_material_from_totals(tipo: TipoMaterial, material: Material) -> None
     _accumulate_totals(tipo, material, factor=-1.0)
     tipo.total_costo_unitario = max(tipo.total_costo_unitario, 0.0)
     tipo.total_costo_total = max(tipo.total_costo_total, 0.0)
+    _recalculate_total_usd(tipo)
 
 
 def _normalize_material(
@@ -543,9 +560,33 @@ def _normalize_material(
     return material
 
 
+def _recalculate_total_usd(tipo: TipoMaterial) -> None:
+    valor = float(tipo.valor_dolar or DEFAULT_VALOR_DOLAR)
+    tipo.total_USD = float(tipo.total_costo_total or 0.0) * valor
+
+
+def _apply_global_valor_dolar(db: Session, nuevo_valor: float) -> None:
+    tipos = db.scalars(select(TipoMaterial)).all()
+    for tipo in tipos:
+        tipo.valor_dolar = float(nuevo_valor)
+        _recalculate_total_usd(tipo)
+        db.add(tipo)
+
+
+def _get_existing_valor_dolar(db: Session) -> float:
+    existing = db.scalar(select(TipoMaterial.valor_dolar).limit(1))
+    if existing is None:
+        return DEFAULT_VALOR_DOLAR
+    return float(existing)
+
+
 @router.get("/tipos", response_model=List[TipoMaterialRead])
 def listar_tipos_material(db: Session = Depends(get_db)):
-    return db.scalars(select(TipoMaterial)).all()
+    stmt = select(TipoMaterial).options(selectinload(TipoMaterial.materiales))
+    tipos = db.scalars(stmt).all()
+    for tipo in tipos:
+        _normalize_tipo_totales(tipo)
+    return tipos
 
 
 @router.post("/tipos", response_model=TipoMaterialRead, status_code=status.HTTP_201_CREATED)
@@ -553,6 +594,13 @@ def crear_tipo_material(payload: TipoMaterialCreate, db: Session = Depends(get_d
     existente = db.scalar(select(TipoMaterial).where(TipoMaterial.titulo == payload.titulo))
     if existente:
         raise HTTPException(status_code=409, detail="Ya existe un tipo de material con ese título")
+
+    valor_dolar = payload.valor_dolar
+    if valor_dolar is not None:
+        valor_dolar = float(valor_dolar)
+        _apply_global_valor_dolar(db, valor_dolar)
+    else:
+        valor_dolar = _get_existing_valor_dolar(db)
 
     headers_base = _build_headers_base(payload.headers_base_active)
     headers_base = _apply_base_calculations(headers_base, getattr(payload, "headers_base_calculations", None))
@@ -566,11 +614,14 @@ def crear_tipo_material(payload: TipoMaterialCreate, db: Session = Depends(get_d
         headers_atributes=headers_atributes,
         total_cantidad=total_cantidad,
         order_headers=order_headers,
+        valor_dolar=valor_dolar,
     )
+    _recalculate_total_usd(nuevo)
 
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
+    _normalize_tipo_totales(nuevo)
     return nuevo
 
 
@@ -593,6 +644,13 @@ def actualizar_tipo_material(
         if existente:
             raise HTTPException(status_code=409, detail="Ya existe un tipo de material con ese título")
 
+    valor_dolar = payload.valor_dolar
+    if valor_dolar is not None:
+        valor_dolar = float(valor_dolar)
+        _apply_global_valor_dolar(db, valor_dolar)
+    else:
+        valor_dolar = tipo.valor_dolar or _get_existing_valor_dolar(db)
+
     headers_base = _build_headers_base(payload.headers_base_active)
     headers_base = _apply_base_calculations(headers_base, getattr(payload, "headers_base_calculations", None))
     headers_atributes = _normalize_headers_atributes(payload.headers_atributes)
@@ -606,23 +664,33 @@ def actualizar_tipo_material(
     tipo.total_costo_unitario = 0.0
     tipo.total_costo_total = 0.0
     tipo.order_headers = order_headers
+    tipo.valor_dolar = valor_dolar
 
     if tipo.materiales:
         for material in tipo.materiales:
             _apply_calculo(tipo, material)
             _add_material_to_totals(tipo, material)
+    else:
+        _recalculate_total_usd(tipo)
 
     db.add(tipo)
     db.commit()
     db.refresh(tipo)
+    _normalize_tipo_totales(tipo)
     return tipo
 
 
 @router.get("/tipos/{id_tipo_material}", response_model=TipoMaterialRead)
 def obtener_tipo_material(id_tipo_material: int, db: Session = Depends(get_db)):
-    tipo = db.get(TipoMaterial, id_tipo_material)
+    stmt = (
+        select(TipoMaterial)
+        .options(selectinload(TipoMaterial.materiales))
+        .where(TipoMaterial.id_tipo_material == id_tipo_material)
+    )
+    tipo = db.scalar(stmt)
     if not tipo:
         raise HTTPException(status_code=404, detail="Tipo de material no encontrado")
+    _normalize_tipo_totales(tipo)
     return tipo
 
 
@@ -647,6 +715,21 @@ def descargar_excel_tipo_material(id_tipo_material: int, db: Session = Depends(g
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/tipos/{id_tipo_material}/upload-excel")
+async def upload_excel_tipo_material(
+    id_tipo_material: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    if file is None:
+        raise HTTPException(status_code=400, detail="Debe adjuntar un archivo Excel")
+    result = await process_excel_upload(file, id_tipo_material, db)
+    tipo = db.get(TipoMaterial, id_tipo_material)
+    if tipo:
+        _normalize_tipo_totales(tipo)
+    return result
 
 
 @router.post("/", response_model=MaterialRead, status_code=status.HTTP_201_CREATED)

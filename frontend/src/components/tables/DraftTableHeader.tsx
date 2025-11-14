@@ -90,7 +90,7 @@ export const DraftTableHeader: React.FC<DraftHeaderProps> = ({
                   disabled:opacity-50 flex-1 w-full"
               />
             ) : (
-              <span className="text-sm mt-2 mb-1 font-semibold text-emerald-300 truncate">
+              <span className="text-sm mt-2 mb-1 font-semibold text-slate-200 truncate">
                 {title || 'Nuevo header'}
               </span>
             )}

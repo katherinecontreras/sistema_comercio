@@ -66,10 +66,15 @@ class HeaderBaseCalc(BaseModel):
     calculo: Optional[Calculo] = None
 
 
-class TotalCantidad(BaseModel):
+class TotalCantidadItem(BaseModel):
     typeOfHeader: str
     idHeader: int
     total: float = 0.0
+
+
+class TotalCantidadAggregate(BaseModel):
+    total_cantidades: float = 0.0
+    cantidades: List[TotalCantidadItem] = Field(default_factory=list)
 
 
 class TipoMaterialCreate(BaseModel):
@@ -78,6 +83,7 @@ class TipoMaterialCreate(BaseModel):
     headers_base_active: Optional[List[int]] = None
     headers_atributes: Optional[List[HeaderAtributoCreate]] = None
     order_headers: Optional[List[OrderHeaderEntry]] = None
+    valor_dolar: Optional[float] = None
 
 
 class TipoMaterialUpdate(BaseModel):
@@ -85,6 +91,7 @@ class TipoMaterialUpdate(BaseModel):
     headers_base: Optional[List[HeaderBaseUpdate]] = None
     headers_atributes: Optional[List[HeaderAtributoUpdate]] = None
     order_headers: Optional[List[OrderHeaderEntry]] = None
+    valor_dolar: Optional[float] = None
 
 
 class TipoMaterialRead(BaseModel):
@@ -92,10 +99,13 @@ class TipoMaterialRead(BaseModel):
     titulo: str
     total_costo_unitario: float
     total_costo_total: float
-    total_cantidad: List[TotalCantidad]
+    total_USD: float
+    valor_dolar: float
+    total_cantidad: TotalCantidadAggregate
     headers_base: List[HeaderBase]
     headers_atributes: Optional[List[HeaderAtributo]] = None
     order_headers: List[OrderHeaderEntry]
+    materiales_count: int = 0
 
     class Config:
         from_attributes = True

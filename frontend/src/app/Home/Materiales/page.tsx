@@ -6,6 +6,7 @@ import { getTiposMaterial } from '@/actions/materiales';
 import { HeaderHome } from '@/components';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import MaterialTypeDetailOverlay from '@/components/modals/MaterialTypeDetailOverlay';
 import { motion } from 'framer-motion';
 import { useAsyncOperation } from '@/hooks/useAsyncOperation';
@@ -102,6 +103,8 @@ const Materiales: React.FC = () => {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {tipos.map((tipo) => {
             const layoutId = `material-type-${tipo.id_tipo_material}`;
+            const hasTotals = (tipo.total_costo_total ?? 0) > 0 || (tipo.total_costo_unitario ?? 0) > 0;
+            const materialesCount = tipo.materiales_count ?? 0;
             return (
               <motion.div
                 key={tipo.id_tipo_material}
@@ -116,10 +119,20 @@ const Materiales: React.FC = () => {
                   onClick={() => setSelectedTipoId(tipo.id_tipo_material)}
                   className="group w-full text-left"
                 >
-                  <Card className="border-slate-800/80 bg-slate-900/70 text-slate-100 transition-colors group-hover:border-emerald-600/60 group-hover:bg-slate-900/80">
+                  <Card
+                    className={cn(
+                      'border-slate-800/80 bg-slate-900/70 text-slate-100 transition-colors group-hover:border-emerald-600/60 group-hover:bg-slate-900/80',
+                      hasTotals && 'border-emerald-500/60 bg-emerald-900/20'
+                    )}
+                  >
                     <CardHeader className="py-6">
-                      <CardTitle className="flex items-center justify-between text-lg">
+                      <CardTitle className="flex flex-col gap-2 text-lg">
                         <span className="text-wrap pr-4 font-semibold text-white">{tipo.titulo}</span>
+                        {hasTotals && (
+                          <span className="text-sm font-medium text-emerald-200">
+                            Cantidad de materiales: {materialesCount}
+                          </span>
+                        )}
                       </CardTitle>
                     </CardHeader>
                   </Card>

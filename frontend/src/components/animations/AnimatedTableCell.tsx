@@ -12,6 +12,7 @@ interface AnimatedTableCellProps {
   onPointerDown?: (event: React.PointerEvent<HTMLTableCellElement>) => void;
   dataSelectable?: boolean;
   dataHelpAnchor?: string;
+  colSpan?: number;
 }
 
 export const AnimatedTableCell: React.FC<AnimatedTableCellProps> = ({
@@ -23,9 +24,11 @@ export const AnimatedTableCell: React.FC<AnimatedTableCellProps> = ({
   onPointerDown,
   dataSelectable,
   dataHelpAnchor,
+  colSpan,
 }) => (
   <motion.td
     layout
+    colSpan={colSpan}
     className={cn(
       'border-r border-slate-800 px-4 py-6 align-top transition-colors bg-slate-900/50',
       isDragging && 'opacity-30',

@@ -29,10 +29,15 @@ export interface HeaderAtributo {
   order?: number;
 }
 
-export interface TotalCantidad {
+export interface TotalCantidadItem {
   typeOfHeader: 'base' | 'atribute';
   idHeader: number;
   total: number;
+}
+
+export interface TotalCantidadAggregate {
+  total_cantidades: number;
+  cantidades: TotalCantidadItem[];
 }
 
 export interface OrderHeaderEntry {
@@ -46,10 +51,13 @@ export interface TipoMaterial {
   titulo: string;
   total_costo_unitario: number;
   total_costo_total: number;
-  total_cantidad: TotalCantidad[];
+  total_USD: number;
+  valor_dolar: number;
+  total_cantidad: TotalCantidadAggregate;
   headers_base: HeaderBase[];
   headers_atributes: HeaderAtributo[] | null;
   order_headers?: OrderHeaderEntry[];
+  materiales_count?: number;
 }
 
 export interface MaterialAtributo {

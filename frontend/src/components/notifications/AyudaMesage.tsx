@@ -43,10 +43,24 @@ export function AyudaMesage({ open, onOpenChange }: AyudaMesageProps) {
     () => [
       {
         id: "paso-1",
+        anchor: '[data-help-anchor="valor-dolar"]',
+        placement: "bottom",
+        offset: { y: -20 },
+        title: "Paso 1: Ajusta el valor del dólar",
+        description: (
+          <ul className="list-disc list-inside space-y-1 text-emerald-100">
+            <li>El valor del dólar es constante para todas las tablas de materiales.</li>
+            <li>Haz doble clic sobre el monto para habilitar el campo de edición.</li>
+            <li>Al guardar, el nuevo valor se aplicará en todas las tablas existentes.</li>
+          </ul>
+        ),
+      },
+      {
+        id: "paso-2",
         anchor: '[data-help-anchor="table-title"]',
         placement: "top",
         offset: { y: 210 },
-        title: "Paso 1: Agrega el título de la tabla",
+        title: "Paso 2: Agrega el título de la tabla",
         description: (
           <ul className="list-disc list-inside space-y-1 text-emerald-100">
             <li>Edita el título directamente en la primera fila para identificar la plantilla.</li>
@@ -87,7 +101,7 @@ export function AyudaMesage({ open, onOpenChange }: AyudaMesageProps) {
         id: "paso-4",
         anchor: '[data-help-anchor="calc-buttons"]',
         placement: "bottom",
-        offset: { y: -15 },
+        offset: { y: -120, x: -540 },
         title: "Paso 4: Añade cálculos automáticos",
         description: (
           <ul className="list-disc list-inside space-y-1 text-emerald-100">
@@ -104,7 +118,7 @@ export function AyudaMesage({ open, onOpenChange }: AyudaMesageProps) {
         id: "paso-5",
         anchor: '[data-help-anchor="save-button"]',
         placement: "right",
-        offset: { x: -160, y: -220 },
+        offset: { x: -260, y: -320 },
         title: "Paso 5: Acciones de selección en la fórmula",
         description: (
           <ul className="list-disc list-inside space-y-1 text-emerald-100">

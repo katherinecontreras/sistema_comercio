@@ -1,7 +1,7 @@
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from sqlalchemy import Integer, String, Boolean, ForeignKey, Text, Date, Float
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy.ext.mutable import MutableList, MutableDict
 from datetime import date
 from typing import Optional, Any
 
@@ -212,13 +212,48 @@ def _default_order_headers() -> list[dict[str, Any]]:
     return order_entries
 
 
-def _default_total_cantidad() -> list[dict[str, Any]]:
-    # Corresponde a los headers base con valores numéricos y queda listo para atributos
-    return [
-        {"typeOfHeader": "base", "idHeader": 2, "total": 0.0},  # Cantidad
-        {"typeOfHeader": "base", "idHeader": 4, "total": 0.0},  # $Unitario
-        {"typeOfHeader": "base", "idHeader": 5, "total": 0.0},  # $Total
-    ]
+def ensure_total_cantidad_struct(value: Any) -> dict[str, Any]:
+    cantidades: list[dict[str, Any]] = []
+    total_cantidades = 0.0
+
+    if isinstance(value, dict):
+        cantidades_raw = value.get("cantidades")
+        if isinstance(cantidades_raw, list):
+            cantidades = [entry for entry in cantidades_raw if isinstance(entry, dict)]
+        total_raw = value.get("total_cantidades")
+        if isinstance(total_raw, (int, float)):
+            total_cantidades = float(total_raw)
+        else:
+            total_cantidades = sum(float(entry.get("total", 0.0) or 0.0) for entry in cantidades)
+    elif isinstance(value, list):
+        cantidades = [entry for entry in value if isinstance(entry, dict)]
+        total_cantidades = sum(float(entry.get("total", 0.0) or 0.0) for entry in cantidades)
+    else:
+        cantidades = []
+        total_cantidades = 0.0
+
+    return {
+        "total_cantidades": float(total_cantidades or 0.0),
+        "cantidades": cantidades,
+    }
+
+
+class MutableTotalCantidad(MutableDict):
+    @classmethod
+    def coerce(cls, key, value):
+        value = ensure_total_cantidad_struct(value)
+        return super().coerce(key, value)
+
+
+def _default_total_cantidad() -> dict[str, Any]:
+    return ensure_total_cantidad_struct(
+        {
+            "total_cantidades": 0.0,
+            "cantidades": [
+                {"typeOfHeader": "base", "idHeader": 2, "total": 0.0},
+            ],
+        }
+    )
 
 
 class TipoMaterial(Base):
@@ -228,8 +263,10 @@ class TipoMaterial(Base):
     titulo: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     total_costo_unitario: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     total_costo_total: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    total_cantidad: Mapped[list[dict[str, Any]]] = mapped_column(
-        MutableList.as_mutable(JSONB), default=_default_total_cantidad
+    total_USD: Mapped[float] = mapped_column("total_usd", Float, nullable=False, default=0.0)
+    valor_dolar: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    total_cantidad: Mapped[dict[str, Any]] = mapped_column(
+        MutableTotalCantidad.as_mutable(JSONB), default=_default_total_cantidad
     )
     headers_base: Mapped[list[dict[str, Any]]] = mapped_column(
         MutableList.as_mutable(JSONB), default=_default_headers_base
